@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getConversations, getConversationMessages } from '../services/api';
+import { Check, TrendingUp } from 'lucide-react';
 
 export const Conversations = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -10,10 +11,15 @@ export const Conversations = () => {
   useEffect(() => {
     getConversations()
       .then(data => {
-        setConversations(data);
-        if (data.length > 0) setSelectedConv(data[0]);
+        // Ensure we always have an array
+        const conversationsArray = Array.isArray(data) ? data : [];
+        setConversations(conversationsArray);
+        if (conversationsArray.length > 0) setSelectedConv(conversationsArray[0]);
       })
-      .catch(err => console.error('Failed to load conversations', err))
+      .catch(err => {
+        console.error('Failed to load conversations', err);
+        setConversations([]); // Set empty array on error
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -42,129 +48,222 @@ export const Conversations = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">Conversaciones</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Revisa el historial de mensajes de tus usuarios</p>
-      </div>
-
-      <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-gray-800/50 overflow-hidden h-[650px] flex flex-col">
-        <div className="grid grid-cols-1 md:grid-cols-3 h-full">
-          <div className="border-r border-gray-200/50 dark:border-gray-800/50 overflow-y-auto custom-scrollbar flex flex-col bg-gray-50/30 dark:bg-gray-800/20">
-            <div className="p-5 border-b border-gray-200/50 dark:border-gray-800/50 flex-none sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider text-xs">Usuarios Recientes</h3>
-            </div>
-            <div className="divide-y divide-gray-100 dark:divide-gray-800/50 flex-1">
-              {loading ? (
-                <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
-              ) : conversations.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 text-sm">No hay conversaciones</div>
-              ) : (
-                conversations.map((conv) => {
-                  const contact = conv.contactId || {};
-                  const isSelected = selectedConv?._id === conv._id;
-                  return (
-                    <button
-                      key={conv._id}
-                      onClick={() => setSelectedConv(conv)}
-                      className={`w-full p-4 text-left transition-all duration-200 border-l-4 ${
-                        isSelected ? 'bg-indigo-50/80 dark:bg-indigo-900/20 border-indigo-500' : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${isSelected ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                          {contact.phoneNumber ? contact.phoneNumber.slice(-2) : '??'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold truncate transition-colors ${isSelected ? 'text-indigo-900 dark:text-indigo-200' : 'text-gray-900 dark:text-gray-200'}`}>
-                            {contact.phoneNumber || 'Desconocido'}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            {formatDate(conv.lastMessageAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
+    <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
+      <div className="flex-1 flex h-full">
+        {/* Sidebar */}
+        <div className="w-full md:w-80 lg:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-slate-50/50 dark:bg-transparent">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent sticky top-0 z-10">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Chats</h2>
+                <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black rounded-full border border-indigo-100 dark:border-indigo-500/20">
+                  {conversations.length} total
+                </span>
+              </div>
+              <div className="relative group">
+                <input
+                  type="text"
+                  placeholder="Buscar contactos..."
+                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all outline-none"
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <span className="text-lg">🔍</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="md:col-span-2 flex flex-col bg-white dark:bg-gray-900/30 relative">
-            {selectedConv ? (
-              <>
-                <div className="p-5 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center gap-4 flex-none bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 sticky top-0">
-                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 p-[2px] shadow-md">
-                      <div className="w-full h-full rounded-full bg-white dark:bg-gray-900 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
-                        {selectedConv.contactId?.phoneNumber ? selectedConv.contactId.phoneNumber.slice(-2) : '??'}
+          <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 dark:divide-slate-800/50">
+            {loading ? (
+              <div className="p-10 flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Cargando...</p>
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="p-10 text-center animate-pulse">
+                <p className="text-slate-400 text-sm font-medium">No hay conversaciones activas</p>
+              </div>
+            ) : (
+              conversations.map((conv) => {
+                const contact = conv.contactId || {};
+                const isSelected = selectedConv?._id === conv._id;
+                return (
+                  <button
+                    key={conv._id}
+                    onClick={() => setSelectedConv(conv)}
+                    className={`w-full p-5 text-left transition-all duration-300 relative group ${isSelected
+                      ? 'bg-white dark:bg-slate-800/40'
+                      : 'hover:bg-white/50 dark:hover:bg-slate-800/20'
+                      }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-indigo-600 dark:bg-indigo-500 rounded-r-full shadow-lg shadow-indigo-600/20" />
+                    )}
+                    <div className="flex items-center gap-4">
+                      <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg transition-all duration-500 ${isSelected
+                        ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 rotate-3'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:scale-105 group-hover:-rotate-3'
+                        }`}>
+                        {contact.phoneNumber ? contact.phoneNumber.slice(-2) : '??'}
+                        {isSelected && (
+                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800 shadow-sm animate-pulse" />
+                        )}
                       </div>
-                   </div>
-                   <div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
-                      {selectedConv.contactId?.phoneNumber || 'Desconocido'}
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    </h3>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 dark:bg-[#0B1120]/50 custom-scrollbar">
-                  {messages.length > 0 ? (
-                    messages.map((message) => {
-                      // API uses 'inbound' (from user to bot) and 'outbound' (bot to user)
-                      const isUser = message.direction === 'inbound';
-                      const text = message.content?.body || message.content || '';
-                      
-                      return (
-                      <div
-                        key={message._id}
-                        className={`flex ${isUser ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
-                      >
-                        <div className="flex flex-col max-w-[75%] gap-1">
-                          <div
-                            className={`rounded-2xl px-5 py-3 shadow-sm ${
-                              !isUser
-                                ? 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-br-none'
-                                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200/50 dark:border-gray-700/50 rounded-bl-none'
-                            }`}
-                          >
-                            <p className="text-sm md:text-[15px] whitespace-pre-wrap leading-relaxed">{typeof text === 'string' ? text : JSON.stringify(text)}</p>
-                          </div>
-                          <p
-                            className={`text-[11px] font-medium px-1 ${
-                              !isUser
-                                ? 'text-gray-500 text-right'
-                                : 'text-gray-500 text-left'
-                            }`}
-                          >
-                            {formatTime(message.createdAt)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className={`text-sm font-bold truncate ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'
+                            }`}>
+                            {contact.phoneNumber || 'Usuario Anon'}
                           </p>
+                          <span className="text-[10px] font-black text-slate-400 uppercase">
+                            {formatDate(conv.lastMessageAt)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-slate-400 dark:text-slate-500 truncate font-medium">
+                            Última actividad hace poco
+                          </p>
+                          {conv.unreadCount > 0 && (
+                            <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full">
+                              {conv.unreadCount}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      );
-                    })
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
-                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                        <span className="text-2xl opacity-50">💬</span>
-                      </div>
-                      <p className="text-gray-500 dark:text-gray-400 font-medium">Aún no hay mensajes</p>
                     </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-                 <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800/50 rounded-full flex items-center justify-center border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
-                    <span className="text-3xl opacity-40">👋</span>
-                 </div>
-                 <div>
-                    <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300">Ninguna conversación seleccionada</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 max-w-[250px] mx-auto mt-2">Selecciona un usuario de la lista a la izquierda para ver la conversación.</p>
-                 </div>
-              </div>
+                  </button>
+                );
+              })
             )}
           </div>
+        </div>
+
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col bg-white dark:bg-transparent relative overflow-hidden">
+          {selectedConv ? (
+            <>
+              {/* Chat Header */}
+              <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-transparent backdrop-blur-md flex items-center justify-between sticky top-0 z-20">
+                <div className="flex items-center gap-4">
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-indigo-600 blur opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
+                    <div className="relative w-14 h-14 rounded-full bg-slate-900 dark:bg-white flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-xl overflow-hidden">
+                      <span className="text-white dark:text-slate-900 font-black text-xl">
+                        {selectedConv.contactId?.phoneNumber ? selectedConv.contactId.phoneNumber.slice(-2) : '??'}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 shadow-sm" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-xl text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                      {selectedConv.contactId?.phoneNumber || 'Usuario'}
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    </h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                      Conectado • WhatsApp Business
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {['📞', '📹', '📋'].map((emoji, i) => (
+                    <button key={i} className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 rounded-xl transition-all duration-300 shadow-sm hover:scale-110 active:scale-95 text-lg">
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar relative">
+                {/* Background Decor */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-slate-500/5 blur-[120px] rounded-full pointer-events-none" />
+
+                {messages.length > 0 ? (
+                  messages.map((message) => {
+                    const isUser = message.direction === 'inbound';
+                    const text = message.content?.body || message.content || '';
+
+                    return (
+                      <div
+                        key={message._id}
+                        className={`flex ${isUser ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10`}
+                      >
+                        <div className={`flex flex-col max-w-[80%] lg:max-w-[60%] gap-2`}>
+                          <div
+                            className={`px-6 py-4 rounded-[2rem] shadow-xl transition-all duration-300 ${!isUser
+                              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-br-none shadow-indigo-600/5 hover:scale-[1.02]'
+                              : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-700/50 rounded-bl-none shadow-slate-200/50 dark:shadow-none hover:scale-[1.02] hover:shadow-2xl'
+                              }`}
+                          >
+                            <p className="text-sm md:text-base whitespace-pre-wrap leading-relaxed font-medium">
+                              {typeof text === 'string' ? text : JSON.stringify(text)}
+                            </p>
+                          </div>
+                          <div className={`flex items-center gap-2 px-2 ${!isUser ? 'justify-end' : 'justify-start'}`}>
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
+                              {formatTime(message.createdAt)}
+                            </span>
+                            {!isUser && <Check className="w-3 h-3 text-indigo-500" />}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center space-y-8 animate-in zoom-in-95 duration-700">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 blur-3xl rounded-full" />
+                      <div className="relative w-32 h-32 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-2xl border-4 border-slate-50 dark:border-slate-700 overflow-hidden group">
+                        <span className="text-5xl group-hover:scale-125 transition-transform duration-500">💬</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Inicio del Historial</h3>
+                      <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto font-medium">
+                        Esta conversación está segura y encriptada. Todo lo que digas aquí quedará registrado en el historial.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input Placeholder */}
+              <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-transparent backdrop-blur-md">
+                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-700/50 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-white transition-all">
+                  <button className="p-3 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all text-xl shadow-sm">📎</button>
+                  <input
+                    type="text"
+                    placeholder="Escribe un mensaje..."
+                    className="flex-1 bg-transparent border-none outline-none py-3 text-sm font-medium text-slate-700 dark:text-white placeholder:text-slate-400"
+                  />
+                  <button className="p-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 font-bold px-6">
+                    Enviar
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center px-10 animate-in fade-in zoom-in-95 duration-700">
+              <div className="relative mb-10 group">
+                <div className="absolute inset-0 bg-indigo-500 blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity" />
+                <div className="relative w-48 h-48 bg-white dark:bg-slate-800 rounded-[3rem] flex items-center justify-center shadow-2xl border-8 border-slate-50 dark:border-slate-900 group-hover:rotate-12 transition-transform duration-700">
+                  <span className="text-8xl group-hover:scale-110 transition-transform duration-500">👋</span>
+                </div>
+              </div>
+              <div className="max-w-md space-y-4">
+                <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">Bienvenido al Centro de Mensajes</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
+                  Selecciona una conversación del panel izquierdo para comenzar a gestionar tus interacciones de negocio.
+                </p>
+                <div className="pt-6">
+                  <div className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full font-black shadow-xl hover:scale-105 transition-transform cursor-pointer">
+                    <span>Ver Analíticas</span>
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

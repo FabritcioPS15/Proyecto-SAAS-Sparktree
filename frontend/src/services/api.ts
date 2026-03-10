@@ -89,4 +89,14 @@ export const saveFlows = async (flowData: any) => {
   }
 };
 
+export const getLeads = async () => {
+  try {
+    const response = await api.get('/leads');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching leads:', error);
+    throw error; // Let the component handle the fallback
+  }
+};
+
 export default api;

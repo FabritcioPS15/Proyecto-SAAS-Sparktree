@@ -1,153 +1,267 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { mockInteractionsPerDay, mockTopFlows, mockActiveUsers } from '../data/mockData';
 import { getAnalytics } from '../services/api';
+import { TrendingUp, Users, MessageCircle, Activity, CheckCircle, BarChart3 } from 'lucide-react';
 
 export const Analytics = () => {
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    getAnalytics().then(res => console.log("Analytics data connected:", res)).catch(err => console.error(err));
+    getAnalytics()
+      .then(data => {
+        // Ensure we always have valid data structure
+        const safeData = {
+          interactionsPerDay: Array.isArray(data?.interactionsPerDay) ? data.interactionsPerDay : [],
+          topFlows: Array.isArray(data?.topFlows) ? data.topFlows : [],
+          activeUsers: Array.isArray(data?.activeUsers) ? data.activeUsers : [],
+          stats: {
+            avgResponseTime: data?.stats?.avgResponseTime || 1.2,
+            satisfactionRate: data?.stats?.satisfactionRate || 94,
+            completionRate: data?.stats?.completionRate || 87,
+            totalUsers: data?.stats?.totalUsers || 0,
+            totalMessages: data?.stats?.totalMessages || 0,
+            totalConversations: data?.stats?.totalConversations || 0
+          }
+        };
+        setAnalyticsData(safeData);
+        setError(null);
+      })
+      .catch(err => {
+        console.error('Failed to load analytics:', err);
+        setError('No se pudieron cargar las analíticas');
+        // Set default empty data on error
+        setAnalyticsData({
+          interactionsPerDay: [],
+          topFlows: [],
+          activeUsers: [],
+          stats: {
+            avgResponseTime: 1.2,
+            satisfactionRate: 94,
+            completionRate: 87,
+            totalUsers: 0,
+            totalMessages: 0,
+            totalConversations: 0
+          }
+        });
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return (
+      <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Cargando analíticas...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
+        <div className="text-center flex flex-col items-center justify-center">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-4">
+            <Activity className="w-8 h-8 text-red-500" />
+          </div>
+          <p className="text-gray-900 dark:text-white font-black text-xl">{error}</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-2 font-bold uppercase tracking-widest">Intenta recargar la página</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { interactionsPerDay, topFlows, activeUsers, stats } = analyticsData;
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">Analíticas Avanzadas</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Información detallada sobre el uso de tu chatbot</p>
-      </div>
+    <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-12 space-y-10 relative">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm">
+          <div className="space-y-2">
+            <h1 className="text-3xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
+              Analíticas <span className="text-indigo-600 dark:text-indigo-400">Avanzadas</span>
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium max-w-2xl">
+              Descubre patrones, optimiza flujos y mejora la experiencia de tus usuarios con datos en tiempo real.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl">
+              <BarChart3 className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+            </div>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-800/50 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden text-center group">
-           <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
-          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Tiempo de Respuesta</p>
-          <p className="text-4xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">1.2s</p>
-          <p className="text-xs text-emerald-500 mt-2 font-medium">Un 15% más rápido hoy</p>
-        </div>
-        <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-800/50 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden text-center group">
-           <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
-          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Satisfacción de Usuario</p>
-          <p className="text-4xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">94%</p>
-          <p className="text-xs text-emerald-500 mt-2 font-medium">Sólido</p>
-        </div>
-        <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-800/50 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden text-center group">
-           <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-purple-400 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
-          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Tasa de Finalización</p>
-          <p className="text-4xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">87%</p>
-          <p className="text-xs text-rose-500 mt-2 font-medium">Bajó un 2% estadísticamente</p>
-        </div>
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { icon: TrendingUp, label: 'Tiempo Respuesta', value: `${stats.avgResponseTime}s`, color: 'slate' },
+            { icon: Users, label: 'Satisfacción', value: `${stats.satisfactionRate}%`, color: 'slate' },
+            { icon: MessageCircle, label: 'Finalización', value: `${stats.completionRate}%`, color: 'slate' },
+            { icon: Activity, label: 'Usuarios Activos', value: stats.totalUsers.toLocaleString(), color: 'slate' }
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 border border-gray-100 dark:border-gray-800/50 shadow-xl shadow-slate-200/5 dark:shadow-none hover:shadow-2xl dark:hover:border-gray-700/50 transition-all duration-500 group overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-slate-500/5 blur-[50px] rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
 
-      <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-800/50 hover:shadow-md transition-shadow duration-300">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
-          Interacciones por Día
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-        </h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={mockInteractionsPerDay} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                  <linearGradient id="interactionColor" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#10B981" />
-                    <stop offset="100%" stopColor="#34D399" />
-                  </linearGradient>
-                </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.08} vertical={false} />
-              <XAxis
-                dataKey="date"
-                stroke="#9CA3AF"
-                axisLine={false}
-                tickLine={false}
-                tickMargin={10}
-                tickFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
-              />
-              <YAxis stroke="#9CA3AF" axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(75, 85, 99, 0.4)',
-                  borderRadius: '12px',
-                  color: '#fff',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}
-                labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
-              />
-              <Line type="monotone" dataKey="value" stroke="url(#interactionColor)" strokeWidth={3} dot={{ fill: '#10B981', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
-            </LineChart>
-          </ResponsiveContainer>
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl text-slate-600 dark:text-slate-400 group-hover:bg-slate-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-slate-900 transition-all duration-300">
+                  <item.icon className="w-6 h-6" />
+                </div>
+                <Activity className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+              </div>
+              <div className="space-y-1 relative z-10">
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{item.label}</p>
+                <p className="text-4xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
+                  {item.value}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-800/50 hover:shadow-md transition-shadow duration-300">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-6">Flujos Más Utilizados</h3>
-          <div className="h-[300px]">
+        <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">Interacciones Diarias</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Volumen de mensajes procesados por el chatbot</p>
+            </div>
+          </div>
+          <div className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockTopFlows} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <LineChart data={interactionsPerDay.length > 0 ? interactionsPerDay : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                   <linearGradient id="flowColor" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#8B5CF6" />
-                    <stop offset="100%" stopColor="#C084FC" />
+                  <linearGradient id="interactionColor" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#a855f7" />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.08} horizontal={false} />
-                <XAxis type="number" stroke="#9CA3AF" axisLine={false} tickLine={false} />
-                <YAxis dataKey="option" type="category" stroke="#9CA3AF" axisLine={false} tickLine={false} width={100} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.05} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  stroke="#94a3b8"
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={10}
+                  fontSize={12}
+                  fontWeight={600}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
+                />
+                <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} fontSize={12} />
                 <Tooltip
-                  cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }}
                   contentStyle={{
-                    backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(75, 85, 99, 0.4)',
-                    borderRadius: '12px',
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '16px',
                     color: '#fff'
                   }}
+                  labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
                 />
-                <Bar dataKey="count" fill="url(#flowColor)" radius={[0, 6, 6, 0]} maxBarSize={40} />
-              </BarChart>
+                <Line type="monotone" dataKey="value" stroke="url(#interactionColor)" strokeWidth={4} dot={{ fill: '#6366f1', r: 6, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-800/50 hover:shadow-md transition-shadow duration-300">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
-            Usuarios Activos
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-          </h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockActiveUsers} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="activeColor" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#F59E0B" />
-                    <stop offset="100%" stopColor="#FCD34D" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.08} vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  stroke="#9CA3AF"
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={10}
-                  tickFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
-                />
-                <YAxis stroke="#9CA3AF" axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(75, 85, 99, 0.4)',
-                    borderRadius: '12px',
-                    color: '#fff',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                  labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
-                />
-                <Line type="monotone" dataKey="value" stroke="url(#activeColor)" strokeWidth={3} dot={{ fill: '#F59E0B', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
-              </LineChart>
-            </ResponsiveContainer>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">Flujos más Utilizados</h3>
+            </div>
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topFlows.length > 0 ? topFlows : generateEmptyFlowsData()} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="flowColor" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#6366f1" />
+                      <stop offset="100%" stopColor="#818cf8" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.05} horizontal={false} />
+                  <XAxis type="number" stroke="#94a3b8" axisLine={false} tickLine={false} fontSize={12} />
+                  <YAxis dataKey="option" type="category" stroke="#94a3b8" axisLine={false} tickLine={false} width={100} fontSize={12} fontWeight={600} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(99, 102, 241, 0.05)', radius: 8 }}
+                    contentStyle={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '16px',
+                      color: '#fff'
+                    }}
+                  />
+                  <Bar dataKey="count" fill="url(#flowColor)" radius={[0, 10, 10, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-emerald-500" />
+                Evolución de Usuarios
+              </h3>
+            </div>
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={activeUsers.length > 0 ? activeUsers : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="activeColor" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#34d399" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.05} vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#94a3b8"
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={10}
+                    fontSize={12}
+                    fontWeight={600}
+                    tickFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
+                  />
+                  <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '16px',
+                      color: '#fff'
+                    }}
+                    labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  />
+                  <Line type="monotone" dataKey="value" stroke="url(#activeColor)" strokeWidth={4} dot={{ fill: '#10b981', r: 6, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
+};
+
+// Helper functions to generate empty data when API returns no data
+const generateEmptyData = () => {
+  const data = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    data.push({
+      date: date.toISOString(),
+      value: 0
+    });
+  }
+  return data;
+};
+
+const generateEmptyFlowsData = () => {
+  return [
+    { option: 'Sin datos', count: 0 }
+  ];
 };

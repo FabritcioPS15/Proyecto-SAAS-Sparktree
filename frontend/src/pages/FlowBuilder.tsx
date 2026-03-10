@@ -21,7 +21,7 @@ import { CaptureNode } from '../components/flow/CaptureNode';
 import { WebhookNode } from '../components/flow/WebhookNode';
 import { HandoffNode } from '../components/flow/HandoffNode';
 import { DelayNode } from '../components/flow/DelayNode';
-import { Save, Bot, Play } from 'lucide-react';
+import { Save, Bot, Play, Zap, Settings, Layers, Grid3X3, Sparkles, Undo2, Redo2, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { FlowSimulator } from '../components/flow/FlowSimulator';
 
 import { saveFlows, getFlows } from '../services/api';
@@ -48,11 +48,14 @@ const FlowBuilderContent = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(defaultNodes as any);
   const [edges, setEdges, onEdgesChange] = useEdgesState(defaultEdges);
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [showSimulator, setShowSimulator] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [showGrid, setShowGrid] = useState(true);
+  const [history, setHistory] = useState<{nodes: any[], edges: any[]}[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
 
   const onNodeClick = useCallback((_: any, node: any) => {
     setSelectedNode(node);
@@ -64,6 +67,13 @@ const FlowBuilderContent = () => {
 
   const updateNodeData = (newData: any) => {
     if (!selectedNode) return;
+    
+    // Save to history before making changes
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push({ nodes: [...nodes], edges: [...edges] });
+    setHistory(newHistory);
+    setHistoryIndex(historyIndex + 1);
+    
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === selectedNode.id) {
@@ -74,6 +84,30 @@ const FlowBuilderContent = () => {
         return node;
       })
     );
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const prevState = history[historyIndex - 1];
+      setNodes(prevState.nodes);
+      setEdges(prevState.edges);
+      setHistoryIndex(historyIndex - 1);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1];
+      setNodes(nextState.nodes);
+      setEdges(nextState.edges);
+      setHistoryIndex(historyIndex + 1);
+    }
+  };
+
+  const clearCanvas = () => {
+    setNodes(defaultNodes);
+    setEdges(defaultEdges);
+    setSelectedNode(null);
   };
 
   const onDragOver = useCallback((event: any) => {
@@ -128,10 +162,8 @@ const FlowBuilderContent = () => {
         setNodes(data[0].nodes || defaultNodes);
         setEdges(data[0].edges || defaultEdges);
       }
-      setIsLoading(false);
     }).catch(err => {
       console.error(err);
-      setIsLoading(false);
     });
   }, [setNodes, setEdges]);
 
@@ -155,25 +187,91 @@ const FlowBuilderContent = () => {
     <div className="h-full flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 flex items-center gap-2">
-            <Bot className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+            <Bot className="w-8 h-8 text-gray-600 dark:text-gray-400" />
             Flujos Automáticos
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Diseña respuestas automáticas conectando nodos visualmente</p>
         </div>
-        <div className="flex items-center gap-3">
+        
+        <div className="flex items-center gap-2">
+          {/* View Controls */}
+          <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-1 shadow-sm">
+            <button
+              onClick={() => setShowMinimap(!showMinimap)}
+              className={`p-2 rounded-lg transition-colors ${showMinimap ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              title="Minimapa"
+            >
+              <Layers className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowGrid(!showGrid)}
+              className={`p-2 rounded-lg transition-colors ${showGrid ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+              title="Cuadrícula"
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </button>
+            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+            <button
+              onClick={undo}
+              disabled={historyIndex <= 0}
+              className="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Deshacer"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={historyIndex >= history.length - 1}
+              className="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Rehacer"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
+            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+            <button
+              onClick={() => fitView({ padding: 0.2 })}
+              className="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              title="Ajustar vista"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => zoomIn()}
+              className="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              title="Acercar"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => zoomOut()}
+              className="p-2 rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              title="Alejar"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {/* Action Buttons */}
+          <button 
+            onClick={clearCanvas}
+            className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Limpiar
+          </button>
           <button 
             onClick={() => setShowSimulator(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
           >
-            <Play className="w-4 h-4 text-emerald-500" />
+            <Play className="w-4 h-4 text-gray-600" />
             Simular
           </button>
           
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            className="flex items-center gap-2 px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Guardando...' : 'Guardar Flujo'}
@@ -181,7 +279,7 @@ const FlowBuilderContent = () => {
         </div>
       </div>
 
-      <div className="flex-1 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-sm overflow-hidden flex">
+      <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden flex">
         {/* Main Canvas */}
         <div className="flex-1 h-[600px] relative" ref={reactFlowWrapper}>
           <ReactFlow
@@ -198,111 +296,177 @@ const FlowBuilderContent = () => {
             fitView
             className="bg-gray-50/50 dark:bg-gray-900/50"
           >
-            <Controls className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg rounded-xl overflow-hidden" />
-            <MiniMap 
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg"
-              maskColor="rgba(0,0,0,0.1)"
-            />
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#9CA3AF" />
+            <Controls className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-lg rounded-xl overflow-hidden" />
+            {showMinimap && (
+              <MiniMap 
+                className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg"
+                maskColor="rgba(0,0,0,0.1)"
+                nodeColor={(node) => {
+                  switch (node.type) {
+                    case 'trigger': return '#10B981';
+                    case 'text': return '#3B82F6';
+                    case 'interactive': return '#8B5CF6';
+                    case 'media': return '#EC4899';
+                    case 'capture': return '#F59E0B';
+                    case 'webhook': return '#06B6D4';
+                    case 'handoff': return '#EF4444';
+                    case 'delay': return '#6B7280';
+                    default: return '#9CA3AF';
+                  }
+                }}
+              />
+            )}
+            <Background variant={showGrid ? BackgroundVariant.Dots : undefined} gap={16} size={1} color="#9CA3AF" />
           </ReactFlow>
         </div>
         
-        {/* Sidebar Toolkit */}
-        <div className="w-72 border-l border-gray-200/50 dark:border-gray-800/50 bg-white dark:bg-gray-900 p-6 flex flex-col gap-6">
+        {/* Enhanced Sidebar Toolkit */}
+        <div className="w-80 border-l border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-6 flex flex-col gap-6">
            <div>
-             <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4">Herramientas</h3>
-             <div className="space-y-3">
+             <div className="flex items-center justify-between mb-4">
+               <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Herramientas</h3>
+               <Sparkles className="w-4 h-4 text-gray-500" />
+             </div>
+             <div className="grid grid-cols-2 gap-3">
                <div 
-                 className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl cursor-grab hover:shadow-md transition-shadow"
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
                  onDragStart={(event) => {
                    event.dataTransfer.setData('application/reactflow', 'trigger');
                    event.dataTransfer.effectAllowed = 'move';
                  }}
                  draggable
                >
-                 <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Disparador (Palabra)</span>
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                     <Zap className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Disparador</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">Palabra clave</span>
+                 </div>
                </div>
+               
                <div 
-                 className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl cursor-grab hover:shadow-md transition-shadow"
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
                  onDragStart={(event) => {
                    event.dataTransfer.setData('application/reactflow', 'text');
                    event.dataTransfer.effectAllowed = 'move';
                  }}
                  draggable
                >
-                 <span className="text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Mensaje Texto</span>
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                     <Bot className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Mensaje</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">Texto simple</span>
+                 </div>
                </div>
+               
                <div 
-                 className="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl cursor-grab hover:shadow-md transition-shadow"
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
                  onDragStart={(event) => {
                    event.dataTransfer.setData('application/reactflow', 'interactive');
                    event.dataTransfer.effectAllowed = 'move';
                  }}
                  draggable
                >
-                 <span className="text-sm font-semibold text-purple-700 dark:text-purple-400 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Botones / Menú</span>
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+                     <Grid3X3 className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Interactivo</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">Botones</span>
+                 </div>
                </div>
                
                <div 
-                 className="p-3 bg-pink-50 dark:bg-pink-900/20 border border-pink-200 dark:border-pink-800 rounded-xl cursor-grab hover:shadow-md transition-shadow"
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
                  onDragStart={(event) => {
                    event.dataTransfer.setData('application/reactflow', 'media');
                    event.dataTransfer.effectAllowed = 'move';
                  }}
                  draggable
                >
-                 <span className="text-sm font-semibold text-pink-700 dark:text-pink-400 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-pink-500"></span> Multimedia</span>
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                     <Layers className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Multimedia</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">Imagen/Video</span>
+                 </div>
                </div>
                
                <div 
-                 className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl cursor-grab hover:shadow-md transition-shadow"
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
                  onDragStart={(event) => {
                    event.dataTransfer.setData('application/reactflow', 'capture');
                    event.dataTransfer.effectAllowed = 'move';
                  }}
                  draggable
                >
-                 <span className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Capturar Dato</span>
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                     <Settings className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Capturar</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">Datos</span>
+                 </div>
                </div>
                
                <div 
-                 className="p-3 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800 rounded-xl cursor-grab hover:shadow-md transition-shadow"
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
                  onDragStart={(event) => {
                    event.dataTransfer.setData('application/reactflow', 'webhook');
                    event.dataTransfer.effectAllowed = 'move';
                  }}
                  draggable
                >
-                 <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-400 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-cyan-500"></span> Webhook / API</span>
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center">
+                     <Zap className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Webhook</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">API</span>
+                 </div>
                </div>
 
-               <div className="grid grid-cols-2 gap-2">
-                 <div 
-                   className="p-2 bg-stone-50 dark:bg-stone-900/20 border border-stone-200 dark:border-stone-800 rounded-xl cursor-grab hover:shadow-md transition-shadow text-center"
-                   onDragStart={(event) => {
-                     event.dataTransfer.setData('application/reactflow', 'delay');
-                     event.dataTransfer.effectAllowed = 'move';
-                   }}
-                   draggable
-                 >
-                   <span className="text-xs font-semibold text-stone-700 dark:text-stone-400">Retraso</span>
+               <div 
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
+                 onDragStart={(event) => {
+                   event.dataTransfer.setData('application/reactflow', 'delay');
+                   event.dataTransfer.effectAllowed = 'move';
+                 }}
+                 draggable
+               >
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                     <Undo2 className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Retraso</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">Esperar</span>
                  </div>
+               </div>
                  
-                 <div 
-                   className="p-2 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl cursor-grab hover:shadow-md transition-shadow text-center"
-                   onDragStart={(event) => {
-                     event.dataTransfer.setData('application/reactflow', 'handoff');
-                     event.dataTransfer.effectAllowed = 'move';
-                   }}
-                   draggable
-                 >
-                   <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">Agente</span>
+               <div 
+                 className="group p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl cursor-grab hover:shadow-md hover:scale-105 transition-all duration-200"
+                 onDragStart={(event) => {
+                   event.dataTransfer.setData('application/reactflow', 'handoff');
+                   event.dataTransfer.effectAllowed = 'move';
+                 }}
+                 draggable
+               >
+                 <div className="flex flex-col items-center gap-2 text-center">
+                   <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                     <Bot className="w-4 h-4 text-white" />
+                   </div>
+                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-400">Agente</span>
+                   <span className="text-xs text-gray-600 dark:text-gray-500">Humano</span>
                  </div>
                </div>
              </div>
            </div>
            
-           <div className="pt-6 border-t border-gray-200/50 dark:border-gray-800/50 flex-1 overflow-y-auto custom-scrollbar pr-2">
+           <div className="pt-6 border-t border-gray-200/50 dark:border-gray-800/50 flex-1 overflow-y-auto custom-scrollbar pr-2 bg-gray-50 dark:bg-gray-900">
              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4">Propiedades</h3>
              
              {!selectedNode ? (
