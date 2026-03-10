@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { verifyWebhook, handleIncomingWebhook } from '../src/controllers/webhookController';
-import connectDB from '../src/config/db';
 import usersRoutes from '../src/routes/users';
 import conversationsRoutes from '../src/routes/conversations';
 import analyticsRoutes from '../src/routes/analytics';
@@ -9,7 +8,8 @@ import settingsRoutes from '../src/routes/settings';
 import flowsRoutes from '../src/routes/flows';
 
 const app = express();
-connectDB(); // Inicializar conexión a DB
+
+// Supabase is a cloud DB, no persistent connection needed
 
 app.use(cors());
 app.use(express.json());

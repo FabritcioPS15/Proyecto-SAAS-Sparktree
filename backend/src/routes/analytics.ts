@@ -1,13 +1,18 @@
 import express from 'express';
-import Analytics from '../models/Analytics';
+import { supabase } from '../config/supabase';
 
 const router = express.Router();
 
-// Get analytics for dashboard
+// GET /api/analytics
 router.get('/', async (req, res) => {
   try {
-    const analytics = await Analytics.find().sort({ date: -1 }).limit(30);
-    res.json(analytics);
+    const { data: analytics } = await supabase
+      .from('analytics')
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(30);
+
+    res.json(analytics || []);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch analytics' });
   }

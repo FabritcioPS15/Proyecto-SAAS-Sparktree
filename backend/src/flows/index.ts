@@ -1,8 +1,5 @@
 import WhatsAppService from '../services/whatsappService';
-import Message from '../models/Message';
-import Conversation from '../models/Conversation';
-import Contact from '../models/Contact';
-import Flow from '../models/Flow';
+import { supabase } from '../config/supabase';
 import axios from 'axios';
 
 export async function handleIncomingMessage(
@@ -11,35 +8,33 @@ export async function handleIncomingMessage(
   organizationConfig: { phoneNumberId?: string; accessToken?: string, organizationId?: string, conversationId?: string, contactId?: string }
 ) {
   const waService = new WhatsAppService(organizationConfig);
-  
+
   const saveOutgoingMessage = async (type: string, content: any, waResponse: any) => {
     if (organizationConfig.organizationId && organizationConfig.conversationId && organizationConfig.contactId) {
-      const outMsg = new Message({
-         organizationId: organizationConfig.organizationId,
-         conversationId: organizationConfig.conversationId,
-         contactId: organizationConfig.contactId,
-         direction: 'outbound',
-         type: type,
-         content: content,
-         status: 'sent',
-         whatsappMessageId: waResponse?.messages?.[0]?.id
+      await supabase.from('messages').insert({
+        organization_id: organizationConfig.organizationId,
+        conversation_id: organizationConfig.conversationId,
+        contact_id: organizationConfig.contactId,
+        direction: 'outbound',
+        type: type,
+        content: typeof content === 'string' ? content : JSON.stringify(content),
+        status: 'sent',
+        whatsapp_message_id: waResponse?.messages?.[0]?.id
       });
-      await outMsg.save();
 
-      await Conversation.findByIdAndUpdate(organizationConfig.conversationId, {
-         lastMessageAt: new Date()
-      });
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', organizationConfig.conversationId);
     }
   };
 
   const executeNode = async (flow: any, nodeId: string) => {
-    let currentNodeId = nodeId;
+    let currentNodeId: string | null = nodeId;
 
     while (currentNodeId) {
       const node = flow.nodes.find((n: any) => n.id === currentNodeId);
       if (!node) break;
-
-      let waitBeforeNextMs = 0;
 
       if (node.type === 'text') {
         const res = await waService.sendTextMessage(senderPhone, node.data?.text || '');
@@ -61,9 +56,10 @@ export async function handleIncomingMessage(
       } else if (node.type === 'capture') {
         const res = await waService.sendTextMessage(senderPhone, node.data?.question || '?');
         await saveOutgoingMessage('capture', node.data?.question, res);
-        await Contact.findByIdAndUpdate(organizationConfig.contactId, {
-          botState: `capture_${currentNodeId}`
-        });
+        await supabase
+          .from('contacts')
+          .update({ bot_state: `capture_${currentNodeId}` })
+          .eq('id', organizationConfig.contactId);
         break; // Wait for user text input
       } else if (node.type === 'webhook') {
         try {
@@ -76,21 +72,22 @@ export async function handleIncomingMessage(
             }
           });
         } catch (error) {
-           console.error('Webhook node failed:', error);
+          console.error('Webhook node failed:', error);
         }
       } else if (node.type === 'handoff') {
-        await Contact.findByIdAndUpdate(organizationConfig.contactId, {
-          botState: 'handoff'
-        });
+        await supabase
+          .from('contacts')
+          .update({ bot_state: 'handoff' })
+          .eq('id', organizationConfig.contactId);
         break; // Pause bot
       } else if (node.type === 'delay') {
-        waitBeforeNextMs = (node.data?.delaySeconds || 3) * 1000;
-        await new Promise(resolve => setTimeout(resolve, waitBeforeNextMs));
+        const waitTime = (node.data?.delaySeconds || 3) * 1000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
 
-      // Encontrar siguiente nodo
+      // Find next node
       const nextEdge = flow.edges.find((e: any) => e.source === currentNodeId);
-      if (nextEdge && nextEdge.target && node.type !== 'interactive' && node.type !== 'capture' && node.type !== 'handoff') {
+      if (nextEdge && nextEdge.target && !['interactive', 'capture', 'handoff'].includes(node.type)) {
         currentNodeId = nextEdge.target;
       } else {
         currentNodeId = null;
@@ -101,59 +98,69 @@ export async function handleIncomingMessage(
   if (message.type === 'text') {
     const textBody = message.text.body.trim();
     const textLower = textBody.toLowerCase();
-    
+
     // Check if in handoff
-    const contact = await Contact.findById(organizationConfig.contactId);
-    if (contact?.botState === 'handoff') {
-       // Currently handled by an agent, bot ignores all text messages
-       return;
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', organizationConfig.contactId)
+      .single();
+
+    if (contact?.bot_state === 'handoff') {
+      return; // Bot is silent, human agent is handling
     }
 
-    const flow = await Flow.findOne({ organizationId: organizationConfig.organizationId, isActive: true });
-    
-    // Check if waiting for capture
-    if (contact?.botState && contact.botState.startsWith('capture_') && flow) {
-       const captureNodeId = contact.botState.split('_')[1];
-       const captureNode = flow.nodes.find((n: any) => n.id === captureNodeId);
-       
-       if (captureNode) {
-          const varName = captureNode.data?.variableName || 'respuesta';
-          // Save valid text answer
-          contact.customAttributes = contact.customAttributes || new Map();
-          contact.customAttributes.set(varName, textBody);
-          contact.botState = 'main_menu'; // Reset
-          await contact.save();
-          
-          // Execute next
-          const nextEdge = flow.edges.find((e: any) => e.source === captureNode.id);
-          if (nextEdge && nextEdge.target) {
-            await executeNode(flow, nextEdge.target);
-          }
-          return;
-       }
+    // Get active flow
+    const { data: flow } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('organization_id', organizationConfig.organizationId)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    // Check if waiting for capture input
+    if (contact?.bot_state?.startsWith('capture_') && flow) {
+      const captureNodeId = contact.bot_state.split('_')[1];
+      const captureNode = flow.nodes.find((n: any) => n.id === captureNodeId);
+
+      if (captureNode) {
+        const varName = captureNode.data?.variableName || 'respuesta';
+        const currentAttrs = contact.custom_attributes || {};
+        currentAttrs[varName] = textBody;
+
+        await supabase
+          .from('contacts')
+          .update({ custom_attributes: currentAttrs, bot_state: 'main_menu' })
+          .eq('id', organizationConfig.contactId);
+
+        const nextEdge = flow.edges.find((e: any) => e.source === captureNode.id);
+        if (nextEdge && nextEdge.target) {
+          await executeNode(flow, nextEdge.target);
+        }
+        return;
+      }
     }
 
     let matchedTriggerNode = null;
-    
+
     if (flow && flow.nodes) {
-       // Buscar nodo trigger que coincida
-       matchedTriggerNode = flow.nodes.find((n: any) => 
-         n.type === 'trigger' && 
-         n.data?.keywords?.some((k: string) => textLower.includes(k.toLowerCase()))
-       );
+      matchedTriggerNode = flow.nodes.find((n: any) =>
+        n.type === 'trigger' &&
+        n.data?.keywords?.some((k: string) => textLower.includes(k.toLowerCase()))
+      );
     }
 
     if (matchedTriggerNode && flow) {
-       // Encontramos un trigger, vamos a ejecutar el siguiente nodo
-       const firstEdge = flow.edges.find((e: any) => e.source === matchedTriggerNode.id);
-       if (firstEdge && firstEdge.target) {
-          await executeNode(flow, firstEdge.target);
-       }
-       return;
+      const firstEdge = flow.edges.find((e: any) => e.source === matchedTriggerNode.id);
+      if (firstEdge && firstEdge.target) {
+        await executeNode(flow, firstEdge.target);
+      }
+      return;
     }
 
-    // Default Fallback si no hay flujos coincidentes
-    const fallbackText = "No entendí ese comando. Pudes intentar con otras palabras clave configuradas en tus Flujos.";
+    // Fallback
+    const fallbackText = 'No entendí ese comando. Intenta con otras palabras clave configuradas en tus Flujos.';
     const res = await waService.sendTextMessage(senderPhone, fallbackText);
     await saveOutgoingMessage('text', fallbackText, res);
   }
@@ -161,19 +168,24 @@ export async function handleIncomingMessage(
   // Handle Interactive Button replies
   if (message.type === 'interactive') {
     const buttonId = message.interactive.button_reply.id;
-    const flow = await Flow.findOne({ organizationId: organizationConfig.organizationId, isActive: true });
-    
+
+    const { data: flow } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('organization_id', organizationConfig.organizationId)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
     if (flow && flow.edges) {
-      // Find the edge connected to this specific button
       const edge = flow.edges.find((e: any) => e.sourceHandle === buttonId || e.source === buttonId);
-      
       if (edge && edge.target) {
         await executeNode(flow, edge.target);
         return;
       }
     }
 
-    const fallbackText = "Opción no reconocida o flujo incompleto.";
+    const fallbackText = 'Opción no reconocida o flujo incompleto.';
     const res = await waService.sendTextMessage(senderPhone, fallbackText);
     await saveOutgoingMessage('text', fallbackText, res);
   }

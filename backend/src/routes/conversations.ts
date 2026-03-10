@@ -1,24 +1,32 @@
 import express from 'express';
-import Conversation from '../models/Conversation';
-import Message from '../models/Message';
+import { supabase } from '../config/supabase';
 
 const router = express.Router();
 
-// Get conversations
+// GET /api/conversations
 router.get('/', async (req, res) => {
   try {
-    const conversations = await Conversation.find().populate('contactId').sort({ lastMessageAt: -1 });
-    res.json(conversations);
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('*, contacts(phone_number, profile_name)')
+      .order('last_message_at', { ascending: false });
+
+    res.json(conversations || []);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch conversations' });
   }
 });
 
-// Get messages for a conversation
+// GET /api/conversations/:id/messages
 router.get('/:id/messages', async (req, res) => {
   try {
-    const messages = await Message.find({ conversationId: req.params.id }).sort({ createdAt: 1 });
-    res.json(messages);
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', req.params.id)
+      .order('created_at', { ascending: true });
+
+    res.json(messages || []);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch messages' });
   }

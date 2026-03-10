@@ -1,68 +1,52 @@
 import express from 'express';
-import Organization from '../models/Organization';
+import { supabase } from '../config/supabase';
 
 const router = express.Router();
 
-// POST /api/settings - Guardar o actualizar la configuración
+// POST /api/settings
 router.post('/', async (req, res) => {
   try {
-    const { botName, webhookUrl, systemStatus, whatsappToken, verifyToken, phoneNumberId } = req.body;
+    const { botName, whatsappToken, verifyToken, phoneNumberId } = req.body;
 
-    // En un sistema SaaS multi-tenant, buscarías por el ID de la organización del usuario autenticado
-    // Por ahora, para simplificar, asumiremos una única "Organización por defecto" o buscaremos la primera
-    let org = await Organization.findOne();
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
 
-    if (!org) {
-      // Si no existe, crearla
-      org = new Organization({
-        name: botName || 'Mi Bot',
-        whatsappConfig: {
-          phoneNumberId: phoneNumberId || '',
-          accessToken: whatsappToken || '',
-          verifyToken: verifyToken || ''
-        },
-        settings: {
-          botEnabled: systemStatus === 'active'
-        }
-      });
+    const updates: any = {};
+    if (botName) updates.name = botName;
+    if (phoneNumberId !== undefined) updates.whatsapp_phone_number_id = phoneNumberId;
+    if (whatsappToken !== undefined) updates.whatsapp_access_token = whatsappToken;
+    if (verifyToken !== undefined) updates.whatsapp_verify_token = verifyToken;
+
+    if (org) {
+      await supabase.from('organizations').update(updates).eq('id', org.id);
+      res.status(200).json({ message: 'Settings saved successfully' });
     } else {
-      // Si existe, actualizar
-      if (botName) org.name = botName;
-      if (systemStatus) {
-        if (!org.settings) org.settings = { botEnabled: true, timezone: 'UTC' };
-        org.settings.botEnabled = systemStatus === 'active';
-      }
-      
-      if (!org.whatsappConfig) org.whatsappConfig = { phoneNumberId: '', accessToken: '', verifyToken: '' };
-      if (phoneNumberId !== undefined) org.whatsappConfig.phoneNumberId = phoneNumberId;
-      if (whatsappToken !== undefined) org.whatsappConfig.accessToken = whatsappToken;
-      if (verifyToken !== undefined) org.whatsappConfig.verifyToken = verifyToken;
+      // Create first org
+      await supabase.from('organizations').insert({
+        name: botName || 'My Bot',
+        whatsapp_phone_number_id: phoneNumberId,
+        whatsapp_access_token: whatsappToken,
+        whatsapp_verify_token: verifyToken
+      });
+      res.status(201).json({ message: 'Organization created and settings saved' });
     }
-
-    await org.save();
-    res.status(200).json({ message: 'Settings saved successfully', organization: org });
   } catch (error) {
     console.error('Error saving settings:', error);
     res.status(500).json({ error: 'Failed to save settings' });
   }
 });
 
-// GET /api/settings - Obtener configuración
+// GET /api/settings
 router.get('/', async (req, res) => {
   try {
-    const org = await Organization.findOne();
-    if (!org) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-    
-    // Transformamos para que encaje con el formato que espera el frontend
+    const { data: org } = await supabase.from('organizations').select('*').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Settings not found' });
+
     res.status(200).json({
       botName: org.name,
-      webhookUrl: 'https://api.midominio.com/webhook', // En la vida real puede no guardarse aquí
-      systemStatus: org.settings?.botEnabled ? 'active' : 'inactive',
-      whatsappToken: org.whatsappConfig?.accessToken || '',
-      verifyToken: org.whatsappConfig?.verifyToken || '',
-      phoneNumberId: org.whatsappConfig?.phoneNumberId || ''
+      systemStatus: 'active',
+      whatsappToken: org.whatsapp_access_token || '',
+      verifyToken: org.whatsapp_verify_token || '',
+      phoneNumberId: org.whatsapp_phone_number_id || ''
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to load settings' });

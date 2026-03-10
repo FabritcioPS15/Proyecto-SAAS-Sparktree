@@ -1,19 +1,14 @@
 import { Request, Response } from 'express';
 import { handleIncomingMessage } from '../flows';
-
-import Organization from '../models/Organization';
-import Contact from '../models/Contact';
-import Conversation from '../models/Conversation';
-import Message from '../models/Message';
+import { supabase } from '../config/supabase';
 
 /**
  * Validates the WhatsApp Webhook Verification Request
  */
 export const verifyWebhook = async (req: Request, res: Response) => {
-  // En producción, este token debe venir de las variables de entorno o la DB
-  // Buscamos la organización por defecto o alguna que corresponda
-  const org = await Organization.findOne();
-  const VERIFY_TOKEN = org?.whatsappConfig?.verifyToken || process.env.WHATSAPP_VERIFY_TOKEN || "my_webhook_secret";
+  // Get verify token from the first organization in DB
+  const { data: org } = await supabase.from('organizations').select('*').limit(1).single();
+  const VERIFY_TOKEN = org?.whatsapp_verify_token || process.env.WHATSAPP_VERIFY_TOKEN || 'my_webhook_secret';
 
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -38,87 +33,102 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
   try {
     const body = req.body;
 
-    // Check if it's a WhatsApp status update or message
     if (body.object) {
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.messages) {
-        
         const changeValue = body.entry[0].changes[0].value;
         const message = changeValue.messages[0];
         const senderPhone = message.from;
         const profileName = changeValue.contacts?.[0]?.profile?.name || '';
-        
-        // Metadata contains the exact WhatsApp Business number that received the message
         const receivingPhoneId = changeValue.metadata.phone_number_id;
 
         console.log(`Mensaje recibido de ${senderPhone}:`, JSON.stringify(message, null, 2));
 
-        // In a multi-tenant SaaS, you look up the organization by `receivingPhoneId`
-        let organization = await Organization.findOne({ "whatsappConfig.phoneNumberId": receivingPhoneId });
-        
-        // Fallback to first org if not found (for testing/single tenant)
+        // Lookup organization by phone number ID
+        let { data: organization } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('whatsapp_phone_number_id', receivingPhoneId)
+          .single();
+
+        // Fallback to first org for testing
         if (!organization) {
-           organization = await Organization.findOne();
+          const { data: firstOrg } = await supabase
+            .from('organizations')
+            .select('*')
+            .limit(1)
+            .single();
+          organization = firstOrg;
         }
 
         if (organization) {
-           // Find or Create Contact
-           let contact = await Contact.findOne({ organizationId: organization._id, phoneNumber: senderPhone });
-           if (!contact) {
-             contact = new Contact({
-               organizationId: organization._id,
-               phoneNumber: senderPhone,
-               profileName: profileName
-             });
-           } else {
-             contact.lastActiveAt = new Date();
-             if (profileName) contact.profileName = profileName;
-           }
-           await contact.save();
+          // Upsert Contact (find or create)
+          const { data: contact, error: contactError } = await supabase
+            .from('contacts')
+            .upsert(
+              {
+                organization_id: organization.id,
+                phone_number: senderPhone,
+                profile_name: profileName,
+                last_active_at: new Date().toISOString()
+              },
+              { onConflict: 'organization_id,phone_number' }
+            )
+            .select()
+            .single();
 
-           // Find or Create Conversation
-           let conversation = await Conversation.findOne({ organizationId: organization._id, contactId: contact._id });
-           if (!conversation) {
-             conversation = new Conversation({
-                organizationId: organization._id,
-                contactId: contact._id
-             });
-           } else {
-             conversation.lastMessageAt = new Date();
-           }
-           await conversation.save();
+          if (contactError || !contact) {
+            console.error('Error upserting contact:', contactError);
+            return res.sendStatus(500);
+          }
 
-           // Save Incoming Message
-           const incomingMsg = new Message({
-             organizationId: organization._id,
-             conversationId: conversation._id,
-             contactId: contact._id,
-             direction: 'inbound',
-             type: message.type || 'text',
-             content: message.text || message,
-             whatsappMessageId: message.id
-           });
-           await incomingMsg.save();
+          // Upsert Conversation
+          let { data: conversation } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('organization_id', organization.id)
+            .eq('contact_id', contact.id)
+            .single();
 
-           // Validar si el bot está activo
-           if (organization.settings?.botEnabled) {
-             // Pass message to flow handler
-             const organizationConfig = {
-               phoneNumberId: organization.whatsappConfig?.phoneNumberId || '',
-               accessToken: organization.whatsappConfig?.accessToken || '',
-               organizationId: organization._id.toString(),
-               conversationId: conversation._id.toString(),
-               contactId: contact._id.toString()
-             };
-             await handleIncomingMessage(message, senderPhone, organizationConfig);
-           }
+          if (!conversation) {
+            const { data: newConv } = await supabase
+              .from('conversations')
+              .insert({ organization_id: organization.id, contact_id: contact.id })
+              .select()
+              .single();
+            conversation = newConv;
+          } else {
+            await supabase
+              .from('conversations')
+              .update({ last_message_at: new Date().toISOString() })
+              .eq('id', conversation.id);
+          }
+
+          // Save Incoming Message
+          await supabase.from('messages').insert({
+            organization_id: organization.id,
+            conversation_id: conversation?.id,
+            contact_id: contact.id,
+            direction: 'inbound',
+            type: message.type || 'text',
+            content: message.text?.body || JSON.stringify(message),
+            whatsapp_message_id: message.id
+          });
+
+          // Process bot flow
+          const organizationConfig = {
+            phoneNumberId: organization.whatsapp_phone_number_id || '',
+            accessToken: organization.whatsapp_access_token || '',
+            organizationId: organization.id,
+            conversationId: conversation?.id,
+            contactId: contact.id
+          };
+          await handleIncomingMessage(message, senderPhone, organizationConfig);
         }
       }
 
-      // Handle message statuses (sent, delivered, read) to update analytics
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.statuses) {
-         const statuses = body.entry[0].changes[0].value.statuses;
-         console.log('Status update received:', statuses[0].status);
-         // TODO: Update Message document in MongoDB with new status
+        const statuses = body.entry[0].changes[0].value.statuses;
+        console.log('Status update received:', statuses[0].status);
       }
 
       res.sendStatus(200);
