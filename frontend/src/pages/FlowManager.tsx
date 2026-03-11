@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Bot, Plus, Edit2, Trash2, Copy, Play, Search, Users, BarChart3, Check, Circle, ChevronRight } from 'lucide-react';
+import { Bot, Plus, Edit2, Trash2, Copy, Play, Search, Users, BarChart3, ChevronRight } from 'lucide-react';
+import { ReactFlowProvider } from '@xyflow/react';
 import { FlowBuilderContent } from '../components/flow/FlowBuilderContent';
 import { flowService, FlowBot } from '../services/flowService';
 
@@ -69,7 +70,7 @@ export const FlowManager = () => {
 
   const duplicateFlow = async (flow: FlowBot) => {
     try {
-      await flowService.duplicateFlow(flow._id);
+      await flowService.duplicateFlow(flow.id);
       await refreshFlows();
     } catch (err) {
       console.error('Error duplicating flow:', err);
@@ -89,41 +90,15 @@ export const FlowManager = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-700';
-      case 'inactive': return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-700';
-      case 'draft': return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-700';
-      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-700';
+  const toggleFlowStatus = async (flowId: string) => {
+    try {
+      await flowService.toggleFlowStatus(flowId);
+      await refreshFlows();
+    } catch (err) {
+      console.error('Error toggling flow status:', err);
+      setError('No se pudo cambiar el estado del flujo.');
     }
   };
-
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return (
-        <div className="flex items-center gap-2">
-          <Check className="w-4 h-4 text-green-600" />
-          Activo
-        </div>
-      );
-      case 'inactive': return (
-        <div className="flex items-center gap-2">
-          <Circle className="w-4 h-4 text-red-600" />
-          Inactivo
-        </div>
-      );
-      case 'draft': return (
-        <div className="flex items-center gap-2">
-          <Edit2 className="w-4 h-4 text-gray-600" />
-          Borrador
-        </div>
-      );
-      default: return status;
-    }
-  };
-
-
 
   const stats = {
     total: flows.length,
@@ -176,7 +151,9 @@ export const FlowManager = () => {
 
           {/* Flow Builder */}
           <div className="flex-1 overflow-hidden">
-            <FlowBuilderContent flowData={editingFlow} />
+            <ReactFlowProvider>
+              <FlowBuilderContent flowData={editingFlow} />
+            </ReactFlowProvider>
           </div>
         </div>
       </div>
@@ -216,9 +193,9 @@ export const FlowManager = () => {
 
   return (
     <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-12 space-y-10 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5 relative">
         {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-10 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
           <div className="space-y-3">
             <div className="flex items-center gap-4 mb-2">
               <span className="px-4 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-indigo-100 dark:border-indigo-500/20">
@@ -335,7 +312,7 @@ export const FlowManager = () => {
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
             {filteredAndSortedFlows.map((flow) => (
-              <div key={flow._id} className="group relative">
+              <div key={flow.id} className="group relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-[3rem] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
                 <div className="h-full bg-white dark:bg-[#11141b] rounded-[2.5rem] p-8 border border-gray-100 dark:border-gray-800/50 shadow-sm group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 overflow-hidden relative">
                   {/* Flow Category Banner */}
@@ -355,9 +332,16 @@ export const FlowManager = () => {
                       <h3 className="text-2xl font-black text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                         {flow.name}
                       </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`w-2 h-2 rounded-full ${flow.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{flow.status}</span>
+                      <div className="flex items-center gap-3 mt-1">
+                        <button
+                          onClick={() => toggleFlowStatus(flow.id)}
+                          className={`w-10 h-5 rounded-full relative transition-colors duration-300 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
+                        >
+                          <div className={`absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full transition-all duration-300 shadow-sm ${flow.status === 'active' ? 'left-5.5' : 'left-1'}`} />
+                        </button>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${flow.status === 'active' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                          {flow.status === 'active' ? 'En ejecución' : 'Pausado'}
+                        </span>
                         {flow.isDefault && (
                           <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-md border border-amber-100 dark:border-amber-500/20 ml-2">Default</span>
                         )}
@@ -396,7 +380,7 @@ export const FlowManager = () => {
                       </button>
                     </div>
                     <button
-                      onClick={() => deleteFlow(flow._id)}
+                      onClick={() => deleteFlow(flow.id)}
                       className="p-4 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all hover:scale-105"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -413,6 +397,7 @@ export const FlowManager = () => {
                 <thead>
                   <tr className="bg-slate-50/50 dark:bg-transparent border-b border-gray-100 dark:border-gray-800/50">
                     <th className="px-10 py-8 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Flujo / Descripción</th>
+                    <th className="px-10 py-8 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Triggers</th>
                     <th className="px-10 py-8 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Estado / Categoría</th>
                     <th className="px-10 py-8 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Rendimiento</th>
                     <th className="px-10 py-8 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-right">Acciones</th>
@@ -420,7 +405,7 @@ export const FlowManager = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50">
                   {filteredAndSortedFlows.map((flow) => (
-                    <tr key={flow._id} className="group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-300">
+                    <tr key={flow.id} className="group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-300">
                       <td className="px-10 py-8">
                         <div className="flex items-center gap-6">
                           <div className="w-14 h-14 rounded-2xl bg-slate-900 dark:bg-slate-700 flex items-center justify-center p-3 shadow-xl group-hover:scale-110 transition-transform duration-300">
@@ -438,11 +423,37 @@ export const FlowManager = () => {
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="flex flex-col gap-2">
-                          <span className={`inline-flex w-fit items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(flow.status)} px-4`}>
-                            {getStatusText(flow.status)}
-                          </span>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{flow.category}</span>
+                        <div className="flex flex-wrap gap-2">
+                          {flow.triggers && flow.triggers.length > 0 ? (
+                            flow.triggers.map((trigger, index) => (
+                              <span 
+                                key={index}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20"
+                              >
+                                {trigger}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 italic">
+                              Sin triggers
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-10 py-8">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => toggleFlowStatus(flow.id)}
+                            className={`w-12 h-6 rounded-full relative transition-colors duration-300 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
+                          >
+                            <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${flow.status === 'active' ? 'left-6.5' : 'left-1'}`} />
+                          </button>
+                          <div className="flex flex-col">
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${flow.status === 'active' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                              {flow.status === 'active' ? 'Activo' : 'Inactivo'}
+                            </span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{flow.category}</span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
@@ -465,7 +476,7 @@ export const FlowManager = () => {
                           <button onClick={() => duplicateFlow(flow)} className="p-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:scale-110 active:scale-95 transition-all">
                             <Copy className="w-5 h-5" />
                           </button>
-                          <button onClick={() => deleteFlow(flow._id)} className="p-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all hover:scale-110">
+                          <button onClick={() => deleteFlow(flow.id)} className="p-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all hover:scale-110">
                             <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
@@ -482,7 +493,7 @@ export const FlowManager = () => {
         {showCreateForm && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6 z-[100] animate-in fade-in duration-300">
             <div className="bg-white dark:bg-[#11141b] rounded-[3rem] shadow-2xl max-w-lg w-full border border-gray-100 dark:border-gray-800/50 overflow-hidden animate-in zoom-in-95 duration-300">
-              <div className="p-10 text-center space-y-8">
+              <div className="p-10 text-center space-y-4">
                 <div className="mx-auto w-24 h-24 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-500/20">
                   <Plus className="w-10 h-10 text-white" strokeWidth={3} />
                 </div>

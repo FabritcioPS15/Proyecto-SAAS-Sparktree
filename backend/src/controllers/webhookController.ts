@@ -32,17 +32,24 @@ export const verifyWebhook = async (req: Request, res: Response) => {
  */
 export const handleIncomingWebhook = async (req: Request, res: Response) => {
   try {
+    console.log('[Webhook] Request received');
+    
     const body = req.body;
-
+    console.log('[Webhook] Body received:', typeof body);
+    
     if (body.object) {
+      console.log('[Webhook] Processing object:', body.object);
+      
       if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.messages) {
+        console.log('[Webhook] Processing messages...');
+        
         const changeValue = body.entry[0].changes[0].value;
         const message = changeValue.messages[0];
         const senderPhone = message.from;
         const profileName = changeValue.contacts?.[0]?.profile?.name || '';
         const receivingPhoneId = changeValue.metadata.phone_number_id;
 
-        console.log(`Mensaje recibido de ${senderPhone}:`, JSON.stringify(message, null, 2));
+        console.log(`[Webhook] Mensaje recibido de ${senderPhone}:`, JSON.stringify(message, null, 2));
 
         // Lookup organization by phone number ID
         let { data: organization } = await supabase
@@ -117,12 +124,18 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
 
           // Process bot flow
           const organizationConfig = {
-            phoneNumberId: organization.whatsapp_phone_number_id || '',
-            accessToken: organization.whatsapp_access_token || '',
+            organizationId: organization.id,
             conversationId: conversation?.id,
             contactId: contact.id
           };
-          const waService = new WhatsAppService(organizationConfig);
+          
+          // Usar QR service si está conectado, sino usar WhatsAppService
+          const { qrService } = await import('../services/whatsappQRService');
+          const waService = qrService.getStatus() === 'connected' ? qrService : new WhatsAppService({
+            phoneNumberId: organization.whatsapp_phone_number_id || '',
+            accessToken: organization.whatsapp_access_token || ''
+          });
+          
           await handleIncomingMessage(message, senderPhone, organizationConfig, waService);
         }
       }

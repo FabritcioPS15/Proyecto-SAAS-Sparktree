@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getAnalytics } from '../services/api';
+import { getAnalytics, getLeads, getConversations } from '../services/api';
 import { TrendingUp, Users, MessageCircle, Activity, CheckCircle, BarChart3 } from 'lucide-react';
 
 export const Analytics = () => {
@@ -9,44 +9,51 @@ export const Analytics = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getAnalytics()
-      .then(data => {
-        // Ensure we always have valid data structure
+    const fetchRealData = async () => {
+      try {
+        setLoading(true);
+        const [analytics, leads, conversations] = await Promise.all([
+          getAnalytics(),
+          getLeads().catch(() => []),
+          getConversations().catch(() => [])
+        ]);
+
+        // Calculate real stats from other endpoints if analytics table is empty
+        const totalUsers = leads.length;
+        const totalConversations = conversations.length;
+
+        // Structure the data
         const safeData = {
-          interactionsPerDay: Array.isArray(data?.interactionsPerDay) ? data.interactionsPerDay : [],
-          topFlows: Array.isArray(data?.topFlows) ? data.topFlows : [],
-          activeUsers: Array.isArray(data?.activeUsers) ? data.activeUsers : [],
+          interactionsPerDay: Array.isArray(analytics?.interactionsPerDay) && analytics.interactionsPerDay.length > 0
+            ? analytics.interactionsPerDay
+            : generateEmptyData(),
+          topFlows: Array.isArray(analytics?.topFlows) && analytics.topFlows.length > 0
+            ? analytics.topFlows
+            : generateEmptyFlowsData(),
+          activeUsers: Array.isArray(analytics?.activeUsers) && analytics.activeUsers.length > 0
+            ? analytics.activeUsers
+            : generateEmptyData(),
           stats: {
-            avgResponseTime: data?.stats?.avgResponseTime || 1.2,
-            satisfactionRate: data?.stats?.satisfactionRate || 94,
-            completionRate: data?.stats?.completionRate || 87,
-            totalUsers: data?.stats?.totalUsers || 0,
-            totalMessages: data?.stats?.totalMessages || 0,
-            totalConversations: data?.stats?.totalConversations || 0
+            avgResponseTime: analytics?.stats?.avgResponseTime || 1.2,
+            satisfactionRate: analytics?.stats?.satisfactionRate || 94,
+            completionRate: analytics?.stats?.completionRate || 87,
+            totalUsers: totalUsers || analytics?.stats?.totalUsers || 0,
+            totalMessages: analytics?.stats?.totalMessages || 0,
+            totalConversations: totalConversations || analytics?.stats?.totalConversations || 0
           }
         };
+
         setAnalyticsData(safeData);
         setError(null);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Failed to load analytics:', err);
         setError('No se pudieron cargar las analíticas');
-        // Set default empty data on error
-        setAnalyticsData({
-          interactionsPerDay: [],
-          topFlows: [],
-          activeUsers: [],
-          stats: {
-            avgResponseTime: 1.2,
-            satisfactionRate: 94,
-            completionRate: 87,
-            totalUsers: 0,
-            totalMessages: 0,
-            totalConversations: 0
-          }
-        });
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRealData();
   }, []);
 
   if (loading) {
@@ -77,7 +84,7 @@ export const Analytics = () => {
   const { interactionsPerDay, topFlows, activeUsers, stats } = analyticsData;
   return (
     <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-12 space-y-10 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5 relative">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm">
           <div className="space-y-2">
             <h1 className="text-3xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -127,7 +134,7 @@ export const Analytics = () => {
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Volumen de mensajes procesados por el chatbot</p>
             </div>
           </div>
-          <div className="h-[350px]">
+          <div className="h-[350px] min-w-0 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={interactionsPerDay.length > 0 ? interactionsPerDay : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <defs>
@@ -169,7 +176,7 @@ export const Analytics = () => {
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl font-black text-slate-900 dark:text-white">Flujos más Utilizados</h3>
             </div>
-            <div className="h-[350px]">
+            <div className="h-[350px] min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topFlows.length > 0 ? topFlows : generateEmptyFlowsData()} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <defs>
@@ -204,7 +211,7 @@ export const Analytics = () => {
                 Evolución de Usuarios
               </h3>
             </div>
-            <div className="h-[350px]">
+            <div className="h-[350px] min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={activeUsers.length > 0 ? activeUsers : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>

@@ -89,8 +89,24 @@ class WhatsAppQRService {
     const listReply = msg.message?.listResponseMessage;
 
     if (text) {
-      formattedMessage.type = 'text';
-      formattedMessage.text = { body: text };
+      // Check if this is a numeric response to button options
+      const cleanText = text.trim();
+      const numberMatch = cleanText.match(/^(\d+)$/);
+      
+      if (numberMatch) {
+        const buttonNumber = numberMatch[1];
+        console.log(`[QR Service] Received numeric response: ${buttonNumber}`);
+        
+        // Try to find a recent button mapping for this conversation
+        // This would require storing button mappings somewhere - for now, treat as regular text
+        formattedMessage.type = 'text';
+        formattedMessage.text = { body: text };
+        formattedMessage.isNumericButtonResponse = true;
+        formattedMessage.buttonNumber = buttonNumber;
+      } else {
+        formattedMessage.type = 'text';
+        formattedMessage.text = { body: text };
+      }
     } else if (buttonReply) {
       formattedMessage.type = 'interactive';
       formattedMessage.interactive = {
@@ -104,21 +120,39 @@ class WhatsAppQRService {
 
     try {
       // Basic organizational lookup (same logic as webhookController)
-      const { data: organization } = await supabase.from('organizations').select('*').limit(1).single();
+      console.log(`[QR Service] Looking up organization...`);
+      const { data: organization, error: orgError } = await supabase.from('organizations').select('*').limit(1).single();
+      
+      if (orgError) {
+        console.error(`[QR Service] Error finding organization:`, orgError);
+        return;
+      }
       
       if (organization) {
-        // Upsert Contact
-        const { data: contact } = await supabase
+        console.log(`[QR Service] Organization found: ${organization.id}`);
+        console.log(`[QR Service] Saving contact with REAL WhatsApp number: ${senderPhone}`);
+        console.log(`[QR Service] Contact name: ${msg.pushName || 'No name'}`);
+
+        // Guardar contacto con el NÚMERO REAL de WhatsApp (sin corrección)
+        const { data: contact, error: contactError } = await supabase
           .from('contacts')
           .upsert({
             organization_id: organization.id,
-            phone_number: senderPhone,
+            phone_number: senderPhone,  // ← Número REAL de WhatsApp
             profile_name: msg.pushName || '',
             last_active_at: new Date().toISOString()
           }, { onConflict: 'organization_id,phone_number' })
           .select().single();
 
+        if (contactError) {
+          console.error(`[QR Service] Error saving contact:`, contactError);
+          return;
+        }
+
+        console.log(`[QR Service] Contact saved:`, contact);
+
         if (contact) {
+          console.log(`[QR Service] Creating conversation...`);
           // Upsert Conversation
           let { data: conversation } = await supabase
             .from('conversations')
@@ -128,11 +162,22 @@ class WhatsAppQRService {
             .single();
 
           if (!conversation) {
-            const { data: newConv } = await supabase
+            console.log(`[QR Service] Creating new conversation...`);
+            const { data: newConversation } = await supabase
               .from('conversations')
-              .insert({ organization_id: organization.id, contact_id: contact.id })
-              .select().single();
-            conversation = newConv;
+              .insert({
+                organization_id: organization.id,
+                contact_id: contact.id,
+                status: 'open',
+                last_message_at: new Date().toISOString(),
+                created_at: new Date().toISOString()
+              })
+              .select()
+              .single();
+            conversation = newConversation;
+            console.log(`[QR Service] New conversation created:`, conversation);
+          } else {
+            console.log(`[QR Service] Existing conversation found:`, conversation);
           }
 
           // Save Message
@@ -168,18 +213,48 @@ class WhatsAppQRService {
 
   async sendButtonMessage(to: string, bodyText: string, buttons: any[]) {
     const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-    // Baileys button format
-    const formattedButtons = buttons.map(btn => ({
-      buttonId: btn.id,
-      buttonText: { displayText: btn.title },
-      type: 1
-    }));
-
-    return await this.socket.sendMessage(jid, {
-      text: bodyText,
-      buttons: formattedButtons,
-      headerType: 1
-    });
+    
+    console.log(`[QR Service] Creating interactive message for ${buttons.length} options`);
+    console.log(`[QR Service] To JID: ${jid}`);
+    console.log(`[QR Service] Body text: ${bodyText}`);
+    console.log(`[QR Service] Buttons:`, buttons);
+    
+    // Formato numerado claro y fácil de usar
+    const numberedOptions = buttons.map((btn, index) => {
+      const number = index + 1;
+      return `${number}. ${btn.title}`;
+    }).join('\n');
+    
+    const fullMessage = `${bodyText}\n\n${numberedOptions}\n\n💡 *Responde con el número de tu opción*`;
+    
+    console.log(`[QR Service] Final message:`, fullMessage);
+    
+    try {
+      const result = await this.socket.sendMessage(jid, { text: fullMessage });
+      console.log(`[QR Service] Button-style message sent successfully:`, result);
+      console.log(`[QR Service] Message ID:`, result?.key?.id);
+      console.log(`[QR Service] Message type:`, Object.keys(result?.message || {}));
+      
+      // Guardar mapeo de números a IDs para procesar respuestas
+      const buttonMapping: { [key: string]: string } = {};
+      buttons.forEach((btn, index) => {
+        buttonMapping[(index + 1).toString()] = btn.id;
+      });
+      
+      console.log(`[QR Service] Button mapping:`, buttonMapping);
+      
+      // Retornar resultado con información del mapeo
+      return {
+        ...result,
+        buttonMapping: buttonMapping,
+        isNumericButtons: true
+      };
+      
+    } catch (error: any) {
+      console.error(`[QR Service] Error sending button-style message:`, error);
+      console.error(`[QR Service] Error details:`, error?.message);
+      throw error;
+    }
   }
 
   async sendMediaMessage(to: string, url: string) {

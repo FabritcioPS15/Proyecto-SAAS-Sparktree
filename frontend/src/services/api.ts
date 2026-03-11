@@ -39,6 +39,16 @@ export const getConversationMessages = async (id: string) => {
   }
 };
 
+export const deleteConversation = async (id: string) => {
+  try {
+    const response = await api.delete(`/conversations/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    throw error;
+  }
+};
+
 export const getAnalytics = async () => {
   try {
     const response = await api.get('/analytics');
@@ -79,10 +89,15 @@ export const getFlows = async () => {
   }
 };
 
-export const saveFlows = async (flowData: any) => {
+export const saveFlows = async (flowData: any, id?: string) => {
   try {
-    const response = await api.post('/flows', flowData);
-    return response.data;
+    if (id) {
+      const response = await api.put(`/flows/${id}`, flowData);
+      return response.data;
+    } else {
+      const response = await api.post('/flows', flowData);
+      return response.data;
+    }
   } catch (error) {
     console.error('Error saving flow:', error);
     throw error;
@@ -96,6 +111,36 @@ export const getLeads = async () => {
   } catch (error) {
     console.error('Error fetching leads:', error);
     throw error; // Let the component handle the fallback
+  }
+};
+
+export const getQRStatus = async () => {
+  try {
+    const response = await api.get('/qr/status');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching QR status:', error);
+    throw error;
+  }
+};
+
+export const initializeQR = async () => {
+  try {
+    const response = await api.post('/qr/init');
+    return response.data;
+  } catch (error) {
+    console.error('Error initializing QR:', error);
+    throw error;
+  }
+};
+
+export const logoutQR = async () => {
+  try {
+    const response = await api.post('/qr/logout');
+    return response.data;
+  } catch (error) {
+    console.error('Error logging out QR:', error);
+    throw error;
   }
 };
 

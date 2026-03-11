@@ -3,7 +3,8 @@ import { Search, Phone, Mail, MessageSquare, Star, TrendingUp, User, Tag, CheckC
 import { getLeads } from '../services/api';
 
 interface Lead {
-  _id: string;
+  id: string;
+  _id?: string;
   name: string;
   email?: string;
   phone: string;
@@ -129,7 +130,7 @@ export const Leads = () => {
 
   return (
     <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-12 space-y-10 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5 relative">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
           <div className="space-y-2">
             <h1 className="text-3xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -221,7 +222,7 @@ export const Leads = () => {
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50">
                 {filteredLeads.map((lead) => (
-                  <tr key={lead._id} className="group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-300">
+                  <tr key={lead.id || lead._id} className="group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-300">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center font-black text-indigo-600 dark:text-indigo-400 text-lg group-hover:scale-110 transition-transform">
@@ -327,8 +328,8 @@ export const Leads = () => {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-10 pt-0 space-y-10 custom-scrollbar">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+              <div className="flex-1 overflow-y-auto p-5 pt-0 space-y-10 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div className="md:col-span-2 space-y-10">
                     <section className="space-y-6">
                       <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] flex items-center gap-3">
@@ -369,7 +370,7 @@ export const Leads = () => {
                     </section>
                   </div>
 
-                  <div className="space-y-8">
+                  <div className="space-y-4">
                     <div className="p-8 bg-slate-900 dark:bg-white rounded-[2.5rem] text-white dark:text-slate-900 shadow-2xl">
                       <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">Lead Score</p>
                       <p className="text-6xl font-black mb-6">{selectedLead.score}</p>

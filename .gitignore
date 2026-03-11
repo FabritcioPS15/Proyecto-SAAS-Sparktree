@@ -7,3 +7,4 @@ build/
 .gemini/
 tmp/
 tmp_keys.txt
+auth_info_baileys/

@@ -58,7 +58,8 @@ export async function handleIncomingMessage(
           node.data?.bodyText || '',
           node.data?.buttons || []
         );
-        await saveOutgoingMessage('interactive', node.data?.bodyText, res);
+        // Guardar el response completo que incluye buttonMapping
+        await saveOutgoingMessage('interactive', res, res);
         break; // Wait for user button click
       } else if (node.type === 'media') {
         const url = node.data?.mediaUrl;
@@ -146,61 +147,82 @@ export async function handleIncomingMessage(
     }
 
     // Check if waiting for capture input
-    if (contact?.bot_state?.startsWith('capture_') && flow) {
-      const captureNodeId = contact.bot_state.split('_')[1];
-      const captureNode = flow.nodes.find((n: any) => n.id === captureNodeId);
-
-      if (captureNode) {
-        const varName = captureNode.data?.variableName || 'respuesta';
-        const currentAttrs = contact.custom_attributes || {};
-        currentAttrs[varName] = textBody;
-
-        await supabase
-          .from('contacts')
-          .update({ custom_attributes: currentAttrs, bot_state: 'main_menu' })
-          .eq('id', organizationConfig.contactId);
-
-        const nextEdge = flow.edges.find((e: any) => e.source === captureNode.id);
-        if (nextEdge && nextEdge.target) {
-          await executeNode(flow, nextEdge.target);
-        }
-        return;
-      }
-    }
-
-    let matchedTriggerNode = null;
-
-    if (flow && flow.nodes) {
-      matchedTriggerNode = flow.nodes.find((n: any) =>
-        n.type === 'trigger' &&
-        n.data?.keywords?.some((k: string) => textLower.includes(k.toLowerCase()))
-      );
-      if (matchedTriggerNode) console.log(`[Bot Engine] Matched trigger node: ${matchedTriggerNode.id}`);
-    }
-
-    if (matchedTriggerNode && flow) {
-      console.log('[Bot Engine] Trigger matched, starting flow execution');
-      console.log(`[Bot Engine] Searching for edges from source node ID: "${matchedTriggerNode.id}"`);
-      const firstEdge = flow.edges.find((e: any) => e.source === matchedTriggerNode.id);
-      
-      if (firstEdge) {
-        console.log(`[Bot Engine] Found edge: ${firstEdge.id} -> target: ${firstEdge.target}`);
-        if (firstEdge.target) {
-          console.log(`[Bot Engine] Calling executeNode for: ${firstEdge.target}`);
-          await executeNode(flow, firstEdge.target);
-          console.log('[Bot Engine] executeNode completed.');
-        } else {
-          console.log('[Bot Engine] Edge target is missing.');
-        }
-      } else {
-        console.log('[Bot Engine] Trigger node has no outgoing connections (Check if edge source ID matches node ID exactly).');
-        console.log('[Bot Engine] Available edges in flow:', JSON.stringify(flow.edges));
-      }
+    if (contact?.bot_state?.startsWith('capture_')) {
+      const nodeId = contact.bot_state.replace('capture_', '');
+      console.log(`[Bot Engine] Capture mode active for node: ${nodeId}`);
+      await executeNode(flow, nodeId);
       return;
     }
 
-    // Fallback if no trigger matched
-    console.log('[Bot Engine] No trigger matched. Checking for default catch-all node or sending fallback.');
+    // PRIORITY 1: Check if this is a trigger for starting the flow
+    if (flow.triggers && Array.isArray(flow.triggers)) {
+      const matchedTrigger = flow.triggers.find((trigger: string) => 
+        trigger && textLower.includes(trigger.toLowerCase())
+      );
+
+      if (matchedTrigger) {
+        console.log(`[Bot Engine] Trigger matched: "${matchedTrigger}"`);
+        // Find trigger node (usually node ID "1")
+        const triggerNode = flow.nodes.find((n: any) => n.type === 'trigger');
+        if (triggerNode) {
+          await executeNode(flow, triggerNode.id);
+          return;
+        }
+      }
+    }
+
+    // PRIORITY 2: Handle Numeric Button replies (only if not a trigger)
+    if (message.isNumericButtonResponse) {
+      const buttonNumber = message.buttonNumber;
+      console.log(`[Bot Engine] Processing numeric button response: ${buttonNumber}`);
+
+      // Get the last interactive message sent to this conversation to find button mapping
+      const { data: lastInteractive } = await supabase
+        .from('messages')
+        .select('content')
+        .eq('conversation_id', organizationConfig.conversationId)
+        .eq('direction', 'outbound')
+        .eq('type', 'interactive')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastInteractive && lastInteractive.content) {
+        try {
+          const interactiveData = JSON.parse(lastInteractive.content);
+          console.log(`[Flow Engine] Found interactive data:`, interactiveData);
+          
+          if (interactiveData.buttonMapping && interactiveData.buttonMapping[buttonNumber]) {
+            const buttonId = interactiveData.buttonMapping[buttonNumber];
+            console.log(`[Flow Engine] Mapped numeric ${buttonNumber} to button ID: ${buttonId}`);
+
+            if (flow && flow.edges) {
+              const edge = flow.edges.find((e: any) => e.sourceHandle === buttonId || e.source === buttonId);
+              if (edge && edge.target) {
+                console.log(`[Flow Engine] Found edge: ${edge.id}, moving to node: ${edge.target}`);
+                await executeNode(flow, edge.target);
+                return;
+              } else {
+                console.log(`[Flow Engine] No edge found for button ID: ${buttonId}`);
+              }
+            }
+          } else {
+            console.log(`[Flow Engine] No button mapping found for number: ${buttonNumber}`);
+            console.log(`[Flow Engine] Available mappings:`, interactiveData.buttonMapping);
+          }
+        } catch (parseError) {
+          console.log(`[Flow Engine] Could not parse message content for button mapping:`, parseError);
+        }
+      } else {
+        console.log(`[Flow Engine] No last interactive message found for conversation ${organizationConfig.conversationId}`);
+      }
+
+      // Si no se pudo procesar como respuesta de botón, dejar que el flujo normal lo procese
+      console.log(`[Flow Engine] Could not process numeric response as button, continuing to fallback`);
+    }
+
+    // PRIORITY 3: Fallback if no trigger matched and not a valid button response
+    console.log('[Bot Engine] No trigger matched. Sending fallback message.');
     const fallbackText = 'No entendí ese comando. Intenta con otras palabras clave configuradas en tus Flujos.';
     const res = await waService.sendTextMessage(senderPhone, fallbackText);
     await saveOutgoingMessage('text', fallbackText, res);

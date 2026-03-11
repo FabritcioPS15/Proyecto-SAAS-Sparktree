@@ -50,7 +50,7 @@ export const Settings = () => {
 
   return (
     <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-12 space-y-10 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5 relative">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm">
           <div className="space-y-2">
             <h1 className="text-3xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -67,7 +67,7 @@ export const Settings = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
           <div className="xl:col-span-2 space-y-10">
             <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] shadow-2xl shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50 overflow-hidden group">
               <div className="p-8 border-b border-gray-100 dark:border-gray-800/50 bg-slate-50/50 dark:bg-transparent">
@@ -76,7 +76,7 @@ export const Settings = () => {
                   Identidad del Chatbot
                 </h3>
               </div>
-              <form onSubmit={handleSubmit} className="p-10 space-y-8">
+              <form onSubmit={handleSubmit} className="p-10 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] ml-1">
@@ -129,7 +129,7 @@ export const Settings = () => {
                   </div>
                 </div>
 
-                <div className="pt-10 border-t border-slate-100 dark:border-slate-800/50 space-y-8">
+                <div className="pt-10 border-t border-slate-100 dark:border-slate-800/50 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
                       <span className="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">🌐</span>

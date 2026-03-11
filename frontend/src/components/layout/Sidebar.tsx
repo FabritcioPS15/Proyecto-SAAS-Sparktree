@@ -1,34 +1,57 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, MessageSquare, BarChart3, Settings, MessageCircle, CreditCard, Bot, TrendingUp, Cog } from 'lucide-react';
+import { useState } from 'react';
+import {
+  LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
+  MessageCircle, CreditCard, Bot, TrendingUp, Cog, QrCode,
+  ChevronLeft, ChevronRight
+} from 'lucide-react';
 
 const menuItems = [
-  { icon: LayoutDashboard, label: 'Inicio', path: '/', color: 'from-gray-600 to-gray-700' },
-  { icon: Users, label: 'Usuarios', path: '/users', color: 'from-gray-600 to-gray-700' },
-  { icon: MessageSquare, label: 'Conversaciones', path: '/conversations', color: 'from-gray-600 to-gray-700' },
-  { icon: TrendingUp, label: 'Clientes Potenciales', path: '/leads', color: 'from-gray-600 to-gray-700' },
-  { icon: BarChart3, label: 'Analíticas', path: '/analytics', color: 'from-gray-600 to-gray-700' },
-  { icon: Bot, label: 'Flujos', path: '/flows', color: 'from-gray-600 to-gray-700' },
-  { icon: Cog, label: 'Gestor de Flujos', path: '/flow-manager', color: 'from-gray-600 to-gray-700' },
-  { icon: CreditCard, label: 'Facturación', path: '/billing', color: 'from-gray-600 to-gray-700' },
-  { icon: Settings, label: 'Configuración', path: '/settings', color: 'from-gray-600 to-gray-700' }
+  { icon: LayoutDashboard, label: 'Inicio', path: '/' },
+  { icon: Users, label: 'Usuarios', path: '/users' },
+  { icon: MessageSquare, label: 'Conversaciones', path: '/conversations' },
+  { icon: TrendingUp, label: 'Clientes Potenciales', path: '/leads' },
+  { icon: BarChart3, label: 'Analíticas', path: '/analytics' },
+  { icon: Bot, label: 'Flujos', path: '/flows' },
+  { icon: Cog, label: 'Gestor de Flujos', path: '/flow-manager' },
+  { icon: CreditCard, label: 'Facturación', path: '/billing' },
+  { icon: QrCode, label: 'Conexión WhatsApp', path: '/whatsapp-qr' },
+  { icon: Settings, label: 'Configuración', path: '/settings' },
 ];
 
 export const Sidebar = () => {
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true';
+  });
+
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      localStorage.setItem('sidebar-collapsed', String(!prev));
+      return !prev;
+    });
+  };
 
   return (
-    <aside className="hidden md:flex md:flex-col w-72 bg-white dark:bg-gray-900 backdrop-blur-xl border-r border-gray-200 dark:border-gray-800 shadow-2xl">
-      <div className="flex items-center gap-3 px-6 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-        <div className="p-2 bg-gray-700 rounded-xl shadow-2xl shadow-gray-700/30 hover:shadow-gray-700/40 transition-all duration-300 hover:scale-105">
+    <aside
+      className={`hidden md:flex md:flex-col relative transition-all duration-300 ease-in-out bg-white dark:bg-[#0f1117] border-r border-gray-100 dark:border-gray-800 shadow-xl ${collapsed ? 'w-[72px]' : 'w-64'
+        }`}
+    >
+      {/* Logo / Brand */}
+      <div className={`flex items-center gap-3 px-4 py-4 border-b border-gray-100 dark:border-gray-800 overflow-hidden ${collapsed ? 'justify-center' : ''}`}>
+        <div className="flex-shrink-0 p-2 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/25">
           <MessageCircle className="w-5 h-5 text-white" />
         </div>
-        <div>
-          <h1 className="text-lg font-black text-gray-900 dark:text-white">ChatBot SaaS</h1>
-          <p className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Panel de Control</p>
-        </div>
+        {!collapsed && (
+          <div className="overflow-hidden">
+            <h1 className="text-base font-black text-gray-900 dark:text-white leading-tight whitespace-nowrap">ChatBot ST</h1>
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest whitespace-nowrap">Panel de Control</p>
+          </div>
+        )}
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -37,50 +60,61 @@ export const Sidebar = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`group relative flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 overflow-hidden ${
-                isActive
-                  ? `bg-gradient-to-r ${item.color} text-white shadow-lg shadow-lg/25 transform scale-105`
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200 hover:transform hover:scale-102'
-              }`}
+              title={collapsed ? item.label : undefined}
+              className={`group relative flex items-center gap-3.5 rounded-xl transition-all duration-200 overflow-hidden ${collapsed ? 'justify-center px-0 py-4' : 'px-4 py-3.5'
+                } ${isActive
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'
+                }`}
             >
-              {/* Background decoration */}
-              <div className={`absolute inset-0 bg-gradient-to-r ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
-              
-              <div className="relative z-10 flex items-center gap-4">
-                <div className={`p-2 rounded-xl transition-all duration-300 ${
-                  isActive 
-                    ? 'bg-white/20 shadow-inner' 
-                    : 'bg-gray-100/80 dark:bg-gray-800/50 group-hover:bg-gray-200/80 dark:group-hover:bg-gray-700/50'
-                }`}>
-                  <Icon className={`w-5 h-5 transition-transform duration-300 ${
-                    isActive ? 'scale-110 text-white' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110 group-hover:text-gray-700 dark:group-hover:text-gray-200'
-                  }`} />
-                </div>
-                <span className={`font-semibold text-sm transition-all duration-300 ${
-                  isActive ? 'text-white' : 'text-gray-700 dark:text-gray-300'
-                }`}>
-                  {item.label}
-                </span>
+              {/* Active left bar */}
+              {isActive && !collapsed && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white/60 rounded-r-full" />
+              )}
+
+              <div className={`flex-shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                <Icon className="w-[22px] h-[22px]" />
               </div>
-              
-              {/* Active indicator */}
-              {isActive && (
-                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 w-2 h-8 bg-white rounded-full shadow-lg animate-pulse"></div>
+
+              {!collapsed && (
+                <span className="text-[13.5px] font-semibold truncate">{item.label}</span>
+              )}
+
+              {/* Tooltip when collapsed */}
+              {collapsed && (
+                <div className="pointer-events-none absolute left-full ml-3 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-bold rounded-lg shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+                  {item.label}
+                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-white" />
+                </div>
               )}
             </Link>
           );
         })}
       </nav>
-      
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200/50 dark:border-gray-800/50">
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div>
-            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Sistema Online</span>
+
+      {/* Footer / Status */}
+      <div className={`p-3 border-t border-gray-100 dark:border-gray-800 ${collapsed ? 'flex justify-center' : ''}`}>
+        {collapsed ? (
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" title="Sistema Online" />
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-white/5 rounded-xl">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse flex-shrink-0" />
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap">Sistema Online</span>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Collapse Toggle Button */}
+      <button
+        onClick={toggleCollapsed}
+        className="absolute -right-3.5 top-[72px] z-20 w-7 h-7 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200"
+        title={collapsed ? 'Expandir' : 'Colapsar'}
+      >
+        {collapsed
+          ? <ChevronRight className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+          : <ChevronLeft className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+        }
+      </button>
     </aside>
   );
 };

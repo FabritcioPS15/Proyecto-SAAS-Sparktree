@@ -21,7 +21,7 @@ import { WebhookNode } from './WebhookNode';
 import { HandoffNode } from './HandoffNode';
 import { DelayNode } from './DelayNode';
 import { Save, Bot, Play, Zap, Settings, Layers, Grid3X3, Sparkles, Undo2, Redo2, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
-import { FlowSimulator } from './FlowSimulator';
+import { saveFlows } from '../../services/api';
 
 const nodeTypes = {
   trigger: TriggerNode,
@@ -36,7 +36,8 @@ const nodeTypes = {
 
 interface FlowBuilderContentProps {
   flowData: {
-    _id: string;
+    id: string;
+    _id?: string;
     name: string;
     nodes: any[];
     edges: any[];
@@ -48,13 +49,15 @@ interface FlowBuilderContentProps {
 export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(flowData.nodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(flowData.edges || []);
+  const [currentTriggers, setCurrentTriggers] = useState(flowData.triggers || []);
   const [isSaving, setIsSaving] = useState(false);
+  const [history, setHistory] = useState([{ nodes: flowData.nodes || [], edges: flowData.edges || [] }]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [showSimulator, setShowSimulator] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
-  const [history, setHistory] = useState<{nodes: any[], edges: any[]}[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
@@ -68,12 +71,12 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
 
   const updateNodeData = (newData: any) => {
     if (!selectedNode) return;
-    
+
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push({ nodes: [...nodes], edges: [...edges] });
     setHistory(newHistory);
     setHistoryIndex(historyIndex + 1);
-    
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === selectedNode.id) {
@@ -84,6 +87,13 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
         return node;
       })
     );
+  };
+
+  const updateFlowTriggers = (newTriggers: string[]) => {
+    setCurrentTriggers(newTriggers);
+    // Update flowData triggers
+    flowData.triggers = newTriggers;
+    console.log('Flow triggers updated:', newTriggers);
   };
 
   const undo = () => {
@@ -115,9 +125,23 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
   const saveFlow = async () => {
     setIsSaving(true);
     try {
-      // Simulate save
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Flow saved:', { nodes, edges });
+      const payload = {
+        name: flowData.name,
+        nodes,
+        edges,
+        triggers: currentTriggers
+      };
+      const result = await saveFlows(payload, flowData.id || flowData._id);
+      console.log('Flow saved:', result);
+      
+      // Update flowData to reflect saved changes
+      flowData.triggers = currentTriggers;
+      
+      // Show success message and reload to show persisted changes
+      setSaveSuccess(true);
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('Failed to save flow:', error);
     } finally {
@@ -132,7 +156,7 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
       position: { x: 250, y: 100 },
       data: type === 'trigger' ? { keywords: flowData.triggers || [] } : {}
     };
-    
+
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push({ nodes: [...nodes, newNode], edges: [...edges] });
     setHistory(newHistory);
@@ -186,18 +210,16 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
             <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
             <button
               onClick={() => setShowMinimap(!showMinimap)}
-              className={`p-2 rounded-xl transition-all duration-200 ${
-                showMinimap ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
+              className={`p-2 rounded-xl transition-all duration-200 ${showMinimap ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
               title="Minimapa"
             >
               <Layers className="w-4 h-4" />
             </button>
             <button
               onClick={() => setShowGrid(!showGrid)}
-              className={`p-2 rounded-xl transition-all duration-200 ${
-                showGrid ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
+              className={`p-2 rounded-xl transition-all duration-200 ${showGrid ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
               title="Cuadrícula"
             >
               <Grid3X3 className="w-4 h-4" />
@@ -303,10 +325,52 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
               Propiedades
             </h3>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-4">
+            {/* Flow Configuration - Always Visible */}
+            <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl border border-indigo-200 dark:border-indigo-500/20">
+              <h4 className="text-sm font-bold text-indigo-700 dark:text-indigo-400 mb-3 flex items-center gap-2">
+                <Bot className="w-4 h-4" />
+                Configuración del Flow
+              </h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-indigo-600 dark:text-indigo-300 mb-1">
+                    Triggers del Flow (Palabras clave para iniciar)
+                  </label>
+                  <textarea
+                    value={currentTriggers?.join(', ') || ''}
+                    onChange={(e) => {
+                      const newTriggers = e.target.value.split(',').map(k => k.trim()).filter(k => k.length >= 2 && k.length <= 20);
+                      // Limit to maximum 10 triggers
+                      if (newTriggers.length > 10) {
+                        newTriggers.splice(10);
+                      }
+                      updateFlowTriggers(newTriggers);
+                    }}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-indigo-300 dark:border-indigo-500/30 rounded-lg text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
+                    rows={3}
+                    placeholder="hola, nuevo, buenos días, inicio, bienvenida, registro"
+                  />
+                  <div className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                    Separa cada trigger con una coma (máx. 10 triggers, 2-20 caracteres cada uno). Estas palabras activarán el flow.
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-1">
+                  {currentTriggers?.map((trigger, index) => (
+                    <span key={index} className="px-2 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-md text-xs font-medium">
+                      {trigger}
+                    </span>
+                  )) || <span className="text-xs text-indigo-500 italic">Sin triggers configurados</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Node Properties */}
             {selectedNode ? (
-              <div className="space-y-4">
+              <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tipo de Nodo
@@ -319,15 +383,33 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
                 {selectedNode.type === 'trigger' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Palabras Clave
+                      Palabras Clave (Triggers)
                     </label>
-                    <input
-                      type="text"
-                      value={selectedNode.data.keywords?.join(', ') || ''}
-                      onChange={(e) => updateNodeData({ keywords: e.target.value.split(',').map(k => k.trim()) })}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="hola, ayuda, información"
-                    />
+                    <div className="space-y-2">
+                      <textarea
+                        value={currentTriggers?.join(', ') || ''}
+                        onChange={(e) => {
+                          const newTriggers = e.target.value.split(',').map(k => k.trim()).filter(k => k.length > 0);
+                          // Update flow triggers
+                          updateFlowTriggers(newTriggers);
+                          // Also update node keywords for display
+                          updateNodeData({ keywords: newTriggers });
+                        }}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                        rows={3}
+                        placeholder="hola, nuevo, buenos días, inicio, bienvenida, registro"
+                      />
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Separa cada trigger con una coma. Estos son los triggers del flow completo.
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {currentTriggers?.map((trigger, index) => (
+                          <span key={index} className="px-2 py-1 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 rounded-md text-xs font-medium">
+                            {trigger}
+                          </span>
+                        )) || <span className="text-xs text-gray-400 italic">Sin triggers configurados</span>}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -397,6 +479,12 @@ export const FlowBuilderContent = ({ flowData }: FlowBuilderContentProps) => {
           </div>
 
           <div className="p-4 border-t border-gray-200/50 dark:border-gray-800/50">
+            {saveSuccess && (
+              <div className="mb-3 p-3 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-lg text-green-700 dark:text-green-400 text-sm font-medium flex items-center gap-2">
+                <span>✓</span>
+                Cambios guardados exitosamente. Recargando...
+              </div>
+            )}
             <button
               onClick={saveFlow}
               disabled={isSaving}

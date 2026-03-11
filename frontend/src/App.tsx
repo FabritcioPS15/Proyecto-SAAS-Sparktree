@@ -11,6 +11,7 @@ import { Billing } from './pages/Billing';
 import { FlowBuilder } from './pages/FlowBuilder';
 import { FlowManager } from './pages/FlowManager';
 import { Leads } from './pages/Leads';
+import { WhatsAppQR } from './pages/WhatsAppQR';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/whatsapp-qr" element={<WhatsAppQR />} />
             </Routes>
           </Layout>
         </BrowserRouter>

@@ -106,7 +106,7 @@ export const Billing = () => {
 
   const { totalApiCost, saasCost, totalCost, totalMessages, utilityMessages, marketingMessages, authMessages, utilityCost, marketingCost, authCost } = billingData || {};
   return (
-    <div className="space-y-8 pb-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
+    <div className="space-y-4 pb-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
         <div className="space-y-2">
           <h1 className="text-3xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -168,7 +168,7 @@ export const Billing = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white dark:bg-[#11141b] rounded-[2.5rem] p-10 shadow-2xl shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50">
+        <div className="lg:col-span-2 bg-white dark:bg-[#11141b] rounded-[2.5rem] p-5 shadow-2xl shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50">
           <div className="flex items-center justify-between mb-10">
             <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               Análisis Detallado de Consumo
@@ -256,7 +256,7 @@ export const Billing = () => {
           </div>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-4">
           <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800/50">
             <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase tracking-widest flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-indigo-500" />
@@ -283,7 +283,7 @@ export const Billing = () => {
               <CreditCard className="w-48 h-48 text-white rotate-12" />
             </div>
 
-            <div className="relative z-10 p-10 space-y-8">
+            <div className="relative z-10 p-5 space-y-4">
               <div className="space-y-2">
                 <span className="px-4 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-[10px] font-black text-white uppercase tracking-[0.2em] border border-white/20">
                   PRO PLAN ACTIVE

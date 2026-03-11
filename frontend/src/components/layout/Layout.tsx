@@ -24,11 +24,11 @@ export const Layout = ({ children }: LayoutProps) => {
         {/* Abstract background elements */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 blur-[120px] rounded-full -mr-64 -mt-64 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/5 blur-[100px] rounded-full -ml-32 -mb-32 pointer-events-none" />
-        
+
         <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
 
-        <main className="flex-1 overflow-auto px-4 sm:px-8 py-8 relative z-10">
-          <div className="max-w-[1600px] mx-auto space-y-8">
+        <main className="flex-1 overflow-auto px-4 sm:px-8 py-8 relative z-10 min-h-0">
+          <div className="max-w-[1600px] mx-auto">
             {children}
           </div>
         </main>

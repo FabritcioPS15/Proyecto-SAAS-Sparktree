@@ -283,4 +283,419 @@ router.post('/:id/duplicate', async (req, res) => {
   }
 });
 
+// PUT /api/flows/:id/nodes/:nodeId
+router.put('/:id/nodes/:nodeId', async (req, res) => {
+  try {
+    const { id, nodeId } = req.params;
+    const { position, data } = req.body;
+
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+    // Obtener el flujo actual
+    const { data: flow, error: fetchError } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .single();
+
+    if (fetchError || !flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+
+    // Actualizar el nodo específico
+    const updatedNodes = flow.nodes.map((node: any) => 
+      (node as any).id === nodeId 
+        ? { ...node, position: position || node.position, data: data || node.data }
+        : node
+    );
+
+    const { data: updatedFlow, error: updateError } = await supabase
+      .from('flows')
+      .update({
+        nodes: updatedNodes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Error updating node:', updateError);
+      return res.status(500).json({ error: 'Failed to update node' });
+    }
+
+    const transformedFlow = {
+      ...updatedFlow,
+      lastModified: updatedFlow.updated_at,
+      assignedTo: updatedFlow.assigned_to?.name || 'Sin asignar'
+    };
+
+    res.json(transformedFlow);
+  } catch (error) {
+    console.error('Error in PUT /flows/:id/nodes/:nodeId:', error);
+    res.status(500).json({ error: 'Failed to update node' });
+  }
+});
+
+// DELETE /api/flows/:id/nodes/:nodeId
+router.delete('/:id/nodes/:nodeId', async (req, res) => {
+  try {
+    const { id, nodeId } = req.params;
+
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+    // Obtener el flujo actual
+    const { data: flow, error: fetchError } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .single();
+
+    if (fetchError || !flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+
+    // Eliminar el nodo específico
+    const updatedNodes = flow.nodes.filter((node: any) => (node as any).id !== nodeId);
+    
+    // También eliminar edges conectados a este nodo
+    const updatedEdges = flow.edges.filter((edge: any) => 
+      (edge as any).source !== nodeId && (edge as any).target !== nodeId
+    );
+
+    const { data: updatedFlow, error: updateError } = await supabase
+      .from('flows')
+      .update({
+        nodes: updatedNodes,
+        edges: updatedEdges,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Error deleting node:', updateError);
+      return res.status(500).json({ error: 'Failed to delete node' });
+    }
+
+    const transformedFlow = {
+      ...updatedFlow,
+      lastModified: updatedFlow.updated_at,
+      assignedTo: updatedFlow.assigned_to?.name || 'Sin asignar'
+    };
+
+    res.json(transformedFlow);
+  } catch (error) {
+    console.error('Error in DELETE /flows/:id/nodes/:nodeId:', error);
+    res.status(500).json({ error: 'Failed to delete node' });
+  }
+});
+
+// POST /api/flows/:id/nodes
+router.post('/:id/nodes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, position, data } = req.body;
+
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+    // Obtener el flujo actual
+    const { data: flow, error: fetchError } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .single();
+
+    if (fetchError || !flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+
+    // Crear nuevo nodo
+    const newNode = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: type || 'text',
+      position: position || { x: 100, y: 100 },
+      data: data || {}
+    };
+
+    const updatedNodes = [...flow.nodes, newNode];
+
+    const { data: updatedFlow, error: updateError } = await supabase
+      .from('flows')
+      .update({
+        nodes: updatedNodes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Error adding node:', updateError);
+      return res.status(500).json({ error: 'Failed to add node' });
+    }
+
+    const transformedFlow = {
+      ...updatedFlow,
+      lastModified: updatedFlow.updated_at,
+      assignedTo: updatedFlow.assigned_to?.name || 'Sin asignar'
+    };
+
+    res.status(201).json(transformedFlow);
+  } catch (error) {
+    console.error('Error in POST /flows/:id/nodes:', error);
+    res.status(500).json({ error: 'Failed to add node' });
+  }
+});
+
+// PUT /api/flows/:id/edges/:edgeId
+router.put('/:id/edges/:edgeId', async (req, res) => {
+  try {
+    const { id, edgeId } = req.params;
+    const { source, target, type, sourceHandle, targetHandle } = req.body;
+
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+    // Obtener el flujo actual
+    const { data: flow, error: fetchError } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .single();
+
+    if (fetchError || !flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+
+    // Actualizar el edge específico
+    const updatedEdges = flow.edges.map((edge: any) => 
+      (edge as any).id === edgeId 
+        ? { 
+            ...edge, 
+            source: source || edge.source, 
+            target: target || edge.target, 
+            type: type || edge.type,
+            sourceHandle: sourceHandle || edge.sourceHandle,
+            targetHandle: targetHandle || edge.targetHandle
+          }
+        : edge
+    );
+
+    const { data: updatedFlow, error: updateError } = await supabase
+      .from('flows')
+      .update({
+        edges: updatedEdges,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Error updating edge:', updateError);
+      return res.status(500).json({ error: 'Failed to update edge' });
+    }
+
+    const transformedFlow = {
+      ...updatedFlow,
+      lastModified: updatedFlow.updated_at,
+      assignedTo: updatedFlow.assigned_to?.name || 'Sin asignar'
+    };
+
+    res.json(transformedFlow);
+  } catch (error) {
+    console.error('Error in PUT /flows/:id/edges/:edgeId:', error);
+    res.status(500).json({ error: 'Failed to update edge' });
+  }
+});
+
+// DELETE /api/flows/:id/edges/:edgeId
+router.delete('/:id/edges/:edgeId', async (req, res) => {
+  try {
+    const { id, edgeId } = req.params;
+
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+    // Obtener el flujo actual
+    const { data: flow, error: fetchError } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .single();
+
+    if (fetchError || !flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+
+    // Eliminar el edge específico
+    const updatedEdges = flow.edges.filter((edge: any) => (edge as any).id !== edgeId);
+
+    const { data: updatedFlow, error: updateError } = await supabase
+      .from('flows')
+      .update({
+        edges: updatedEdges,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Error deleting edge:', updateError);
+      return res.status(500).json({ error: 'Failed to delete edge' });
+    }
+
+    const transformedFlow = {
+      ...updatedFlow,
+      lastModified: updatedFlow.updated_at,
+      assignedTo: updatedFlow.assigned_to?.name || 'Sin asignar'
+    };
+
+    res.json(transformedFlow);
+  } catch (error) {
+    console.error('Error in DELETE /flows/:id/edges/:edgeId:', error);
+    res.status(500).json({ error: 'Failed to delete edge' });
+  }
+});
+
+// POST /api/flows/:id/edges
+router.post('/:id/edges', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { source, target, type, sourceHandle, targetHandle } = req.body;
+
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+    // Obtener el flujo actual
+    const { data: flow, error: fetchError } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .single();
+
+    if (fetchError || !flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+
+    // Crear nuevo edge
+    const newEdge = {
+      id: `edge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      source: source,
+      target: target,
+      type: type || 'default',
+      sourceHandle: sourceHandle,
+      targetHandle: targetHandle
+    };
+
+    const updatedEdges = [...flow.edges, newEdge];
+
+    const { data: updatedFlow, error: updateError } = await supabase
+      .from('flows')
+      .update({
+        edges: updatedEdges,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Error adding edge:', updateError);
+      return res.status(500).json({ error: 'Failed to add edge' });
+    }
+
+    const transformedFlow = {
+      ...updatedFlow,
+      lastModified: updatedFlow.updated_at,
+      assignedTo: updatedFlow.assigned_to?.name || 'Sin asignar'
+    };
+
+    res.status(201).json(transformedFlow);
+  } catch (error) {
+    console.error('Error in POST /flows/:id/edges:', error);
+    res.status(500).json({ error: 'Failed to add edge' });
+  }
+});
+
+// PUT /api/flows/:id/reorder-nodes
+router.put('/:id/reorder-nodes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nodeOrder } = req.body; // Array de node IDs en nuevo orden
+
+    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+    // Obtener el flujo actual
+    const { data: flow, error: fetchError } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .single();
+
+    if (fetchError || !flow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+
+    // Reordenar nodos según el array recibido
+    const reorderedNodes = (nodeOrder as string[]).map((nodeId: string, index: number) => {
+      const originalNode = flow.nodes.find((n: any) => (n as any).id === nodeId);
+      return {
+        ...originalNode,
+        position: {
+          ...originalNode.position,
+          y: index * 100 // Espaciado vertical
+        }
+      };
+    });
+
+    const { data: updatedFlow, error: updateError } = await supabase
+      .from('flows')
+      .update({
+        nodes: reorderedNodes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('organization_id', org.id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Error reordering nodes:', updateError);
+      return res.status(500).json({ error: 'Failed to reorder nodes' });
+    }
+
+    const transformedFlow = {
+      ...updatedFlow,
+      lastModified: updatedFlow.updated_at,
+      assignedTo: updatedFlow.assigned_to?.name || 'Sin asignar'
+    };
+
+    res.json(transformedFlow);
+  } catch (error) {
+    console.error('Error in PUT /flows/:id/reorder-nodes:', error);
+    res.status(500).json({ error: 'Failed to reorder nodes' });
+  }
+});
+
 export default router;

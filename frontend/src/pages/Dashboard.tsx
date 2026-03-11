@@ -55,12 +55,12 @@ export const Dashboard = () => {
 
   return (
     <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-12 space-y-10 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5 relative">
         {/* Premium Header / Welcome Section */}
-        <div className="relative group overflow-hidden bg-white dark:bg-[#11141b]/50 backdrop-blur-xl p-12 rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-2xl duration-700">
+        <div className="relative group overflow-hidden bg-white dark:bg-[#11141b]/50 backdrop-blur-xl p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-2xl duration-700">
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-indigo-500/10 to-purple-500/10 blur-[120px] rounded-full -mr-48 -mt-48 transition-transform group-hover:scale-110 duration-1000" />
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10 relative z-10">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
             <div className="space-y-5">
               <div className="flex items-center gap-3">
                 <span className="px-5 py-2 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl shadow-indigo-600/20">
@@ -102,7 +102,7 @@ export const Dashboard = () => {
             { icon: Activity, label: 'Pulso Diario', value: stats.messagesToday, change: 'En vivo', color: 'emerald', desc: 'Tráfico de las últimas 24h' },
             { icon: UserPlus, label: 'Tasa Adquisición', value: stats.newUsersToday, change: '+28 hoy', color: 'amber', desc: 'Crecimiento de audiencia' }
           ].map((item, idx) => (
-            <div key={idx} className="group relative bg-white dark:bg-[#11141b] rounded-[3rem] p-10 border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden">
+            <div key={idx} className="group relative bg-white dark:bg-[#11141b] rounded-[3rem] p-5 border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden">
               <div className={`absolute top-0 right-0 w-32 h-32 bg-${item.color}-500/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-${item.color}-500/10 transition-colors duration-500`} />
 
               <div className="flex items-center justify-between mb-8 relative z-10">
@@ -128,9 +128,9 @@ export const Dashboard = () => {
         </div>
 
         {/* Advanced Charting System */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 space-y-10">
-            <div className="bg-white dark:bg-[#11141b] rounded-[3rem] p-10 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 relative overflow-hidden group">
+            <div className="bg-white dark:bg-[#11141b] rounded-[3rem] p-5 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 relative overflow-hidden group">
               <div className="flex items-center justify-between mb-12 relative z-10">
                 <div className="space-y-1">
                   <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Evolución de Mensajería</h3>
@@ -144,7 +144,7 @@ export const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="h-[450px] relative z-10">
+              <div className="h-[450px] relative z-10 min-w-0 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={messagesData}>
                     <defs>
@@ -180,7 +180,7 @@ export const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 text-white overflow-hidden relative group">
+              <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-5 text-white overflow-hidden relative group">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                 <div className="flex items-center gap-4 mb-8 relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-indigo-500 flex items-center justify-center shadow-xl">
@@ -202,7 +202,7 @@ export const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] p-10 border border-indigo-100 dark:border-indigo-500/20 flex flex-col justify-between group overflow-hidden relative">
+              <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] p-5 border border-indigo-100 dark:border-indigo-500/20 flex flex-col justify-between group overflow-hidden relative">
                 <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-125 transition-transform duration-700">
                   <CheckCircle className="w-20 h-20 text-indigo-500" />
                 </div>
@@ -218,9 +218,9 @@ export const Dashboard = () => {
           </div>
 
           <div className="space-y-10">
-            <div className="bg-white dark:bg-[#11141b] rounded-[3rem] p-10 shadow-xl border border-gray-100 dark:border-gray-800/50 group relative">
+            <div className="bg-white dark:bg-[#11141b] rounded-[3rem] p-5 shadow-xl border border-gray-100 dark:border-gray-800/50 group relative">
               <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-10 tracking-tight">Opciones Dominantes</h3>
-              <div className="h-[400px]">
+              <div className="h-[400px] min-w-0 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={menuData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                     <defs>
@@ -254,7 +254,7 @@ export const Dashboard = () => {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 rounded-[3rem] p-10 text-white dark:text-slate-900 shadow-2xl relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 rounded-[3rem] p-5 text-white dark:text-slate-900 shadow-2xl relative overflow-hidden group">
               <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/5 dark:bg-slate-900/5 blur-[80px] rounded-full group-hover:scale-150 transition-transform duration-1000" />
               <h4 className="text-3xl font-black mb-4 tracking-tighter">Reporte del Sistema</h4>
               <p className="text-slate-400 dark:text-slate-500 font-medium mb-10 leading-relaxed">Generamos reportes automáticos basados en el comportamiento de tus usuarios cada 24 horas.</p>

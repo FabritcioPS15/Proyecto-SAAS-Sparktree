@@ -1,35 +1,152 @@
-import { useState, useEffect } from 'react';
-import { getConversations, getConversationMessages } from '../services/api';
-import { Check, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { getConversations, getConversationMessages, deleteConversation } from '../services/api';
+import api from '../services/api';
+import { Check, TrendingUp, Trash2, Send } from 'lucide-react';
 
 export const Conversations = () => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConv, setSelectedConv] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [messageText, setMessageText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getConversations()
-      .then(data => {
+    const loadConversations = async () => {
+      try {
+        const data = await getConversations();
         // Ensure we always have an array
         const conversationsArray = Array.isArray(data) ? data : [];
         setConversations(conversationsArray);
-        if (conversationsArray.length > 0) setSelectedConv(conversationsArray[0]);
-      })
-      .catch(err => {
+        if (conversationsArray.length > 0 && !selectedConv) {
+          setSelectedConv(conversationsArray[0]);
+        }
+      } catch (err) {
         console.error('Failed to load conversations', err);
         setConversations([]); // Set empty array on error
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Initial load
+    loadConversations();
+
+    // Set up polling for real-time updates (every 5 seconds)
+    const interval = setInterval(loadConversations, 5000);
+
+    return () => clearInterval(interval);
+  }, [selectedConv]);
 
   useEffect(() => {
     if (selectedConv) {
-      getConversationMessages(selectedConv._id)
-        .then(data => setMessages(data))
-        .catch(err => console.error('Failed to load messages', err));
+      const loadMessages = async () => {
+        try {
+          const data = await getConversationMessages(selectedConv._id);
+          setMessages(data);
+        } catch (err) {
+          console.error('Failed to load messages', err);
+        }
+      };
+
+      // Initial load
+      loadMessages();
+
+      // Set up polling for real-time message updates (every 3 seconds)
+      const interval = setInterval(loadMessages, 3000);
+
+      return () => clearInterval(interval);
     }
   }, [selectedConv]);
+
+  const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta conversación?')) {
+      try {
+        await deleteConversation(id);
+        setConversations(prev => prev.filter(c => c._id !== id));
+        if (selectedConv?._id === id) {
+          setSelectedConv(null);
+          setMessages([]);
+        }
+      } catch (err) {
+        console.error('Error deleting conversation', err);
+        alert('No se pudo eliminar la conversación');
+      }
+    }
+  };
+
+  // Auto-scroll on new messages — scroll only within the messages container, NOT the page
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !selectedConv || sending) return;
+    setSendError(null);
+    setSending(true);
+    const text = messageText.trim();
+    setMessageText('');
+
+    // Optimistic update — show message immediately
+    const optimistic = {
+      _id: `tmp-${Date.now()}`,
+      direction: 'outbound',
+      content: text,
+      createdAt: new Date().toISOString(),
+      type: 'text',
+      status: 'sending'
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    try {
+      const response = await api.post(`/conversations/${selectedConv._id}/send`, { text });
+      // Replace optimistic message with the real saved one
+      setMessages(prev => prev.map(m => m._id === optimistic._id ? { ...response.data, _id: response.data._id || optimistic._id } : m));
+    } catch (err: any) {
+      setSendError(err?.response?.data?.error || 'Error al enviar el mensaje');
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatPhoneNumber = (phone: string) => {
+    if (!phone) return '';
+    
+    // Remove all non-digit characters
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    // Format for Peru: +51 XXX XXX XXX
+    if (cleanPhone.length === 12 && cleanPhone.startsWith('51')) {
+      const countryCode = '+' + cleanPhone.substring(0, 2);
+      const number = cleanPhone.substring(2);
+      if (number.length === 9) {
+        return `${countryCode} ${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6)}`;
+      }
+    }
+    
+    // Format for 9-digit Peruvian numbers (assume +51)
+    if (cleanPhone.length === 9 && cleanPhone.startsWith('9')) {
+      return `+51 ${cleanPhone.substring(0, 3)} ${cleanPhone.substring(3, 6)} ${cleanPhone.substring(6)}`;
+    }
+    
+    // Format for 11-digit numbers starting with 51
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('51')) {
+      const countryCode = '+' + cleanPhone.substring(0, 2);
+      const number = cleanPhone.substring(2);
+      return `${countryCode} ${number}`;
+    }
+    
+    // Return original if no format matches
+    return phone;
+  };
 
   const formatTime = (dateString: string) => {
     if (!dateString) return '';
@@ -88,10 +205,12 @@ export const Conversations = () => {
                 const contact = conv.contactId || {};
                 const isSelected = selectedConv?._id === conv._id;
                 return (
-                  <button
+                  <div
                     key={conv._id}
                     onClick={() => setSelectedConv(conv)}
-                    className={`w-full p-5 text-left transition-all duration-300 relative group ${isSelected
+                    role="button"
+                    tabIndex={0}
+                    className={`w-full p-5 text-left transition-all duration-300 relative group cursor-pointer outline-none ${isSelected
                       ? 'bg-white dark:bg-slate-800/40'
                       : 'hover:bg-white/50 dark:hover:bg-slate-800/20'
                       }`}
@@ -113,7 +232,7 @@ export const Conversations = () => {
                         <div className="flex items-center justify-between mb-1">
                           <p className={`text-sm font-bold truncate ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'
                             }`}>
-                            {contact.phoneNumber || 'Usuario Anon'}
+                            {contact.name || 'Usuario Anon'} {contact.phoneNumber && `(${formatPhoneNumber(contact.phoneNumber)})`}
                           </p>
                           <span className="text-[10px] font-black text-slate-400 uppercase">
                             {formatDate(conv.lastMessageAt)}
@@ -123,15 +242,23 @@ export const Conversations = () => {
                           <p className="text-xs text-slate-400 dark:text-slate-500 truncate font-medium">
                             Última actividad hace poco
                           </p>
-                          {conv.unreadCount > 0 && (
-                            <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full">
-                              {conv.unreadCount}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {conv.unreadCount > 0 && (
+                              <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full">
+                                {conv.unreadCount}
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => handleDeleteConversation(e, conv._id)}
+                              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-500 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}
@@ -156,7 +283,7 @@ export const Conversations = () => {
                   </div>
                   <div>
                     <h3 className="font-black text-xl text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                      {selectedConv.contactId?.phoneNumber || 'Usuario'}
+                      {selectedConv.contactId?.name || 'Usuario'} {selectedConv.contactId?.phoneNumber && `(${formatPhoneNumber(selectedConv.contactId.phoneNumber)})`}
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     </h3>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -174,7 +301,7 @@ export const Conversations = () => {
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar relative">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar relative">
                 {/* Background Decor */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-slate-500/5 blur-[120px] rounded-full pointer-events-none" />
 
@@ -210,7 +337,7 @@ export const Conversations = () => {
                     );
                   })
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center space-y-8 animate-in zoom-in-95 duration-700">
+                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4 animate-in zoom-in-95 duration-700">
                     <div className="relative">
                       <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 blur-3xl rounded-full" />
                       <div className="relative w-32 h-32 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-2xl border-4 border-slate-50 dark:border-slate-700 overflow-hidden group">
@@ -227,17 +354,32 @@ export const Conversations = () => {
                 )}
               </div>
 
-              {/* Chat Input Placeholder */}
+              {/* Chat Input */}
               <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-transparent backdrop-blur-md">
+                {sendError && (
+                  <p className="text-rose-500 text-xs font-bold mb-2 px-2">{sendError}</p>
+                )}
                 <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-700/50 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-white transition-all">
-                  <button className="p-3 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all text-xl shadow-sm">📎</button>
                   <input
                     type="text"
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                     placeholder="Escribe un mensaje..."
-                    className="flex-1 bg-transparent border-none outline-none py-3 text-sm font-medium text-slate-700 dark:text-white placeholder:text-slate-400"
+                    className="flex-1 bg-transparent border-none outline-none py-3 px-2 text-sm font-medium text-slate-700 dark:text-white placeholder:text-slate-400"
+                    disabled={sending}
                   />
-                  <button className="p-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 font-bold px-6">
-                    Enviar
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!messageText.trim() || sending}
+                    className="p-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 font-bold px-5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
+                  >
+                    {sending ? (
+                      <div className="w-4 h-4 border-2 border-white dark:border-slate-900 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    <span>{sending ? 'Enviando...' : 'Enviar'}</span>
                   </button>
                 </div>
               </div>

@@ -8,6 +8,8 @@ import analyticsRoutes from '../src/routes/analytics';
 import settingsRoutes from '../src/routes/settings';
 import flowsRoutes from '../src/routes/flows';
 import qrRoutes from '../src/routes/whatsappQR';
+import leadsRoutes from '../src/routes/leads';
+import debugRoutes from '../src/routes/debug';
 import { qrService } from '../src/services/whatsappQRService';
 
 const app = express();
@@ -15,7 +17,8 @@ const app = express();
 // Supabase is a cloud DB, no persistent connection needed
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rutas base para el frontend y validación
 app.get('/', (req: Request, res: Response) => {
@@ -29,6 +32,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/flows', flowsRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/leads', leadsRoutes);
+app.use('/api/debug', debugRoutes);
 
 // Rutas de WhatsApp Webhook
 app.get('/api/webhook', verifyWebhook);
