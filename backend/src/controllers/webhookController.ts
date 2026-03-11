@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { handleIncomingMessage } from '../flows';
 import { supabase } from '../config/supabase';
+import WhatsAppService from '../services/whatsappService';
 
 /**
  * Validates the WhatsApp Webhook Verification Request
@@ -118,11 +119,11 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
           const organizationConfig = {
             phoneNumberId: organization.whatsapp_phone_number_id || '',
             accessToken: organization.whatsapp_access_token || '',
-            organizationId: organization.id,
             conversationId: conversation?.id,
             contactId: contact.id
           };
-          await handleIncomingMessage(message, senderPhone, organizationConfig);
+          const waService = new WhatsAppService(organizationConfig);
+          await handleIncomingMessage(message, senderPhone, organizationConfig, waService);
         }
       }
 

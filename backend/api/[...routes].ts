@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { verifyWebhook, handleIncomingWebhook } from '../src/controllers/webhookController';
@@ -6,6 +7,8 @@ import conversationsRoutes from '../src/routes/conversations';
 import analyticsRoutes from '../src/routes/analytics';
 import settingsRoutes from '../src/routes/settings';
 import flowsRoutes from '../src/routes/flows';
+import qrRoutes from '../src/routes/whatsappQR';
+import { qrService } from '../src/services/whatsappQRService';
 
 const app = express();
 
@@ -25,6 +28,7 @@ app.use('/api/conversations', conversationsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/flows', flowsRoutes);
+app.use('/api/qr', qrRoutes);
 
 // Rutas de WhatsApp Webhook
 app.get('/api/webhook', verifyWebhook);
@@ -37,6 +41,9 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`Servidor local corriendo en puerto ${PORT}`);
   });
 }
+
+// Iniciar el servicio de QR automáticamente al arrancar
+qrService.initialize().catch(err => console.error('Error auto-initializing QR service:', err));
 
 // Exportar como handler serverless para Vercel
 export default app;
