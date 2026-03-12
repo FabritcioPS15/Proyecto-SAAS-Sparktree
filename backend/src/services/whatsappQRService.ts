@@ -74,10 +74,33 @@ class WhatsAppQRService {
 
   private async processIncomingMessage(msg: proto.IWebMessageInfo) {
     if (!msg.key || !msg.key.id) return;
-    const senderPhone = msg.key.remoteJid?.split('@')[0] || '';
+    const remoteJid = msg.key.remoteJid || '';
+    
+    // ATTEMPT TO RESOLVE REAL PHONE NUMBER (JID) FROM LID
+    // Priority: remoteJidAlt > senderPn > remoteJid (if not LID)
+    let senderPhone = '';
+    const remoteJidAlt = (msg.key as any).remoteJidAlt;
+    const messageContent = msg.message;
+    const senderPn = (messageContent as any)?.senderPn || (messageContent as any)?.protocolMessage?.senderPn;
+
+    if (remoteJidAlt && remoteJidAlt.includes('@s.whatsapp.net')) {
+      senderPhone = remoteJidAlt.split('@')[0];
+      console.log(`[QR Service] Resolved real phone from remoteJidAlt: ${senderPhone}`);
+    } else if (senderPn) {
+      senderPhone = senderPn.split('@')[0];
+      console.log(`[QR Service] Resolved real phone from senderPn: ${senderPhone}`);
+    } else if (!remoteJid.endsWith('@lid')) {
+      senderPhone = remoteJid.split('@')[0].split(':')[0];
+    } else {
+      // If we ONLY have a LID, we have to use it as the "phone number" for now,
+      // but we mark it clearly.
+      senderPhone = remoteJid.split('@')[0];
+      console.log(`[QR Service] WARNING: Only LID found for sender: ${senderPhone}`);
+    }
+
     if (!senderPhone) return;
 
-    // Format message to match Cloud API structure for handleIncomingMessage
+    // Format message to match Cloud API structure
     let formattedMessage: any = {
       id: msg.key.id,
       from: senderPhone,
@@ -133,14 +156,18 @@ class WhatsAppQRService {
         console.log(`[QR Service] Saving contact with REAL WhatsApp number: ${senderPhone}`);
         console.log(`[QR Service] Contact name: ${msg.pushName || 'No name'}`);
 
-        // Guardar contacto con el NÚMERO REAL de WhatsApp (sin corrección)
+        // Guardar contacto con el NÚMERO REAL (o LID resuelto)
         const { data: contact, error: contactError } = await supabase
           .from('contacts')
           .upsert({
             organization_id: organization.id,
-            phone_number: senderPhone,  // ← Número REAL de WhatsApp
+            phone_number: senderPhone,
             profile_name: msg.pushName || '',
-            last_active_at: new Date().toISOString()
+            last_active_at: new Date().toISOString(),
+            custom_attributes: {
+              whatsapp_jid: remoteJid, // Store original JID for precise replies
+              is_lid: remoteJid.endsWith('@lid')
+            }
           }, { onConflict: 'organization_id,phone_number' })
           .select().single();
 
@@ -206,13 +233,15 @@ class WhatsAppQRService {
   }
 
   // Messaging methods to satisfy handleIncomingMessage's waService parameter
-  async sendTextMessage(to: string, body: string) {
-    const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+  async sendTextMessage(to: string, body: string, options?: { jid?: string }) {
+    // Priority: Explicit JID > Provided 'to' as JID > 'to' as phone
+    const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
+    console.log(`[QR Service] Sending text to JID: ${jid}`);
     return await this.socket.sendMessage(jid, { text: body });
   }
 
-  async sendButtonMessage(to: string, bodyText: string, buttons: any[]) {
-    const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+  async sendButtonMessage(to: string, bodyText: string, buttons: any[], options?: { jid?: string }) {
+    const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
     
     console.log(`[QR Service] Creating interactive message for ${buttons.length} options`);
     console.log(`[QR Service] To JID: ${jid}`);
@@ -257,8 +286,8 @@ class WhatsAppQRService {
     }
   }
 
-  async sendMediaMessage(to: string, url: string) {
-    const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+  async sendMediaMessage(to: string, url: string, options?: { jid?: string }) {
+    const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
     const ext = url.split('.').pop()?.toLowerCase() || '';
     
     if (['png', 'jpg', 'jpeg'].includes(ext)) {

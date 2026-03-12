@@ -123,28 +123,30 @@ export const Conversations = () => {
     // Remove all non-digit characters
     const cleanPhone = phone.replace(/\D/g, '');
     
-    // Format for Peru: +51 XXX XXX XXX
-    if (cleanPhone.length === 12 && cleanPhone.startsWith('51')) {
-      const countryCode = '+' + cleanPhone.substring(0, 2);
-      const number = cleanPhone.substring(2);
-      if (number.length === 9) {
-        return `${countryCode} ${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6)}`;
+    // Format for common international lengths
+    // 11 digits (like Peru +51 + 9 digits)
+    if (cleanPhone.length === 11) {
+      if (cleanPhone.startsWith('51')) {
+        return `+51 ${cleanPhone.substring(2, 5)} ${cleanPhone.substring(5, 8)} ${cleanPhone.substring(8)}`;
       }
+      return `+${cleanPhone.substring(0, 2)} ${cleanPhone.substring(2, 5)} ${cleanPhone.substring(5, 8)} ${cleanPhone.substring(8)}`;
     }
     
-    // Format for 9-digit Peruvian numbers (assume +51)
-    if (cleanPhone.length === 9 && cleanPhone.startsWith('9')) {
+    // 12 digits (variants with longer country codes)
+    if (cleanPhone.length === 12) {
+      return `+${cleanPhone.substring(0, 3)} ${cleanPhone.substring(3, 6)} ${cleanPhone.substring(6, 9)} ${cleanPhone.substring(9)}`;
+    }
+
+    // 9 digits (assumed Peruvian without country code)
+    if (cleanPhone.length === 9) {
       return `+51 ${cleanPhone.substring(0, 3)} ${cleanPhone.substring(3, 6)} ${cleanPhone.substring(6)}`;
     }
     
-    // Format for 11-digit numbers starting with 51
-    if (cleanPhone.length === 11 && cleanPhone.startsWith('51')) {
-      const countryCode = '+' + cleanPhone.substring(0, 2);
-      const number = cleanPhone.substring(2);
-      return `${countryCode} ${number}`;
+    // Generic fallback for any other length
+    if (cleanPhone.length > 5) {
+      return `+${cleanPhone}`;
     }
     
-    // Return original if no format matches
     return phone;
   };
 

@@ -78,10 +78,10 @@ router.post('/:id/send', async (req, res) => {
       return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
     }
 
-    // Get conversation with contact phone
+    // Get conversation with contact phone and JID
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
-      .select('*, contacts(phone_number)')
+      .select('*, contacts(phone_number, custom_attributes)')
       .eq('id', id)
       .single();
 
@@ -97,65 +97,19 @@ router.post('/:id/send', async (req, res) => {
     }
 
     // Corregir el número usando el mismo sistema que el bot
-    let correctedPhone = storedPhone;
+    // Simplemente usamos los dígitos y confiamos en el formato internacional que envía WhatsApp
     const cleanPhone = storedPhone.replace(/\D/g, '');
+    let correctedPhone = cleanPhone;
     
     console.log(`[Conversations] Original stored phone: ${storedPhone}`);
     console.log(`[Conversations] Cleaned phone: ${cleanPhone} (${cleanPhone.length} digits)`);
     
-    // Usar el mismo sistema de corrección automática que el bot
-    if (cleanPhone.length === 8) {
-      correctedPhone = '511' + cleanPhone;
-      console.log(`[Conversations] Converted 8-digit Peruvian phone to: ${correctedPhone}`);
-    } else if (cleanPhone.length === 9) {
+    // Si el número tiene 9 dígitos y no empieza con código de país, asumimos que es de Perú
+    if (cleanPhone.length === 9 && !cleanPhone.startsWith('51')) {
       correctedPhone = '51' + cleanPhone;
-      console.log(`[Conversations] Converted 9-digit Peruvian phone to: ${correctedPhone}`);
-    } else if (cleanPhone.length === 11 && cleanPhone.startsWith('51')) {
-      correctedPhone = cleanPhone;
-      console.log(`[Conversations] Peruvian number already in correct format: ${correctedPhone}`);
-    } else if (cleanPhone.length === 12 && cleanPhone.startsWith('51')) {
-      const realNumber = cleanPhone.substring(3);
-      correctedPhone = '51' + realNumber;
-      console.log(`[Conversations] Extracted 9-digit number from 12-digit format: ${realNumber}`);
-      console.log(`[Conversations] Converted to: ${correctedPhone}`);
-    } else if (cleanPhone.length === 13 && cleanPhone.startsWith('51')) {
-      const realNumber = cleanPhone.substring(4);
-      correctedPhone = '51' + realNumber;
-      console.log(`[Conversations] Extracted 9-digit number from 13-digit format: ${realNumber}`);
-      console.log(`[Conversations] Converted to: ${correctedPhone}`);
-    } else if (cleanPhone.length === 15 && cleanPhone.startsWith('51')) {
-      const realNumber = cleanPhone.substring(6);
-      correctedPhone = '51' + realNumber;
-      console.log(`[Conversations] Extracted 9-digit number from 15-digit format: ${realNumber}`);
-      console.log(`[Conversations] Converted to: ${correctedPhone}`);
-    } else if (cleanPhone.length === 15) {
-      const realNumber = cleanPhone.substring(cleanPhone.length - 9);
-      correctedPhone = '51' + realNumber;
-      console.log(`[Conversations] Extracted last 9 digits from 15-digit number: ${realNumber}`);
-      console.log(`[Conversations] Converted to Peruvian format: ${correctedPhone}`);
-    } else if (cleanPhone.length === 14) {
-      const realNumber = cleanPhone.substring(cleanPhone.length - 9);
-      correctedPhone = '51' + realNumber;
-      console.log(`[Conversations] Extracted last 9 digits from 14-digit number: ${realNumber}`);
-      console.log(`[Conversations] Converted to Peruvian format: ${correctedPhone}`);
-    } else if (cleanPhone.length === 10 && cleanPhone.startsWith('15')) {
-      correctedPhone = '51' + cleanPhone.substring(2);
-      console.log(`[Conversations] Converted Peruvian mobile to: ${correctedPhone}`);
-    } else if (cleanPhone.length > 9 && cleanPhone.startsWith('9')) {
-      const realNumber = cleanPhone.substring(cleanPhone.length - 9);
-      correctedPhone = '51' + realNumber;
-      console.log(`[Conversations] Extracted last 9 digits from long number starting with 9: ${realNumber}`);
-      console.log(`[Conversations] Converted to Peruvian format: ${correctedPhone}`);
-    } else if (cleanPhone.length > 9) {
-      const realNumber = cleanPhone.substring(cleanPhone.length - 9);
-      correctedPhone = '51' + realNumber;
-      console.log(`[Conversations] Extracted last 9 digits from long number: ${realNumber}`);
-      console.log(`[Conversations] Converted to Peruvian format: ${correctedPhone}`);
-    } else if (cleanPhone.length === 7) {
-      correctedPhone = '511' + cleanPhone;
-      console.log(`[Conversations] Converted 7-digit Peruvian phone to: ${correctedPhone}`);
+      console.log(`[Conversations] Converted 9-digit number to Peruvian format: ${correctedPhone}`);
     } else {
-      console.log(`[Conversations] Phone format not recognized, using original: ${correctedPhone}`);
+      console.log(`[Conversations] Using phone as-is (already has country code or non-standard): ${correctedPhone}`);
     }
     
     console.log(`[Conversations] Final corrected phone: ${correctedPhone}`);
@@ -166,7 +120,8 @@ router.post('/:id/send', async (req, res) => {
       return res.status(503).json({ error: 'WhatsApp no está conectado. Por favor conecta el dispositivo primero.' });
     }
 
-    await qrService.sendTextMessage(correctedPhone, text.trim());
+    const contactJid = (conversation.contacts as any)?.custom_attributes?.whatsapp_jid;
+    await qrService.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
 
     // Get org id
     const { data: org } = await supabase.from('organizations').select('id').limit(1).single();

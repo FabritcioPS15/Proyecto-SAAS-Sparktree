@@ -9,6 +9,15 @@ export async function handleIncomingMessage(
   waService: any // Pass the service instance (Cloud or QR)
 ) {
 
+  // Fetch contact to get stored JID if available
+  const { data: contactData } = await supabase
+    .from('contacts')
+    .select('*, custom_attributes')
+    .eq('id', organizationConfig.contactId)
+    .single();
+
+  const contactJid = (contactData as any)?.custom_attributes?.whatsapp_jid;
+
   const saveOutgoingMessage = async (type: string, content: any, waResponse: any) => {
     if (organizationConfig.organizationId && organizationConfig.conversationId && organizationConfig.contactId) {
       await supabase.from('messages').insert({
@@ -45,8 +54,8 @@ export async function handleIncomingMessage(
         console.log(`[Flow Engine] Trigger node detected. Proceeding to connected block.`);
       } else if (node.type === 'text') {
         try {
-          console.log(`[Flow Engine] Sending text message: "${node.data?.text}" to ${senderPhone}`);
-          const res = await waService.sendTextMessage(senderPhone, node.data?.text || '');
+          console.log(`[Flow Engine] Sending text message: "${node.data?.text}" to ${senderPhone} (JID: ${contactJid || 'using phone'})`);
+          const res = await waService.sendTextMessage(senderPhone, node.data?.text || '', { jid: contactJid });
           console.log(`[Flow Engine] Text message sent successfully. Response:`, res?.key ? 'OK' : 'Unknown');
           await saveOutgoingMessage('text', node.data?.text, res);
         } catch (error) {
@@ -56,7 +65,8 @@ export async function handleIncomingMessage(
         const res = await waService.sendButtonMessage(
           senderPhone,
           node.data?.bodyText || '',
-          node.data?.buttons || []
+          node.data?.buttons || [],
+          { jid: contactJid }
         );
         // Guardar el response completo que incluye buttonMapping
         await saveOutgoingMessage('interactive', res, res);
@@ -64,11 +74,11 @@ export async function handleIncomingMessage(
       } else if (node.type === 'media') {
         const url = node.data?.mediaUrl;
         if (url) {
-          const res = await waService.sendMediaMessage(senderPhone, url);
+          const res = await waService.sendMediaMessage(senderPhone, url, { jid: contactJid });
           await saveOutgoingMessage('media', url, res);
         }
       } else if (node.type === 'capture') {
-        const res = await waService.sendTextMessage(senderPhone, node.data?.question || '?');
+        const res = await waService.sendTextMessage(senderPhone, node.data?.question || '?', { jid: contactJid });
         await saveOutgoingMessage('capture', node.data?.question, res);
         await supabase
           .from('contacts')
@@ -224,7 +234,7 @@ export async function handleIncomingMessage(
     // PRIORITY 3: Fallback if no trigger matched and not a valid button response
     console.log('[Bot Engine] No trigger matched. Sending fallback message.');
     const fallbackText = 'No entendí ese comando. Intenta con otras palabras clave configuradas en tus Flujos.';
-    const res = await waService.sendTextMessage(senderPhone, fallbackText);
+    const res = await waService.sendTextMessage(senderPhone, fallbackText, { jid: contactJid });
     await saveOutgoingMessage('text', fallbackText, res);
   }
 
@@ -249,7 +259,7 @@ export async function handleIncomingMessage(
     }
 
     const fallbackText = 'Opción no reconocida o flujo incompleto.';
-    const res = await waService.sendTextMessage(senderPhone, fallbackText);
+    const res = await waService.sendTextMessage(senderPhone, fallbackText, { jid: contactJid });
     await saveOutgoingMessage('text', fallbackText, res);
   }
 }
