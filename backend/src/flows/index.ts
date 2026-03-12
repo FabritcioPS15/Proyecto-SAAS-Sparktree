@@ -73,9 +73,19 @@ export async function handleIncomingMessage(
         break; // Wait for user button click
       } else if (node.type === 'media') {
         const url = node.data?.mediaUrl;
+        const caption = node.data?.caption;
+        const type = node.data?.mediaType || 'image';
+        
         if (url) {
-          const res = await waService.sendMediaMessage(senderPhone, url, { jid: contactJid });
-          await saveOutgoingMessage('media', url, res);
+          console.log(`[Flow Engine] Sending media (${type}): ${url}`);
+          const res = await waService.sendMediaMessage(senderPhone, url, { 
+            jid: contactJid,
+            caption: caption,
+            type: type,
+            fileName: node.data?.fileName,
+            viewOnce: !!node.data?.isViewOnce
+          });
+          await saveOutgoingMessage('media', { url, caption, type, fileName: node.data?.fileName, viewOnce: !!node.data?.isViewOnce }, res);
         }
       } else if (node.type === 'capture') {
         const res = await waService.sendTextMessage(senderPhone, node.data?.question || '?', { jid: contactJid });
@@ -159,9 +169,59 @@ export async function handleIncomingMessage(
     // Check if waiting for capture input
     if (contact?.bot_state?.startsWith('capture_')) {
       const nodeId = contact.bot_state.replace('capture_', '');
-      console.log(`[Bot Engine] Capture mode active for node: ${nodeId}`);
-      await executeNode(flow, nodeId);
-      return;
+      const node = flow.nodes.find((n: any) => n.id === nodeId);
+      
+      if (node) {
+        console.log(`[Bot Engine] Capture mode active for node: ${nodeId}. Input: "${textBody}"`);
+        
+        // Validation logic
+        const valType = node.data?.validationType || 'any';
+        let isValid = true;
+        
+        if (valType === 'email') {
+          isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(textLower);
+        } else if (valType === 'number') {
+          isValid = !isNaN(Number(textBody));
+        } else if (valType === 'phone') {
+          isValid = /^\+?[0-9]{7,15}$/.test(textBody.replace(/\s+/g, ''));
+        }
+
+        // Allow Skip logic
+        const isSkip = node.data?.allowSkip && (textLower === 'saltar' || textLower === 'skip' || textLower === 'omitir');
+
+        if (isValid || isSkip) {
+          console.log(`[Bot Engine] Input valid or skipped. Saving variable: ${node.data?.variableName}`);
+          
+          // Persistence: Save to custom_attributes
+          const variableName = node.data?.variableName || `var_${nodeId}`;
+          const currentAttributes = contact.custom_attributes || {};
+          
+          if (!isSkip) {
+            currentAttributes[variableName] = textBody;
+          }
+
+          await supabase
+            .from('contacts')
+            .update({ 
+               custom_attributes: currentAttributes,
+               bot_state: null // Clear state
+            })
+            .eq('id', organizationConfig.contactId);
+
+          // Continue flow
+          const nextEdge = flow.edges.find((e: any) => e.source === nodeId);
+          if (nextEdge && nextEdge.target) {
+            await executeNode(flow, nextEdge.target);
+          }
+          return;
+        } else {
+          // Send error message
+          const errorMsg = node.data?.errorMessage || 'Ese dato no parece válido. Intenta de nuevo por favor:';
+          const res = await waService.sendTextMessage(senderPhone, errorMsg, { jid: contactJid });
+          await saveOutgoingMessage('text', errorMsg, res);
+          return;
+        }
+      }
     }
 
     // PRIORITY 1: Check if this is a trigger for starting the flow

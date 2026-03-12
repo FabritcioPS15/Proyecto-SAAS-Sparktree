@@ -129,27 +129,27 @@ export const Leads = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5 relative">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-8 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
-          <div className="space-y-2">
-            <h1 className="text-3xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
+    <div className="h-[calc(100vh-8rem)] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
+      <div className="flex-1 p-4 lg:p-5 space-y-4 relative overflow-y-auto">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
+          <div className="space-y-1">
+            <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               Gestión de <span className="text-indigo-600 dark:text-indigo-400">Leads</span>
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium max-w-2xl leading-relaxed">
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl leading-relaxed">
               Monitoriza a los usuarios que han completado el <span className="text-emerald-500 font-bold">Happy Path</span> y están listos para la conversión.
             </p>
           </div>
           <button
-            className="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-3 group"
+            className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 group"
           >
-            <User className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <User className="w-4 h-4 group-hover:rotate-12 transition-transform" />
             Nuevo Cliente
           </button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
             { label: 'Total Leads', value: stats.total, icon: User, color: 'indigo' },
             { label: 'Nuevos', value: stats.new, icon: AlertCircle, color: 'blue' },
@@ -157,35 +157,35 @@ export const Leads = () => {
             { label: 'Convertidos', value: stats.converted, icon: Star, color: 'amber' },
             { label: 'Score Promedio', value: stats.avgScore, icon: TrendingUp, color: 'rose' }
           ].map((item, i) => (
-            <div key={i} className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50 group hover:scale-105 transition-all duration-500">
-              <div className={`p-3 bg-${item.color}-50 dark:bg-${item.color}-500/10 rounded-2xl w-fit mb-4 group-hover:rotate-6 transition-transform`}>
-                <item.icon className={`w-6 h-6 text-${item.color}-600 dark:text-${item.color}-400`} />
+            <div key={i} className="bg-white dark:bg-[#11141b] rounded-[1.5rem] p-4 shadow-lg shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50 group hover:scale-105 transition-all duration-500">
+              <div className={`p-2 bg-${item.color}-50 dark:bg-${item.color}-500/10 rounded-xl w-fit mb-3 group-hover:rotate-6 transition-transform`}>
+                <item.icon className={`w-5 h-5 text-${item.color}-600 dark:text-${item.color}-400`} />
               </div>
-              <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">{item.label}</p>
-              <p className="text-3xl font-black text-slate-900 dark:text-white">{item.value}</p>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">{item.label}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white">{item.value}</p>
             </div>
           ))}
         </div>
 
         {/* Filters Area */}
-        <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[2rem] p-6 border border-gray-200 dark:border-gray-800/50 shadow-sm">
-          <div className="flex flex-col lg:flex-row gap-6">
+        <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[1.5rem] p-4 border border-gray-200 dark:border-gray-800/50 shadow-sm">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input
                 type="text"
                 placeholder="Buscar por nombre, empresa o teléfono..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-6 py-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
+                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
               />
             </div>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-3">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-6 py-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold appearance-none cursor-pointer min-w-[180px]"
+                className="px-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold appearance-none cursor-pointer min-w-[160px] text-sm"
               >
                 <option value="all">Todos los estados</option>
                 <option value="new">Nuevos</option>
@@ -197,7 +197,7 @@ export const Leads = () => {
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
-                className="px-6 py-4 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold appearance-none cursor-pointer min-w-[180px]"
+                className="px-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold appearance-none cursor-pointer min-w-[160px] text-sm"
               >
                 <option value="all">Todas las prioridades</option>
                 <option value="high">Prioridad Alta</option>
@@ -209,31 +209,31 @@ export const Leads = () => {
         </div>
 
         {/* Leads Table Container */}
-        <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] shadow-2xl shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50 overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar">
+        <div className="bg-white dark:bg-[#11141b] rounded-[1.5rem] shadow-lg shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50 overflow-hidden flex-1 min-h-0">
+          <div className="overflow-y-auto custom-scrollbar h-full">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/50 dark:bg-transparent border-b border-gray-100 dark:border-gray-800/50">
-                  <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Lead / Empresa</th>
-                  <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Información de Contacto</th>
-                  <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Estado & Score</th>
-                  <th className="px-8 py-6 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Acciones</th>
+                <tr className="bg-slate-50/50 dark:bg-transparent border-b border-gray-100 dark:border-gray-800/50 sticky top-0 z-10">
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Lead / Empresa</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Contacto</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Estado & Score</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50">
                 {filteredLeads.map((lead) => (
                   <tr key={lead.id || lead._id} className="group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-300">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center font-black text-indigo-600 dark:text-indigo-400 text-lg group-hover:scale-110 transition-transform">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center font-black text-indigo-600 dark:text-indigo-400 text-sm group-hover:scale-110 transition-transform">
                           {lead.name.charAt(0)}
                         </div>
-                        <div>
-                          <div className="font-black text-slate-900 dark:text-white text-lg tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{lead.name}</div>
-                          <div className="text-sm font-bold text-slate-400 dark:text-slate-500">{lead.company || 'Personal'}</div>
-                          <div className="flex gap-2 mt-2">
+                        <div className="min-w-0">
+                          <div className="font-black text-slate-900 dark:text-white text-sm tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{lead.name}</div>
+                          <div className="text-xs font-bold text-slate-400 dark:text-slate-500 truncate">{lead.company || 'Personal'}</div>
+                          <div className="flex gap-1 mt-1">
                             {lead.tags.slice(0, 2).map((tag, index) => (
-                              <span key={index} className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                              <span key={index} className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
                                 {tag}
                               </span>
                             ))}
@@ -241,51 +241,51 @@ export const Leads = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                          <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg"><Mail className="w-3 h-3" /></div>
-                          {lead.email || 'Sin correo'}
+                    <td className="px-4 py-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                          <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded"><Mail className="w-3 h-3" /></div>
+                          <span className="truncate">{lead.email || 'Sin correo'}</span>
                         </div>
-                        <div className="flex items-center gap-3 text-sm font-bold text-slate-600 dark:text-slate-300">
-                          <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg"><Phone className="w-3 h-3" /></div>
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                          <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded"><Phone className="w-3 h-3" /></div>
                           {lead.phone}
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-6">
-                        <div className="space-y-2">
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border ${getStatusColor(lead.status)}`}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="space-y-1">
+                          <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 border ${getStatusColor(lead.status)}`}>
+                            <span className="w-1 h-1 rounded-full bg-current animate-pulse" />
                             {getStatusText(lead.status)}
                           </span>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getPriorityColor(lead.priority)}`}>
+                          <div className="flex items-center gap-1">
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${getPriorityColor(lead.priority)}`}>
                               {getPriorityText(lead.priority)}
                             </span>
                           </div>
                         </div>
                         <div className="flex flex-col items-center">
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-xl ${getScoreColor(lead.score)}`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-lg ${getScoreColor(lead.score)}`}>
                             {lead.score}
                           </div>
-                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 mt-2 uppercase">Score</span>
+                          <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 mt-1 uppercase">Score</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setSelectedLead(lead)}
-                          className="p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 rounded-2xl transition-all duration-300 shadow-sm border border-slate-100 dark:border-slate-700/50"
+                          className="p-2 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 rounded-xl transition-all duration-300 shadow-sm border border-slate-100 dark:border-slate-700/50"
                         >
-                          <User className="w-5 h-5" />
+                          <User className="w-4 h-4" />
                         </button>
                         <button
-                          className="p-4 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-600/20 hover:scale-110 active:scale-95 transition-all duration-300"
+                          className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-600/20 hover:scale-110 active:scale-95 transition-all duration-300"
                         >
-                          <MessageSquare className="w-5 h-5" />
+                          <MessageSquare className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

@@ -6,13 +6,44 @@ const router = express.Router();
 // GET /api/users (WhatsApp contacts)
 router.get('/', async (req, res) => {
   try {
-    const { data: contacts } = await supabase
+    // Fetch contacts
+    const { data: contacts, error: contactsError } = await supabase
       .from('contacts')
-      .select('*')
+      .select('id, phone_number, profile_name, last_active_at, created_at')
       .order('last_active_at', { ascending: false });
 
-    res.json(contacts || []);
+    if (contactsError) throw contactsError;
+
+    // Fetch message counts for all contacts in this org (ideally we should filter by org but let's assume we have a way to know the context)
+    // For now, let's just get counts for these specific contacts
+    const contactIds = contacts.map(c => c.id);
+    
+    const { data: counts, error: countsError } = await supabase
+      .from('messages')
+      .select('contact_id')
+      .in('contact_id', contactIds);
+
+    if (countsError) throw countsError;
+
+    // Count messages per contact
+    const messageCounts = counts.reduce((acc: any, msg: any) => {
+      acc[msg.contact_id] = (acc[msg.contact_id] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Transform to frontend format
+    const transformed = contacts.map(c => ({
+      id: c.id,
+      phoneNumber: c.phone_number,
+      name: c.profile_name || 'Usuario Anon',
+      firstInteraction: c.created_at,
+      lastInteraction: c.last_active_at,
+      totalMessages: messageCounts[c.id] || 0
+    }));
+
+    res.json(transformed);
   } catch (error) {
+    console.error('Error in /api/users:', error);
     res.status(500).json({ error: 'Failed to fetch contacts' });
   }
 });

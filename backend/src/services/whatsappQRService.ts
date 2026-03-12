@@ -286,16 +286,48 @@ class WhatsAppQRService {
     }
   }
 
-  async sendMediaMessage(to: string, url: string, options?: { jid?: string }) {
+  async sendMediaMessage(to: string, url: string, options?: { 
+    jid?: string, 
+    caption?: string, 
+    type?: string, 
+    fileName?: string, 
+    viewOnce?: boolean 
+  }) {
     const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
-    const ext = url.split('.').pop()?.toLowerCase() || '';
+    const caption = options?.caption;
+    const fileName = options?.fileName;
+    const viewOnce = options?.viewOnce;
     
-    if (['png', 'jpg', 'jpeg'].includes(ext)) {
-      return await this.socket.sendMessage(jid, { image: { url } });
-    } else if (['mp4'].includes(ext)) {
-      return await this.socket.sendMessage(jid, { video: { url } });
+    // Determine type by extension if not provided
+    const ext = url.split('.').pop()?.toLowerCase() || '';
+    const type = options?.type || (['png', 'jpg', 'jpeg'].includes(ext) ? 'image' : ['mp4'].includes(ext) ? 'video' : 'document');
+    
+    console.log(`[QR Service] Sending media: type=${type}, url=${url}, caption=${caption || 'none'}`);
+
+    if (type === 'image') {
+      return await this.socket.sendMessage(jid, { 
+        image: { url }, 
+        caption, 
+        viewOnce 
+      });
+    } else if (type === 'video') {
+      return await this.socket.sendMessage(jid, { 
+        video: { url }, 
+        caption, 
+        viewOnce 
+      });
+    } else if (type === 'audio') {
+      return await this.socket.sendMessage(jid, { 
+        audio: { url } 
+      });
     } else {
-      return await this.socket.sendMessage(jid, { document: { url }, fileName: `file.${ext}` });
+      // Document
+      return await this.socket.sendMessage(jid, { 
+        document: { url }, 
+        caption,
+        fileName: fileName || `archivo.${ext}`,
+        mimetype: ext === 'pdf' ? 'application/pdf' : undefined
+      });
     }
   }
 

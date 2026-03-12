@@ -93,13 +93,15 @@ class WhatsAppService {
    * @param {string} to - Recipient phone number
    * @param {string} url - Media URL
    */
-  async sendMediaMessage(to: string, url: string) {
-    // Determine type by extension
+  async sendMediaMessage(to: string, url: string, options?: { caption?: string, type?: string, fileName?: string }) {
+    // Determine type by extension if not provided
     const ext = url.split('.').pop()?.toLowerCase() || '';
-    let type = 'image';
-    if (['mp4', 'mkv', 'avi'].includes(ext)) type = 'video';
-    else if (['pdf', 'doc', 'docx', 'xls', 'xlsx'].includes(ext)) type = 'document';
-    else if (['mp3', 'ogg', 'wav'].includes(ext)) type = 'audio';
+    let type = options?.type || 'image';
+    if (!options?.type) {
+      if (['mp4', 'mkv', 'avi'].includes(ext)) type = 'video';
+      else if (['pdf', 'doc', 'docx', 'xls', 'xlsx'].includes(ext)) type = 'document';
+      else if (['mp3', 'ogg', 'wav'].includes(ext)) type = 'audio';
+    }
 
     try {
       const response = await axios({
@@ -114,7 +116,9 @@ class WhatsAppService {
           to: to,
           type: type,
           [type]: {
-            link: url
+            link: url,
+            caption: options?.caption,
+            filename: options?.fileName
           }
         }
       });

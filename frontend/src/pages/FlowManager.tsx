@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Plus, Edit2, Trash2, Copy, Play, Search, Users, BarChart3, ChevronRight } from 'lucide-react';
+import { Bot, Plus, Edit2, Trash2, Copy, Play, Search, Users, BarChart3 } from 'lucide-react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowBuilderContent } from '../components/flow/FlowBuilderContent';
 import { flowService, FlowBot } from '../services/flowService';
@@ -109,62 +109,20 @@ export const FlowManager = () => {
   };
 
   if (editingFlow) {
-    // Show FlowBuilder component with the selected flow
     return (
-      <div className="h-full bg-gray-50 dark:bg-gray-900">
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="px-6 py-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={closeFlowBuilder}
-                    className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 hover:scale-105 group"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300 rotate-180 group-hover:scale-110 transition-transform" />
-                  </button>
-                  <div className="group">
-                    <h2 className="text-xl font-black text-gray-900 dark:text-white">
-                      Editando: {editingFlow.name}
-                    </h2>
-                    <p className="text-xs font-bold text-gray-600 dark:text-gray-400 mt-0.5">
-                      Versión {editingFlow.version} • {editingFlow.category}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-1 bg-gray-800 text-white rounded-xl font-semibold shadow-lg flex items-center gap-2">
-                    <Edit2 className="w-4 h-4" />
-                    Editando
-                  </div>
-                  <button
-                    onClick={closeFlowBuilder}
-                    className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
-                  >
-                    Volver
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Flow Builder */}
-          <div className="flex-1 overflow-hidden">
-            <ReactFlowProvider>
-              <FlowBuilderContent flowData={editingFlow} />
-            </ReactFlowProvider>
-          </div>
-        </div>
+      <div className="relative w-full h-screen overflow-hidden">
+        <ReactFlowProvider>
+          <FlowBuilderContent flowData={editingFlow} onBack={closeFlowBuilder} />
+        </ReactFlowProvider>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
           <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Cargando flujos...</p>
         </div>
       </div>
@@ -192,23 +150,24 @@ export const FlowManager = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5 relative">
-        {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 rounded-[2.5rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
-          <div className="space-y-3">
-            <div className="flex items-center gap-4 mb-2">
-              <span className="px-4 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-indigo-100 dark:border-indigo-500/20">
-                Flow Engine v2.0
-              </span>
-            </div>
-            <h1 className="text-4xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
-              Gestión de <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 font-black">Flujos</span>
+    <div className="h-[calc(100vh-8rem)] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
+      <div className="flex-1 p-4 lg:p-5 space-y-4 relative overflow-y-auto">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
+          <div className="space-y-1">
+            <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Gestor de <span className="text-indigo-600 dark:text-indigo-400">Flujos</span>
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium max-w-2xl leading-relaxed">
-              Diseña, optimiza y despliega experiencias conversacionales inteligentes con nuestro motor de flujos avanzado.
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl leading-relaxed">
+              Crea, edita y gestiona todos tus flujos de automatización en un solo lugar.
             </p>
           </div>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Flujo
+          </button>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-1.5 border border-slate-200 dark:border-slate-700/50">
               <button
@@ -241,7 +200,7 @@ export const FlowManager = () => {
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
             { label: 'Total Flujos', value: stats.total, icon: Bot, color: 'slate', trend: '+12%' },
             { label: 'Flujos Activos', value: stats.active, icon: Play, color: 'emerald', trend: '+8%' },
@@ -249,43 +208,43 @@ export const FlowManager = () => {
             { label: 'Conversaciones', value: stats.totalConversations.toLocaleString(), icon: Users, color: 'indigo', trend: '+25%' },
             { label: 'Completación', value: `${stats.avgCompletionRate}%`, icon: BarChart3, color: 'purple', trend: '+5%' },
           ].map((stat, i) => (
-            <div key={i} className="group relative overflow-hidden bg-white dark:bg-[#11141b] p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-2xl transition-all duration-500">
-              <div className={`absolute top-0 right-0 w-24 h-24 bg-${stat.color}-500/5 rounded-full -mr-8 -mt-8 blur-2xl group-hover:bg-${stat.color}-500/10 transition-colors duration-500`} />
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className={`p-4 bg-${stat.color}-500/10 rounded-2xl`}>
-                  <stat.icon className={`w-6 h-6 text-${stat.color}-500 dark:text-${stat.color}-400`} />
+            <div key={i} className="group relative overflow-hidden bg-white dark:bg-[#11141b] p-4 rounded-[1.5rem] border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-lg transition-all duration-500">
+              <div className={`absolute top-0 right-0 w-16 h-16 bg-${stat.color}-500/5 rounded-full -mr-8 -mt-8 blur-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-500`} />
+              <div className="flex items-center justify-between mb-3 relative z-10">
+                <div className={`p-2 bg-${stat.color}-500/10 rounded-xl`}>
+                  <stat.icon className={`w-4 h-4 text-${stat.color}-500 dark:text-${stat.color}-400`} />
                 </div>
-                <span className={`text-[10px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'} bg-white dark:bg-slate-800/50 px-2.5 py-1 rounded-lg border border-slate-100 dark:border-slate-700/50 shadow-sm`}>
+                <span className={`text-[9px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'} bg-white dark:bg-slate-800/50 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-700/50 shadow-sm`}>
                   {stat.trend}
                 </span>
               </div>
               <div className="space-y-1 relative z-10">
-                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{stat.label}</p>
-                <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{stat.value}</p>
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{stat.label}</p>
+                <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">{stat.value}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Control Bar */}
-        <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[2.5rem] p-6 border border-gray-200 dark:border-gray-800/50 shadow-sm">
-          <div className="flex flex-col lg:flex-row gap-6">
+        <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[1.5rem] p-4 border border-gray-200 dark:border-gray-800/50 shadow-sm">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative group">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input
                 type="text"
                 placeholder="Buscar flujos por nombre, descripción o palabras clave..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-16 pr-8 py-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
+                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-8 py-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 dark:text-white font-black uppercase tracking-widest text-[10px] cursor-pointer"
+                className="px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 dark:text-white font-black uppercase tracking-widest text-[9px] cursor-pointer"
               >
                 <option value="all">Categorías (Todas)</option>
                 <option value="sales">Ventas</option>
@@ -297,7 +256,7 @@ export const FlowManager = () => {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-8 py-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 dark:text-white font-black uppercase tracking-widest text-[10px] cursor-pointer"
+                className="px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 dark:text-white font-black uppercase tracking-widest text-[9px] cursor-pointer"
               >
                 <option value="all">Estados (Todos)</option>
                 <option value="active">Activos</option>
@@ -310,13 +269,13 @@ export const FlowManager = () => {
 
         {/* Main Content Area */}
         {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 flex-1 min-h-0 overflow-y-auto">
             {filteredAndSortedFlows.map((flow) => (
               <div key={flow.id} className="group relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-[3rem] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
-                <div className="h-full bg-white dark:bg-[#11141b] rounded-[2.5rem] p-8 border border-gray-100 dark:border-gray-800/50 shadow-sm group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
+                <div className="h-full bg-white dark:bg-[#11141b] rounded-[1.5rem] p-5 border border-gray-100 dark:border-gray-800/50 shadow-sm group-hover:shadow-lg group-hover:-translate-y-1 transition-all duration-500 overflow-hidden relative">
                   {/* Flow Category Banner */}
-                  <div className={`absolute top-0 right-0 px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-[0.2em] border-l border-b border-gray-100 dark:border-gray-800/50 ${flow.category === 'sales' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10' :
+                  <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl font-black text-[8px] uppercase tracking-[0.2em] border-l border-b border-gray-100 dark:border-gray-800/50 ${flow.category === 'sales' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10' :
                     flow.category === 'support' ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10' :
                       flow.category === 'marketing' ? 'bg-pink-50 text-pink-600 dark:bg-pink-500/10' :
                         'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10'
@@ -324,66 +283,66 @@ export const FlowManager = () => {
                     {flow.category}
                   </div>
 
-                  <div className="flex items-start gap-6 mb-8 mt-4">
-                    <div className={`w-16 h-16 rounded-[1.25rem] bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4 shadow-2xl group-hover:scale-110 transition-transform duration-500`}>
+                  <div className="flex items-start gap-4 mb-4 mt-3">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-3 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
                       <Bot className="w-full h-full text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-2xl font-black text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                         {flow.name}
                       </h3>
-                      <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-2 mt-1">
                         <button
                           onClick={() => toggleFlowStatus(flow.id)}
-                          className={`w-10 h-5 rounded-full relative transition-colors duration-300 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
+                          className={`w-8 h-4 rounded-full relative transition-colors duration-300 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
                         >
-                          <div className={`absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full transition-all duration-300 shadow-sm ${flow.status === 'active' ? 'left-5.5' : 'left-1'}`} />
+                          <div className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${flow.status === 'active' ? 'left-4.5' : 'left-0.5'}`} />
                         </button>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${flow.status === 'active' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${flow.status === 'active' ? 'text-emerald-500' : 'text-slate-400'}`}>
                           {flow.status === 'active' ? 'En ejecución' : 'Pausado'}
                         </span>
                         {flow.isDefault && (
-                          <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-md border border-amber-100 dark:border-amber-500/20 ml-2">Default</span>
+                          <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-amber-100 dark:border-amber-500/20 ml-1">Default</span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mb-8 min-h-[3rem] leading-relaxed italic">
+                  <p className="text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mb-4 min-h-[2.5rem] leading-relaxed italic text-sm">
                     "{flow.description}"
                   </p>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-slate-800/50">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Conversaciones</p>
-                      <p className="text-xl font-black text-slate-900 dark:text-white">{flow.metrics.conversations.toLocaleString()}</p>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Conversaciones</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-white">{flow.metrics.conversations.toLocaleString()}</p>
                     </div>
-                    <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-slate-800/50">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Completación</p>
-                      <p className="text-xl font-black text-slate-900 dark:text-white">{flow.metrics.completionRate}%</p>
+                    <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Completación</p>
+                      <p className="text-lg font-black text-slate-900 dark:text-white">{flow.metrics.completionRate}%</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-800/50">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800/50">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => openFlowBuilder(flow)}
-                        className="p-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all"
+                        className="p-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all"
                       >
-                        <Edit2 className="w-5 h-5" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => duplicateFlow(flow)}
-                        className="p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:scale-105 active:scale-95 transition-all"
+                        className="p-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:scale-105 active:scale-95 transition-all"
                       >
-                        <Copy className="w-5 h-5" />
+                        <Copy className="w-4 h-4" />
                       </button>
                     </div>
                     <button
                       onClick={() => deleteFlow(flow.id)}
-                      className="p-4 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all hover:scale-105"
+                      className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all hover:scale-105"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
