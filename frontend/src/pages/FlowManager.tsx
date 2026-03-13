@@ -100,11 +100,21 @@ export const FlowManager = () => {
 
   const toggleFlowStatus = async (flowId: string) => {
     try {
+      // Optimistic update - update UI immediately
+      setFlows(prevFlows => 
+        prevFlows.map(flow => 
+          flow.id === flowId 
+            ? { ...flow, status: flow.status === 'active' ? 'inactive' : 'active' }
+            : flow
+        )
+      );
+      
       await flowService.toggleFlowStatus(flowId);
-      await refreshFlows();
+      await refreshFlows(); // Refresh to get actual state from backend
     } catch (err) {
       console.error('Error toggling flow status:', err);
       setError('No se pudo cambiar el estado del flujo.');
+      await refreshFlows(); // Revert to actual state on error
     }
   };
 
@@ -229,13 +239,6 @@ export const FlowManager = () => {
               Crea, edita y gestiona todos tus flujos de automatización en un solo lugar.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo Flujo
-          </button>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-1.5 border border-slate-200 dark:border-slate-700/50">
               <button
@@ -274,7 +277,7 @@ export const FlowManager = () => {
             { label: 'Flujos Activos', value: stats.active, icon: Play, color: 'emerald', trend: '+8%' },
             { label: 'Borradores', value: stats.draft, icon: Edit2, color: 'amber', trend: '-3%' },
             { label: 'Conversaciones', value: stats.totalConversations.toLocaleString(), icon: Users, color: 'primary', trend: '+25%' },
-            { label: 'Completación', value: `${stats.avgCompletionRate}%`, icon: BarChart3, color: 'secondary', trend: '+5%' },
+            { label: 'Completas', value: `${stats.avgCompletionRate}%`, icon: BarChart3, color: 'secondary', trend: '+5%' },
           ].map((stat, i) => (
             <div key={i} className="group relative overflow-hidden bg-white dark:bg-[#11141b] p-4 rounded-[1.5rem] border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-lg transition-all duration-500">
               <div className={`absolute top-0 right-0 w-16 h-16 bg-${stat.color}-500/5 rounded-full -mr-8 -mt-8 blur-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-500`} />
@@ -362,9 +365,9 @@ export const FlowManager = () => {
                       <div className="flex items-center gap-2 mt-1">
                         <button
                           onClick={() => toggleFlowStatus(flow.id)}
-                          className={`w-8 h-4 rounded-full relative transition-colors duration-300 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
+                          className={`w-8 h-4 rounded-full relative transition-colors duration-100 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
                         >
-                          <div className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-sm ${flow.status === 'active' ? 'left-4.5' : 'left-0.5'}`} />
+                          <div className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full transition-all duration-100 shadow-sm ${flow.status === 'active' ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
                         <span className={`text-[8px] font-black uppercase tracking-widest ${flow.status === 'active' ? 'text-emerald-500' : 'text-slate-400'}`}>
                           {flow.status === 'active' ? 'En ejecución' : 'Pausado'}
@@ -386,7 +389,7 @@ export const FlowManager = () => {
                       <p className="text-lg font-black text-slate-900 dark:text-white">{flow.metrics.conversations.toLocaleString()}</p>
                     </div>
                     <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-slate-800/50">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Completación</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Conversaciones completas</p>
                       <p className="text-lg font-black text-slate-900 dark:text-white">{flow.metrics.completionRate}%</p>
                     </div>
                   </div>
@@ -471,9 +474,9 @@ export const FlowManager = () => {
                         <div className="flex items-center gap-4">
                           <button
                             onClick={() => toggleFlowStatus(flow.id)}
-                            className={`w-12 h-6 rounded-full relative transition-colors duration-300 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
+                            className={`w-12 h-6 rounded-full relative transition-colors duration-100 border border-slate-200 dark:border-slate-700 ${flow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
                           >
-                            <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${flow.status === 'active' ? 'left-6.5' : 'left-1'}`} />
+                            <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full transition-all duration-100 shadow-sm ${flow.status === 'active' ? 'translate-x-6' : 'translate-x-0'}`} />
                           </button>
                           <div className="flex flex-col">
                             <span className={`text-[10px] font-black uppercase tracking-widest ${flow.status === 'active' ? 'text-emerald-500' : 'text-slate-400'}`}>
