@@ -3,6 +3,7 @@ import { Bot, Plus, Edit2, Trash2, Copy, Play, Search, Users, BarChart3 } from '
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowBuilderContent } from '../components/flow/FlowBuilderContent';
 import { flowService, FlowBot } from '../services/flowService';
+import { TriggerInput } from '../components/TriggerInput';
 
 export const FlowManager = () => {
   const [flows, setFlows] = useState<FlowBot[]>([]);
@@ -14,6 +15,13 @@ export const FlowManager = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [error, setError] = useState<string | null>(null);
+  const [newFlowData, setNewFlowData] = useState({
+    name: '',
+    description: '',
+    category: 'other' as 'sales' | 'support' | 'marketing' | 'onboarding' | 'other',
+    triggers: [] as string[]
+  });
+  const [isCreating, setIsCreating] = useState(false);
 
   // Load flows from API
   useEffect(() => {
@@ -100,6 +108,66 @@ export const FlowManager = () => {
     }
   };
 
+  const createFlow = async () => {
+    if (!newFlowData.name.trim()) {
+      setError('El nombre del flujo es obligatorio');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      setError(null);
+      
+      // Create initial trigger node
+      const triggerNode = {
+        id: 'trigger_1',
+        type: 'trigger',
+        position: { x: 100, y: 100 },
+        data: {
+          label: 'Inicio',
+          description: 'Este es el punto de inicio de tu flujo'
+        }
+      };
+
+      const flowData = {
+        name: newFlowData.name.trim(),
+        description: newFlowData.description.trim(),
+        category: newFlowData.category,
+        triggers: newFlowData.triggers,
+        status: 'draft' as const,
+        version: '1.0.0',
+        nodes: [triggerNode],
+        edges: [],
+        metrics: {
+          conversations: 0,
+          completionRate: 0,
+          avgResponseTime: 0,
+          satisfaction: 0
+        }
+      };
+
+      const newFlow = await flowService.createFlow(flowData);
+      await refreshFlows();
+      
+      // Reset form and close modal
+      setNewFlowData({
+        name: '',
+        description: '',
+        category: 'other',
+        triggers: []
+      });
+      setShowCreateForm(false);
+      
+      // Open the new flow in the builder
+      openFlowBuilder(newFlow);
+    } catch (err) {
+      console.error('Error creating flow:', err);
+      setError('No se pudo crear el flujo. Por favor, intenta de nuevo.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const stats = {
     total: flows.length,
     active: flows.filter(f => f.status === 'active').length,
@@ -122,7 +190,7 @@ export const FlowManager = () => {
     return (
       <div className="h-[calc(100vh-8rem)] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
           <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Cargando flujos...</p>
         </div>
       </div>
@@ -155,7 +223,7 @@ export const FlowManager = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
           <div className="space-y-1">
             <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Gestor de <span className="text-indigo-600 dark:text-indigo-400">Flujos</span>
+              Gestor de <span className="text-primary-500 dark:text-primary-400">Bots</span>
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl leading-relaxed">
               Crea, edita y gestiona todos tus flujos de automatización en un solo lugar.
@@ -174,7 +242,7 @@ export const FlowManager = () => {
                 onClick={() => setViewMode('grid')}
                 className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'grid'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xl'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-indigo-500'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-primary-500'
                   }`}
               >
                 Grid
@@ -183,7 +251,7 @@ export const FlowManager = () => {
                 onClick={() => setViewMode('list')}
                 className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewMode === 'list'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xl'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-indigo-500'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-primary-500'
                   }`}
               >
                 List
@@ -205,8 +273,8 @@ export const FlowManager = () => {
             { label: 'Total Flujos', value: stats.total, icon: Bot, color: 'slate', trend: '+12%' },
             { label: 'Flujos Activos', value: stats.active, icon: Play, color: 'emerald', trend: '+8%' },
             { label: 'Borradores', value: stats.draft, icon: Edit2, color: 'amber', trend: '-3%' },
-            { label: 'Conversaciones', value: stats.totalConversations.toLocaleString(), icon: Users, color: 'indigo', trend: '+25%' },
-            { label: 'Completación', value: `${stats.avgCompletionRate}%`, icon: BarChart3, color: 'purple', trend: '+5%' },
+            { label: 'Conversaciones', value: stats.totalConversations.toLocaleString(), icon: Users, color: 'primary', trend: '+25%' },
+            { label: 'Completación', value: `${stats.avgCompletionRate}%`, icon: BarChart3, color: 'secondary', trend: '+5%' },
           ].map((stat, i) => (
             <div key={i} className="group relative overflow-hidden bg-white dark:bg-[#11141b] p-4 rounded-[1.5rem] border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-lg transition-all duration-500">
               <div className={`absolute top-0 right-0 w-16 h-16 bg-${stat.color}-500/5 rounded-full -mr-8 -mt-8 blur-xl group-hover:bg-${stat.color}-500/10 transition-colors duration-500`} />
@@ -214,7 +282,7 @@ export const FlowManager = () => {
                 <div className={`p-2 bg-${stat.color}-500/10 rounded-xl`}>
                   <stat.icon className={`w-4 h-4 text-${stat.color}-500 dark:text-${stat.color}-400`} />
                 </div>
-                <span className={`text-[9px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'} bg-white dark:bg-slate-800/50 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-700/50 shadow-sm`}>
+                <span className={`text-[9px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-secondary-500'} bg-white dark:bg-slate-800/50 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-700/50 shadow-sm`}>
                   {stat.trend}
                 </span>
               </div>
@@ -230,13 +298,13 @@ export const FlowManager = () => {
         <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[1.5rem] p-4 border border-gray-200 dark:border-gray-800/50 shadow-sm">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
               <input
                 type="text"
                 placeholder="Buscar flujos por nombre, descripción o palabras clave..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
+                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-slate-900 dark:text-white font-bold"
               />
             </div>
 
@@ -451,23 +519,133 @@ export const FlowManager = () => {
         {/* Create Flow Modal */}
         {showCreateForm && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6 z-[100] animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-[#11141b] rounded-[3rem] shadow-2xl max-w-lg w-full border border-gray-100 dark:border-gray-800/50 overflow-hidden animate-in zoom-in-95 duration-300">
-              <div className="p-10 text-center space-y-4">
-                <div className="mx-auto w-24 h-24 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-500/20">
-                  <Plus className="w-10 h-10 text-white" strokeWidth={3} />
+            <div className="bg-white dark:bg-[#11141b] rounded-[3rem] shadow-2xl max-w-2xl w-full border border-gray-100 dark:border-gray-800/50 overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+              <div className="p-10 space-y-6">
+                {/* Header */}
+                <div className="text-center space-y-3">
+                  <div className="mx-auto w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-500/20">
+                    <Plus className="w-8 h-8 text-white" strokeWidth={3} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Crear Nuevo Flujo</h2>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium mt-2">
+                      Configura tu nuevo bot de automatización
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-3">
-                  <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Constructor Visual</h2>
-                  <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Estamos terminando de pulir el nuevo constructor visual de flujos. Pronto podrás arrastrar y soltar bloques para crear experiencias increíbles.
-                  </p>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl">
+                    <p className="text-red-600 dark:text-red-400 text-sm font-medium">{error}</p>
+                  </div>
+                )}
+
+                {/* Form */}
+                <div className="space-y-6">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
+                      Nombre del Flujo *
+                    </label>
+                    <input
+                      type="text"
+                      value={newFlowData.name}
+                      onChange={(e) => setNewFlowData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Ej: Bot de Ventas, Asistente de Soporte"
+                      className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
+                      disabled={isCreating}
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
+                      Descripción
+                    </label>
+                    <textarea
+                      value={newFlowData.description}
+                      onChange={(e) => setNewFlowData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Describe qué hace este bot y para qué sirve..."
+                      rows={3}
+                      className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold resize-none"
+                      disabled={isCreating}
+                    />
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
+                      Categoría
+                    </label>
+                    <select
+                      value={newFlowData.category}
+                      onChange={(e) => setNewFlowData(prev => ({ ...prev, category: e.target.value as any }))}
+                      className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold cursor-pointer"
+                      disabled={isCreating}
+                    >
+                      <option value="other">Otro</option>
+                      <option value="sales">Ventas</option>
+                      <option value="support">Soporte</option>
+                      <option value="marketing">Marketing</option>
+                      <option value="onboarding">Onboarding</option>
+                    </select>
+                  </div>
+
+                  {/* Triggers */}
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
+                      Palabras Clave de Activación
+                    </label>
+                    <TriggerInput
+                      triggers={newFlowData.triggers}
+                      onChange={(triggers) => setNewFlowData(prev => ({ ...prev, triggers }))}
+                      placeholder="Ej: hola, ayuda, información"
+                      disabled={isCreating}
+                      className="mb-2"
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Estas palabras activarán el flujo cuando un usuario las envíe
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setShowCreateForm(false)}
-                  className="w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl hover:scale-105 active:scale-95 transition-all"
-                >
-                  Entendido
-                </button>
+
+                {/* Actions */}
+                <div className="flex gap-4 pt-6 border-t border-slate-200 dark:border-slate-700/50">
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setError(null);
+                      setNewFlowData({
+                        name: '',
+                        description: '',
+                        category: 'other',
+                        triggers: []
+                      });
+                    }}
+                    className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl font-black uppercase tracking-wider text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                    disabled={isCreating}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={createFlow}
+                    disabled={isCreating || !newFlowData.name.trim()}
+                    className="flex-1 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-wider text-xs shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                  >
+                    {isCreating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Creando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        Crear Flujo
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -99,7 +99,7 @@ export const Billing = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -112,7 +112,7 @@ export const Billing = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
           <div className="space-y-1">
             <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Gestión de <span className="text-indigo-600 dark:text-indigo-400">Costos</span>
+              Gestión de <span className="text-primary-600 dark:text-primary-400">Costos</span>
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl leading-relaxed">
               Monitoriza el consumo de la API de WhatsApp y tu plan de suscripción en tiempo real.
@@ -177,7 +177,7 @@ export const Billing = () => {
               <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
                 Análisis Detallado de Consumo
               </h3>
-              <span className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-widest">
+              <span className="px-3 py-1.5 bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 rounded-lg text-[10px] font-black uppercase tracking-widest">
                 WhatsApp Business API
               </span>
             </div>
@@ -221,7 +221,7 @@ export const Billing = () => {
                   color: 'emerald'
                 }
               ].map((item, i) => (
-                <div key={i} className="group p-4 rounded-2xl border border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-white/5 hover:bg-white dark:hover:bg-slate-800 hover:shadow-lg hover:border-indigo-500/20 transition-all duration-300 flex justify-between items-center">
+                <div key={i} className="group p-4 rounded-2xl border border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-white/5 hover:bg-white dark:hover:bg-slate-800 hover:shadow-lg hover:border-primary-500/20 transition-all duration-300 flex justify-between items-center">
                   <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl bg-${item.color}-500/10 flex items-center justify-center`}>
                       <MessageSquare className={`w-5 h-5 text-${item.color}-500`} />
@@ -238,7 +238,7 @@ export const Billing = () => {
                     {item.status ? (
                       <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{item.status}</span>
                     ) : (
-                      <div className={`flex items-center justify-end gap-1 text-[9px] font-bold ${item.trend ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      <div className={`flex items-center justify-end gap-1 text-[9px] font-bold ${item.trend ? 'text-secondary-500' : 'text-emerald-500'}`}>
                         {item.trend ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                         {item.trend ? '+' : '-'}{Math.floor(Math.random() * 20)}%
                       </div>
@@ -255,7 +255,7 @@ export const Billing = () => {
               </div>
               <div className="text-right">
                 <span className="text-3xl font-black text-white dark:text-slate-900 tracking-tighter">${totalApiCost.toFixed(2)}</span>
-                <span className="text-indigo-400 font-bold ml-2 text-sm">USD</span>
+                <span className="text-primary-400 font-bold ml-2 text-sm">USD</span>
               </div>
             </div>
           </div>
@@ -263,13 +263,13 @@ export const Billing = () => {
           <div className="space-y-3 flex flex-col">
             <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-5 shadow-lg border border-gray-100 dark:border-gray-800/50">
               <h3 className="text-sm font-black text-slate-900 dark:text-white mb-4 uppercase tracking-widest flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                <div className="w-2 h-2 rounded-full bg-primary-500" />
                 Método de Pago
               </h3>
-              <div className="p-4 bg-indigo-50/50 dark:bg-indigo-500/5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20 space-y-3">
+              <div className="p-4 bg-primary-50/50 dark:bg-primary-500/5 rounded-2xl border border-primary-100 dark:border-primary-500/20 space-y-3">
                 <div className="flex gap-3">
                   <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl shadow-sm h-fit">
-                    <CreditCard className="w-5 h-5 text-indigo-600" />
+                    <CreditCard className="w-5 h-5 text-primary-600" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Facturación Centralizada</p>
@@ -282,7 +282,7 @@ export const Billing = () => {
             </div>
 
             <div className="relative group overflow-hidden rounded-[2rem] flex-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-indigo-600 to-purple-800 transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-700 via-primary-600 to-accent-800 transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-500">
                 <CreditCard className="w-32 h-32 text-white rotate-12" />
               </div>
@@ -297,12 +297,12 @@ export const Billing = () => {
 
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-black text-white tracking-tighter">${saasCost.toFixed(2)}</span>
-                  <span className="text-indigo-200 font-bold uppercase tracking-widest text-xs">/ MES</span>
+                  <span className="text-primary-200 font-bold uppercase tracking-widest text-xs">/ MES</span>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-white/10 flex-1 flex flex-col justify-end">
                   <div className="flex justify-between items-center">
-                    <span className="text-indigo-200 font-bold text-xs">Mensajería Estimada</span>
+                    <span className="text-primary-200 font-bold text-xs">Mensajería Estimada</span>
                     <span className="text-white font-black text-sm">${totalApiCost.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10">
@@ -311,7 +311,7 @@ export const Billing = () => {
                   </div>
                 </div>
 
-                <button className="w-full py-3 bg-white text-indigo-900 rounded-[1.5rem] font-black uppercase tracking-widest text-[9px] shadow-lg hover:bg-slate-900 hover:text-white transition-all duration-300 active:scale-95">
+                <button className="w-full py-3 bg-white text-primary-900 rounded-[1.5rem] font-black uppercase tracking-widest text-[9px] shadow-lg hover:bg-slate-900 hover:text-white transition-all duration-300 active:scale-95">
                   Gestionar Plan Pro
                 </button>
               </div>

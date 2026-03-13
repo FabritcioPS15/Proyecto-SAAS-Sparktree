@@ -22,15 +22,15 @@ export const StatCard = ({ title, value, icon: Icon, trend }: StatCardProps) => 
           <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">{value}</h3>
           
           {trend && (
-            <div className={`flex items-center gap-1.5 mt-3 text-sm font-medium ${trend.isPositive ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20'} px-2.5 py-1 rounded-full w-fit`}>
+            <div className={`flex items-center gap-1.5 mt-3 text-sm font-medium ${trend.isPositive ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' : 'text-secondary-600 dark:text-secondary-400 bg-secondary-50 dark:bg-secondary-900/20'} px-2.5 py-1 rounded-full w-fit`}>
               <span className="text-xs">{trend.isPositive ? '↑' : '↓'}</span>
               <span>{Math.abs(trend.value)}%</span>
               <span className="text-gray-500 dark:text-gray-400 ml-1 font-normal text-xs">vs mes anterior</span>
             </div>
           )}
         </div>
-        <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/20 rounded-2xl shadow-inner border border-white/50 dark:border-white/5">
-          <Icon className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+        <div className="p-4 bg-gradient-to-br from-blue-50 to-primary-50 dark:from-blue-900/40 dark:to-primary-900/20 rounded-2xl shadow-inner border border-white/50 dark:border-white/5">
+          <Icon className="w-7 h-7 text-primary-600 dark:text-primary-400" />
         </div>
       </div>
     </div>

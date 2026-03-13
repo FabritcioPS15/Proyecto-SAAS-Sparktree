@@ -49,6 +49,12 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
         const profileName = changeValue.contacts?.[0]?.profile?.name || '';
         const receivingPhoneId = changeValue.metadata.phone_number_id;
 
+        // Ignore messages from groups
+        if (message.participant || senderPhone.includes('@g.us')) {
+          console.log(`[Webhook] Ignoring message from group: ${senderPhone}`);
+          return res.sendStatus(200);
+        }
+
         console.log(`[Webhook] Mensaje recibido de ${senderPhone}:`, JSON.stringify(message, null, 2));
 
         // Lookup organization by phone number ID

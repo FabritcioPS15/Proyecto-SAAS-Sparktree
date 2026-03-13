@@ -34,7 +34,7 @@ export const FlowBuilder = () => {
     return (
       <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-[#0f1117]">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
           <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Preparando editor...</p>
         </div>
       </div>

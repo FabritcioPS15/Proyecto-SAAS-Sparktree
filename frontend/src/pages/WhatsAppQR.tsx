@@ -51,7 +51,7 @@ export const WhatsAppQR = () => {
         return (
             <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
                     <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Conectando con el servidor...</p>
                 </div>
             </div>
@@ -65,11 +65,11 @@ export const WhatsAppQR = () => {
             <div className="flex-1 p-3 lg:p-4 space-y-3 relative">
                 {/* Header Section */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-4 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-2xl rounded-full -mr-16 -mt-16" />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 blur-2xl rounded-full -mr-16 -mt-16" />
 
                     <div className="space-y-1 relative z-10">
                         <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                            Conexión <span className="text-indigo-600 dark:text-indigo-400">WhatsApp</span>
+                            Conexión <span className="text-primary-600 dark:text-primary-400">WhatsApp</span>
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl">
                             Vincula tu cuenta de WhatsApp escaneando el código QR. Sin APIs complejas, conexión directa.
@@ -92,7 +92,7 @@ export const WhatsAppQR = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 min-h-0">
                     {/* QR Display Section */}
                     <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] shadow-2xl shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50 overflow-hidden flex flex-col items-center justify-center p-10 lg:p-12 min-h-[500px] relative group">
-                        <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-primary-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
                         {!isConnected ? (
                             <div className="flex flex-col items-center gap-8 relative z-10">
@@ -100,7 +100,7 @@ export const WhatsAppQR = () => {
                                     {data.qr ? (
                                         <div className="relative">
                                             <img src={data.qr} alt="WhatsApp QR" className="w-[300px] h-[300px] rounded-2xl shadow-2xl" />
-                                            <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-2xl animate-pulse" />
+                                            <div className="absolute inset-0 border-4 border-primary-500/20 rounded-2xl animate-pulse" />
                                         </div>
                                     ) : (
                                         <div className="w-[300px] h-[300px] flex flex-col items-center justify-center gap-5 text-slate-400">
@@ -142,7 +142,7 @@ export const WhatsAppQR = () => {
                                     <button
                                         onClick={handleLogout}
                                         disabled={actionLoading}
-                                        className="mt-4 px-6 py-3 bg-rose-500 text-white rounded-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 mx-auto text-sm"
+                                        className="mt-4 px-6 py-3 bg-secondary-500 text-white rounded-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 mx-auto text-sm"
                                     >
                                         <LogOut className={`w-4 h-4 ${actionLoading ? 'animate-spin' : ''}`} />
                                         Cerrar Sesión
@@ -156,7 +156,7 @@ export const WhatsAppQR = () => {
                     <div className="space-y-4 flex flex-col">
                         <div className="bg-white dark:bg-[#11141b] rounded-[2.5rem] p-8 shadow-xl border border-gray-100 dark:border-gray-800/50 relative overflow-hidden group flex-1">
                             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3">
-                                <span className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">📍</span>
+                                <span className="p-2 bg-primary-50 dark:bg-primary-500/10 rounded-xl">📍</span>
                                 Pasos para vincular
                             </h3>
 
@@ -168,7 +168,7 @@ export const WhatsAppQR = () => {
                                 ].map((step, idx) => (
                                     <div key={idx} className="flex gap-4 p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                         <div className="flex-shrink-0 w-12 h-12 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-center">
-                                            <step.icon className="w-6 h-6 text-indigo-500" />
+                                            <step.icon className="w-6 h-6 text-primary-500" />
                                         </div>
                                         <div className="space-y-1">
                                             <p className="font-black text-slate-900 dark:text-white text-sm">{step.title}</p>
@@ -179,7 +179,7 @@ export const WhatsAppQR = () => {
                             </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2.5rem] p-6 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden group">
+                        <div className="bg-gradient-to-br from-primary-600 to-accent-700 rounded-[2.5rem] p-6 text-white shadow-xl shadow-primary-500/20 relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 blur-2xl rounded-full -mr-20 -mt-20" />
 
                             <div className="relative z-10 space-y-5">
@@ -187,7 +187,7 @@ export const WhatsAppQR = () => {
                                     <Zap className="w-6 h-6 text-white" />
                                 </div>
                                 <h4 className="text-xl font-black tracking-tight">Beneficios de Baileys</h4>
-                                <ul className="space-y-3 text-sm font-medium text-indigo-100">
+                                <ul className="space-y-3 text-sm font-medium text-primary-100">
                                     <li className="flex items-center gap-3">
                                         <div className="w-1.5 h-1.5 bg-white rounded-full" />
                                         Sin necesidad de aprobación de Meta.

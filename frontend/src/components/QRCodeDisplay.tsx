@@ -12,16 +12,16 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
   return (
     <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-[#11141b] rounded-[3rem] border border-gray-100 dark:border-gray-800/50 shadow-2xl relative overflow-hidden group">
       {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
-      <div className="absolute -right-20 -top-20 w-40 h-40 bg-indigo-500/10 blur-[80px] rounded-full group-hover:bg-indigo-500/20 transition-all duration-700" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary-500 to-transparent opacity-50" />
+      <div className="absolute -right-20 -top-20 w-40 h-40 bg-primary-500/10 blur-[80px] rounded-full group-hover:bg-primary-500/20 transition-all duration-700" />
       
       <div className="relative z-10 w-full max-w-sm flex flex-col items-center text-center space-y-8">
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
-            <QrCode className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Vinculación Rápida</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/20">
+            <QrCode className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">Vinculación Rápida</span>
           </div>
-          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Escanea el Código <span className="text-indigo-600">QR</span></h2>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Escanea el Código <span className="text-primary-600">QR</span></h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
             Abre WhatsApp en tu teléfono, ve a Dispositivos Vinculados y escanea este código para conectar Sparktree.
           </p>
@@ -32,7 +32,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
           <div className={`relative aspect-square w-64 overflow-hidden rounded-2xl flex items-center justify-center ${status === 'loading' || status === 'expired' ? 'bg-slate-50 dark:bg-slate-800/50' : 'bg-white'}`}>
             {status === 'loading' && (
               <div className="flex flex-col items-center gap-3 animate-pulse">
-                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generando...</span>
               </div>
             )}
@@ -57,8 +57,8 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
             {status === 'connecting' && (
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-indigo-500 rounded-full blur-xl opacity-20 animate-ping" />
-                  <Smartphone className="w-12 h-12 text-indigo-500 relative z-10" />
+                  <div className="absolute inset-0 bg-primary-500 rounded-full blur-xl opacity-20 animate-ping" />
+                  <Smartphone className="w-12 h-12 text-primary-500 relative z-10" />
                 </div>
                 <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Sincronizando...</p>
               </div>
@@ -78,7 +78,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
                 <p className="text-sm font-bold text-slate-900 dark:text-white">El código ha expirado</p>
                 <button 
                   onClick={onRefresh}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center gap-2"
+                  className="px-6 py-3 bg-primary-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary-600/20 hover:bg-primary-700 transition-all flex items-center gap-2"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Recargar QR
@@ -88,8 +88,8 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
           </div>
 
           {/* Corner accents */}
-          <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-3xl opacity-30" />
-          <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-3xl opacity-30" />
+          <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-primary-500 rounded-tl-3xl opacity-30" />
+          <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-primary-500 rounded-br-3xl opacity-30" />
         </div>
 
         <div className="grid grid-cols-2 gap-4 w-full pt-4">

@@ -3,14 +3,14 @@ import { Image, Play } from 'lucide-react';
 
 export const MediaNode = ({ data }: any) => {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border-2 border-pink-500 w-64 overflow-hidden transition-all hover:shadow-pink-500/10 hover:scale-[1.02]">
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-pink-500 border-2 border-white dark:border-gray-800" />
-      <div className="bg-pink-500 px-4 py-3 flex items-center justify-between">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border-2 border-accent-500 w-64 overflow-hidden transition-all hover:shadow-accent-500/10 hover:scale-[1.02]">
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-accent-500 border-2 border-white dark:border-gray-800" />
+      <div className="bg-accent-500 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Image className="w-4 h-4 text-white" />
           <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Multimedia</h3>
         </div>
-        <span className="text-[10px] font-black text-pink-100 uppercase tracking-widest opacity-70">
+        <span className="text-[10px] font-black text-accent-100 uppercase tracking-widest opacity-70">
           {data.mediaType || 'image'}
         </span>
       </div>
@@ -20,10 +20,10 @@ export const MediaNode = ({ data }: any) => {
             <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center border border-gray-200 dark:border-gray-700 overflow-hidden relative group">
               {data.mediaType === 'image' && <img src={data.mediaUrl} alt="Preview" className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity" />}
               <div className="absolute inset-0 flex items-center justify-center">
-                 <Play className="w-6 h-6 text-pink-500 opacity-50" />
+                 <Play className="w-6 h-6 text-accent-500 opacity-50" />
               </div>
             {data.isViewOnce && (
-              <div className="absolute top-2 right-2 px-2 py-0.5 bg-pink-500 text-[8px] font-black text-white rounded-full uppercase tracking-widest shadow-lg">
+              <div className="absolute top-2 right-2 px-2 py-0.5 bg-accent-500 text-[8px] font-black text-white rounded-full uppercase tracking-widest shadow-lg">
                 1 Vista
               </div>
             )}
@@ -37,7 +37,7 @@ export const MediaNode = ({ data }: any) => {
               {data.mediaUrl}
             </div>
             {data.caption && (
-               <div className="text-xs text-gray-700 dark:text-gray-300 font-medium line-clamp-2 border-l-2 border-pink-500/30 pl-2 py-1">
+               <div className="text-xs text-gray-700 dark:text-gray-300 font-medium line-clamp-2 border-l-2 border-accent-500/30 pl-2 py-1">
                  {data.caption}
                </div>
             )}
@@ -49,7 +49,7 @@ export const MediaNode = ({ data }: any) => {
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-pink-500 border-2 border-white dark:border-gray-800" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-accent-500 border-2 border-white dark:border-gray-800" />
     </div>
   );
 };

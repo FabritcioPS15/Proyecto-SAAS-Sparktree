@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getConversations, getConversationMessages, deleteConversation } from '../services/api';
 import api from '../services/api';
-import { Check, TrendingUp, Trash2, Send } from 'lucide-react';
+import { Check, TrendingUp, Trash2, Send, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
 
 export const Conversations = () => {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -11,7 +11,52 @@ export const Conversations = () => {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  
+  const ITEMS_PER_PAGE = 15;
+
+  // Function to generate avatar based on contact name
+  const generateAvatar = (contact: any) => {
+    const name = contact?.name || '';
+    const phoneNumber = contact?.phoneNumber || '';
+    
+    // If we have a name, use first letter
+    if (name) {
+      const firstLetter = name.charAt(0).toUpperCase();
+      const colors = [
+        'bg-primary-500', 'bg-accent-500', 'bg-secondary-500', 'bg-blueaccent-500',
+        'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-indigo-500'
+      ];
+      const colorIndex = name.charCodeAt(0) % colors.length;
+      return {
+        type: 'letter',
+        content: firstLetter,
+        bgColor: colors[colorIndex]
+      };
+    }
+    
+    // If we have phone number, use last 2 digits as fallback
+    if (phoneNumber && phoneNumber.length >= 2) {
+      const lastTwo = phoneNumber.slice(-2);
+      return {
+        type: 'number',
+        content: lastTwo,
+        bgColor: 'bg-slate-600'
+      };
+    }
+    
+    // Default fallback
+    return {
+      type: 'default',
+      content: '??',
+      bgColor: 'bg-slate-400'
+    };
+  };
 
   useEffect(() => {
     const loadConversations = async () => {
@@ -19,9 +64,37 @@ export const Conversations = () => {
         const data = await getConversations();
         // Ensure we always have an array
         const conversationsArray = Array.isArray(data) ? data : [];
-        setConversations(conversationsArray);
-        if (conversationsArray.length > 0 && !selectedConv) {
-          setSelectedConv(conversationsArray[0]);
+        
+        // Apply filters
+        let filteredConversations = conversationsArray;
+        if (searchTerm) {
+          filteredConversations = filteredConversations.filter(conv => 
+            (conv.contactId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (conv.contactId?.phoneNumber || '').includes(searchTerm)
+          );
+        }
+        
+        if (filterStatus !== 'all') {
+          filteredConversations = filteredConversations.filter(conv => {
+            if (filterStatus === 'unread') return conv.unreadCount > 0;
+            if (filterStatus === 'read') return conv.unreadCount === 0;
+            return true;
+          });
+        }
+        
+        // Calculate pagination
+        const total = filteredConversations.length;
+        const pages = Math.ceil(total / ITEMS_PER_PAGE);
+        setTotalPages(pages);
+        
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const paginatedConversations = filteredConversations.slice(startIndex, endIndex);
+        
+        setConversations(paginatedConversations);
+        
+        if (paginatedConversations.length > 0 && !selectedConv) {
+          setSelectedConv(paginatedConversations[0]);
         }
       } catch (err) {
         console.error('Failed to load conversations', err);
@@ -38,7 +111,7 @@ export const Conversations = () => {
     const interval = setInterval(loadConversations, 5000);
 
     return () => clearInterval(interval);
-  }, [selectedConv]);
+  }, [selectedConv, currentPage, searchTerm, filterStatus]);
 
   useEffect(() => {
     if (selectedConv) {
@@ -174,28 +247,78 @@ export const Conversations = () => {
           <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent sticky top-0 z-10">
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Chats</h2>
-                <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black rounded-full border border-indigo-100 dark:border-indigo-500/20">
-                  {conversations.length} total
-                </span>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Chats</h2>
+                  <span className="px-3 py-1 bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 text-xs font-black rounded-full border border-primary-100 dark:border-primary-500/20">
+                    {conversations.length} total
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  <Filter className="w-4 h-4 text-slate-500" />
+                </button>
               </div>
+              
+              {/* Search Bar */}
               <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Buscar contactos..."
-                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all outline-none"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1); // Reset to first page on search
+                  }}
+                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
                 />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  <span className="text-lg">🔍</span>
-                </div>
               </div>
+
+              {/* Filters */}
+              {showFilters && (
+                <div className="flex justify-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                  <button
+                    onClick={() => setFilterStatus('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      filterStatus === 'all'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('unread')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      filterStatus === 'unread'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    No leídos
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('read')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      filterStatus === 'read'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    Leídos
+                  </button>
+                </div>
+              )}
+
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 dark:divide-slate-800/50">
             {loading ? (
               <div className="p-10 flex flex-col items-center gap-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Cargando...</p>
               </div>
             ) : conversations.length === 0 ? (
@@ -206,6 +329,7 @@ export const Conversations = () => {
               conversations.map((conv) => {
                 const contact = conv.contactId || {};
                 const isSelected = selectedConv?._id === conv._id;
+                const avatar = generateAvatar(contact);
                 return (
                   <div
                     key={conv._id}
@@ -218,14 +342,18 @@ export const Conversations = () => {
                       }`}
                   >
                     {isSelected && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-indigo-600 dark:bg-indigo-500 rounded-r-full shadow-lg shadow-indigo-600/20" />
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-primary-600 dark:bg-primary-500 rounded-r-full shadow-lg shadow-primary-600/20" />
                     )}
                     <div className="flex items-center gap-4">
                       <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg transition-all duration-500 ${isSelected
-                        ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 rotate-3'
+                        ? 'bg-primary-600 dark:bg-primary-500 text-white shadow-xl shadow-primary-600/20 ring-2 ring-primary-600/30'
                         : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:scale-105 group-hover:-rotate-3'
                         }`}>
-                        {contact.phoneNumber ? contact.phoneNumber.slice(-2) : '??'}
+                        {avatar.type === 'letter' ? (
+                          <span className="text-white">{avatar.content}</span>
+                        ) : (
+                          <span className="text-white font-mono">{avatar.content}</span>
+                        )}
                         {isSelected && (
                           <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800 shadow-sm animate-pulse" />
                         )}
@@ -234,25 +362,30 @@ export const Conversations = () => {
                         <div className="flex items-center justify-between mb-1">
                           <p className={`text-sm font-bold truncate ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'
                             }`}>
-                            {contact.name || 'Usuario Anon'} {contact.phoneNumber && `(${formatPhoneNumber(contact.phoneNumber)})`}
+                            {contact.name || 'Usuario Anon'}
                           </p>
                           <span className="text-[10px] font-black text-slate-400 uppercase">
                             {formatDate(conv.lastMessageAt)}
                           </span>
                         </div>
+                        {contact.phoneNumber && (
+                          <p className={`text-xs text-slate-500 dark:text-slate-400 truncate font-medium mb-2`}>
+                            {formatPhoneNumber(contact.phoneNumber)}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-slate-400 dark:text-slate-500 truncate font-medium">
-                            Última actividad hace poco
+                          <p className={`text-xs text-slate-400 dark:text-slate-500 truncate font-medium`}>
+                            {formatTime(conv.lastMessageAt)}
                           </p>
                           <div className="flex items-center gap-2">
                             {conv.unreadCount > 0 && (
-                              <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-black rounded-full">
+                              <span className="px-2 py-0.5 bg-secondary-500 text-white text-[10px] font-black rounded-full">
                                 {conv.unreadCount}
                               </span>
                             )}
                             <button
                               onClick={(e) => handleDeleteConversation(e, conv._id)}
-                              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-500 rounded-lg transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-secondary-50 dark:hover:bg-secondary-500/10 text-secondary-500 rounded-lg transition-all"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -264,6 +397,53 @@ export const Conversations = () => {
                 );
               })
             )}
+            
+            {/* Pagination */}
+            <div className="sticky bottom-0 p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent">
+              {totalPages > 1 ? (
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-black transition-all hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Anterior
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
+                          currentPage === page
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-black transition-all hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Siguiente
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -275,11 +455,16 @@ export const Conversations = () => {
               <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-transparent backdrop-blur-md flex items-center justify-between sticky top-0 z-20">
                 <div className="flex items-center gap-4">
                   <div className="relative group">
-                    <div className="absolute inset-0 bg-indigo-600 blur opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
+                    <div className="absolute inset-0 bg-primary-600 blur opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
                     <div className="relative w-14 h-14 rounded-full bg-slate-900 dark:bg-white flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-xl overflow-hidden">
-                      <span className="text-white dark:text-slate-900 font-black text-xl">
-                        {selectedConv.contactId?.phoneNumber ? selectedConv.contactId.phoneNumber.slice(-2) : '??'}
-                      </span>
+                      {(() => {
+                        const avatar = generateAvatar(selectedConv.contactId || {});
+                        if (avatar.type === 'letter') {
+                          return <span className="text-white font-bold text-xl">{avatar.content}</span>;
+                        } else {
+                          return <span className="text-white font-mono text-xl">{avatar.content}</span>;
+                        }
+                      })()}
                     </div>
                     <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 shadow-sm" />
                   </div>
@@ -292,13 +477,6 @@ export const Conversations = () => {
                       Conectado • WhatsApp Business
                     </p>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  {['📞', '📹', '📋'].map((emoji, i) => (
-                    <button key={i} className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 rounded-xl transition-all duration-300 shadow-sm hover:scale-110 active:scale-95 text-lg">
-                      {emoji}
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -317,11 +495,11 @@ export const Conversations = () => {
                         key={message._id}
                         className={`flex ${isUser ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10`}
                       >
-                        <div className={`flex flex-col max-w-[80%] lg:max-w-[60%] gap-2`}>
+                        <div className={`flex flex-col max-w-[95%] gap-2`}>
                           <div
-                            className={`px-6 py-4 rounded-[2rem] shadow-xl transition-all duration-300 ${!isUser
-                              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-br-none shadow-indigo-600/5 hover:scale-[1.02]'
-                              : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-700/50 rounded-bl-none shadow-slate-200/50 dark:shadow-none hover:scale-[1.02] hover:shadow-2xl'
+                            className={`px-4 md:px-6 py-3 md:py-4 rounded-[1.5rem] md:rounded-[2rem] shadow-lg transition-all duration-300 ${!isUser
+                              ? 'bg-[#3750f0] text-white rounded-br-none shadow-blue-500/20 hover:scale-[1.02]'
+                              : 'bg-[#41f0a5] text-black rounded-bl-none shadow-green-500/20 hover:scale-[1.02]'
                               }`}
                           >
                             <p className="text-sm md:text-base whitespace-pre-wrap leading-relaxed font-medium">
@@ -332,7 +510,7 @@ export const Conversations = () => {
                             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
                               {formatTime(message.createdAt)}
                             </span>
-                            {!isUser && <Check className="w-3 h-3 text-indigo-500" />}
+                            {!isUser && <Check className="w-3 h-3 text-primary-500" />}
                           </div>
                         </div>
                       </div>
@@ -359,7 +537,7 @@ export const Conversations = () => {
               {/* Chat Input */}
               <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-transparent backdrop-blur-md">
                 {sendError && (
-                  <p className="text-rose-500 text-xs font-bold mb-2 px-2">{sendError}</p>
+                  <p className="text-secondary-500 text-xs font-bold mb-2 px-2">{sendError}</p>
                 )}
                 <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-700/50 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-white transition-all">
                   <input
@@ -389,7 +567,7 @@ export const Conversations = () => {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center px-10 animate-in fade-in zoom-in-95 duration-700">
               <div className="relative mb-10 group">
-                <div className="absolute inset-0 bg-indigo-500 blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity" />
+                <div className="absolute inset-0 bg-primary-500 blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity" />
                 <div className="relative w-48 h-48 bg-white dark:bg-slate-800 rounded-[3rem] flex items-center justify-center shadow-2xl border-8 border-slate-50 dark:border-slate-900 group-hover:rotate-12 transition-transform duration-700">
                   <span className="text-8xl group-hover:scale-110 transition-transform duration-500">👋</span>
                 </div>

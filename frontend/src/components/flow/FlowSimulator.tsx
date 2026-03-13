@@ -170,7 +170,7 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onCl
                       <button
                         key={btn.id}
                         onClick={() => handleButtonClick(btn.id, btn.title)}
-                        className={`w-full text-center py-2.5 px-4 rounded-xl text-sm font-medium shadow-sm transition-colors ${msg.sender === 'user' ? 'bg-[#dcf8c6]/80 text-emerald-800' : 'bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-100 dark:bg-gray-700 dark:text-indigo-400 dark:border-gray-600'}`}
+                        className={`w-full text-center py-2.5 px-4 rounded-xl text-sm font-medium shadow-sm transition-colors ${msg.sender === 'user' ? 'bg-[#dcf8c6]/80 text-emerald-800' : 'bg-white text-primary-600 hover:bg-primary-50 border border-primary-100 dark:bg-gray-700 dark:text-primary-400 dark:border-gray-600'}`}
                       >
                         {btn.title}
                       </button>

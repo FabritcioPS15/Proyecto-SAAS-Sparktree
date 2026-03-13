@@ -12,6 +12,7 @@ import { FlowBuilder } from './pages/FlowBuilder';
 import { FlowManager } from './pages/FlowManager';
 import { Leads } from './pages/Leads';
 import { WhatsAppQR } from './pages/WhatsAppQR';
+import { ReportsPage } from './pages/Reports';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
               <Route path="/flows" element={<FlowBuilder />} />
               <Route path="/flow-manager" element={<FlowManager />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/reports" element={<ReportsPage />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/whatsapp-qr" element={<WhatsAppQR />} />

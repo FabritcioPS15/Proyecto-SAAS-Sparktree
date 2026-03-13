@@ -76,7 +76,7 @@ export const Users = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
           <div className="space-y-1">
             <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Directorio de <span className="text-indigo-600 dark:text-indigo-400">Usuarios</span>
+              Directorio de <span className="text-primary-600 dark:text-primary-400">Usuarios</span>
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl leading-relaxed">
               Gestiona y analiza a todos los usuarios que han interactuado con tu ecosistema de chatbots.
@@ -93,8 +93,8 @@ export const Users = () => {
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-16 space-y-4">
             <div className="relative w-12 h-12">
-              <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-0 border-4 border-primary-500/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
             <p className="text-slate-500 font-black uppercase tracking-widest text-xs">Cargando Usuarios...</p>
           </div>
@@ -103,7 +103,7 @@ export const Users = () => {
             {/* Search & Bulk Area */}
             <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[1.5rem] p-4 border border-gray-200 dark:border-gray-800/50 shadow-sm">
               <div className="relative group max-w-2xl">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
                 <input
                   type="text"
                   placeholder="Buscar por número de teléfono..."
@@ -112,7 +112,7 @@ export const Users = () => {
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
+                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-slate-900 dark:text-white font-bold"
                 />
               </div>
             </div>
@@ -127,7 +127,7 @@ export const Users = () => {
                         className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest cursor-pointer group"
                         onClick={() => handleSort('phoneNumber')}
                       >
-                        <div className="flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
+                        <div className="flex items-center gap-2 group-hover:text-primary-500 transition-colors">
                           Identificador / Teléfono
                           <ArrowUpDown className="w-3 h-3 transition-opacity opacity-20 group-hover:opacity-100" />
                         </div>
@@ -136,7 +136,7 @@ export const Users = () => {
                         className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest cursor-pointer group"
                         onClick={() => handleSort('firstInteraction')}
                       >
-                        <div className="flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
+                        <div className="flex items-center gap-2 group-hover:text-primary-500 transition-colors">
                           Primera Interacción
                           <ArrowUpDown className="w-3 h-3 transition-opacity opacity-20 group-hover:opacity-100" />
                         </div>
@@ -145,7 +145,7 @@ export const Users = () => {
                         className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest cursor-pointer group"
                         onClick={() => handleSort('lastInteraction')}
                       >
-                        <div className="flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
+                        <div className="flex items-center gap-2 group-hover:text-primary-500 transition-colors">
                           Último Contacto
                           <ArrowUpDown className="w-3 h-3 transition-opacity opacity-20 group-hover:opacity-100" />
                         </div>
@@ -154,7 +154,7 @@ export const Users = () => {
                         className="px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest cursor-pointer group text-right"
                         onClick={() => handleSort('totalMessages')}
                       >
-                        <div className="flex items-center justify-end gap-2 group-hover:text-indigo-500 transition-colors">
+                        <div className="flex items-center justify-end gap-2 group-hover:text-primary-500 transition-colors">
                           Actividad
                           <ArrowUpDown className="w-3 h-3 transition-opacity opacity-20 group-hover:opacity-100" />
                         </div>
@@ -166,10 +166,10 @@ export const Users = () => {
                       <tr key={user.id} className="group hover:bg-slate-50/50 dark:hover:bg-white/5 transition-all duration-300">
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-slate-600 dark:text-slate-400 text-sm group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-slate-600 dark:text-slate-400 text-sm group-hover:bg-primary-600 group-hover:text-white transition-all duration-300">
                               {user.phoneNumber.slice(-2)}
                             </div>
-                            <div className="font-black text-slate-900 dark:text-white text-sm tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                            <div className="font-black text-slate-900 dark:text-white text-sm tracking-tight group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">
                               {user.phoneNumber}
                             </div>
                           </div>
@@ -210,7 +210,7 @@ export const Users = () => {
 
               <div className="px-4 py-4 border-t border-gray-100 dark:border-gray-800/50 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/30 dark:bg-transparent">
                 <div className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                  Mostrando <span className="text-slate-900 dark:text-white px-2 py-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm text-sm">{startIndex + 1}</span> al <span className="text-slate-900 dark:text-white px-2 py-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm text-sm">{Math.min(startIndex + itemsPerPage, sortedUsers.length)}</span> de <span className="text-indigo-600 dark:text-indigo-400">{sortedUsers.length}</span>
+                  Mostrando <span className="text-slate-900 dark:text-white px-2 py-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm text-sm">{startIndex + 1}</span> al <span className="text-slate-900 dark:text-white px-2 py-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm text-sm">{Math.min(startIndex + itemsPerPage, sortedUsers.length)}</span> de <span className="text-primary-600 dark:text-primary-400">{sortedUsers.length}</span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -224,7 +224,7 @@ export const Users = () => {
 
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Página</span>
-                    <span className="text-base font-black text-indigo-600 items-center justify-center flex w-8 h-8 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">{currentPage}</span>
+                    <span className="text-base font-black text-primary-600 items-center justify-center flex w-8 h-8 bg-primary-50 dark:bg-primary-500/10 rounded-xl">{currentPage}</span>
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">de {totalPages || 1}</span>
                   </div>
 

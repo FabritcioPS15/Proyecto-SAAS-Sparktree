@@ -38,6 +38,50 @@ export async function handleIncomingMessage(
     }
   };
 
+  // Track flow execution start
+  const trackFlowExecution = async (flowId: string, triggerWord?: string) => {
+    try {
+      const { error } = await supabase.from('flow_executions').insert({
+        flow_id: flowId,
+        organization_id: organizationConfig.organizationId,
+        contact_id: organizationConfig.contactId,
+        conversation_id: organizationConfig.conversationId,
+        trigger_word: triggerWord,
+        status: 'started'
+      });
+      
+      if (error) {
+        console.error('[Flow Engine] Error tracking flow execution:', error);
+      }
+    } catch (error) {
+      console.error('[Flow Engine] Exception tracking flow execution:', error);
+    }
+  };
+
+  // Update flow execution status
+  const updateFlowExecution = async (flowId: string, status: 'completed' | 'failed' | 'abandoned') => {
+    try {
+      const { error } = await supabase
+        .from('flow_executions')
+        .update({ 
+          status,
+          completed_at: status === 'completed' ? new Date().toISOString() : null
+        })
+        .eq('flow_id', flowId)
+        .eq('contact_id', organizationConfig.contactId)
+        .eq('status', 'started')
+        .is('completed_at', null)
+        .order('executed_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.error('[Flow Engine] Error updating flow execution:', error);
+      }
+    } catch (error) {
+      console.error('[Flow Engine] Exception updating flow execution:', error);
+    }
+  };
+
   const executeNode = async (flow: any, nodeId: string) => {
     let currentNodeId: string | null = nodeId;
 
@@ -232,10 +276,15 @@ export async function handleIncomingMessage(
 
       if (matchedTrigger) {
         console.log(`[Bot Engine] Trigger matched: "${matchedTrigger}"`);
+        // Track flow execution start
+        await trackFlowExecution(flow.id, matchedTrigger);
+        
         // Find trigger node (usually node ID "1")
         const triggerNode = flow.nodes.find((n: any) => n.type === 'trigger');
         if (triggerNode) {
           await executeNode(flow, triggerNode.id);
+          // Mark as completed when flow finishes naturally
+          await updateFlowExecution(flow.id, 'completed');
           return;
         }
       }
@@ -271,6 +320,8 @@ export async function handleIncomingMessage(
               if (edge && edge.target) {
                 console.log(`[Flow Engine] Found edge: ${edge.id}, moving to node: ${edge.target}`);
                 await executeNode(flow, edge.target);
+                // Mark as completed when flow finishes naturally
+                await updateFlowExecution(flow.id, 'completed');
                 return;
               } else {
                 console.log(`[Flow Engine] No edge found for button ID: ${buttonId}`);
@@ -314,6 +365,8 @@ export async function handleIncomingMessage(
       const edge = flow.edges.find((e: any) => e.sourceHandle === buttonId || e.source === buttonId);
       if (edge && edge.target) {
         await executeNode(flow, edge.target);
+        // Mark as completed when flow finishes naturally
+        await updateFlowExecution(flow.id, 'completed');
         return;
       }
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save, CheckCircle } from 'lucide-react';
 import { getSettings, saveSettings } from '../services/api';
+import { RiRobot2Line } from "react-icons/ri";
 
 export const Settings = () => {
   const [settings, setSettings] = useState({
@@ -41,7 +42,7 @@ export const Settings = () => {
     return (
       <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
           <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Cargando configuración...</p>
         </div>
       </div>
@@ -72,7 +73,7 @@ export const Settings = () => {
             <div className="bg-white dark:bg-[#11141b] rounded-[1.5rem] shadow-lg shadow-slate-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800/50 overflow-hidden group">
               <div className="p-5 border-b border-gray-100 dark:border-gray-800/50 bg-slate-50/50 dark:bg-transparent">
                 <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-3">
-                  <span className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">🤖</span>
+                  <span className="p-2 bg-primary-50 dark:bg-primary-500/10 rounded-xl"><RiRobot2Line className="w-5 h-5 text-primary-500" /></span>
                   Identidad del Chatbot
                 </h3>
               </div>
@@ -86,7 +87,7 @@ export const Settings = () => {
                       type="text"
                       value={settings.botName}
                       onChange={(e) => setSettings({ ...settings, botName: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-slate-900 dark:text-white font-bold"
                       placeholder="Ej. Sparky Lite"
                     />
                   </div>
@@ -174,7 +175,7 @@ export const Settings = () => {
                       type="text"
                       value={settings.phoneNumberId}
                       onChange={(e) => setSettings({ ...settings, phoneNumberId: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-bold"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all text-slate-900 dark:text-white font-bold"
                       placeholder="10XXXXXXXXXXXXX"
                     />
                   </div>
@@ -212,7 +213,7 @@ export const Settings = () => {
               <div className="space-y-4 relative z-10">
                 <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800/50">
                   <span className="text-slate-400 font-bold uppercase text-[9px] tracking-widest">Estado</span>
-                  <span className={`flex items-center gap-2 font-black text-sm ${settings.systemStatus === 'active' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  <span className={`flex items-center gap-2 font-black text-sm ${settings.systemStatus === 'active' ? 'text-emerald-500' : 'text-secondary-500'}`}>
                     {settings.systemStatus === 'active' ? '● ONLINE' : '○ MANTENIMIENTO'}
                   </span>
                 </div>
@@ -245,15 +246,15 @@ export const Settings = () => {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[1.5rem] p-5 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-primary-600 to-accent-700 rounded-[1.5rem] p-5 text-white shadow-lg shadow-primary-500/20 relative overflow-hidden group">
               <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 blur-2xl rounded-full" />
 
               <h4 className="text-lg font-black mb-3 relative z-10 tracking-tight">¿Necesitas ayuda?</h4>
-              <p className="text-indigo-100 text-sm font-medium mb-4 relative z-10 leading-relaxed">
+              <p className="text-primary-100 text-sm font-medium mb-4 relative z-10 leading-relaxed">
                 Nuestros expertos en FlowBuilder y Cloud API están disponibles 24/7 para ayudarte a optimizar tus procesos.
               </p>
-              <button className="w-full py-3 bg-white text-indigo-600 rounded-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest relative z-10">
+              <button className="w-full py-3 bg-white text-primary-600 rounded-xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all text-xs uppercase tracking-widest relative z-10">
                 Contactar Soporte
               </button>
             </div>
