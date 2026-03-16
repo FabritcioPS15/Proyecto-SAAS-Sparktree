@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, User, Bot } from 'lucide-react';
+import { X, Send, Bot, Check, CheckCheck, Clock } from 'lucide-react';
 
 interface FlowSimulatorProps {
   nodes: any[];
   edges: any[];
   onClose: () => void;
+  botMode?: 'triggers_only' | 'general_response';
+  fallbackMessage?: string;
+  triggers?: string[];
 }
 
 interface Message {
@@ -12,79 +15,225 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
   buttons?: { id: string; title: string }[];
+  timestamp: Date;
+  status: 'sending' | 'sent' | 'delivered' | 'read';
 }
 
-export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onClose }) => {
+export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onClose, botMode = 'general_response', fallbackMessage = 'Lo siento, no entiendo tu mensaje. ¿En qué puedo ayudarte?', triggers = [] }) => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', text: 'Escribe una palabra clave para iniciar el flujo (ej: hola).', sender: 'bot' }
+    { 
+      id: 'welcome', 
+      text: botMode === 'triggers_only' 
+        ? `🤖 MODO: SOLO TRIGGERS 🔒\n\nTriggers configurados: ${triggers.length > 0 ? triggers.join(', ') : 'Ninguno'}\n\n⚠️ El bot SOLO responderá si escribes EXACTAMENTE una palabra clave.\n\n✅ FUNCIONA:\n• "hola"\n• "buenos días"\n• "¡Hola! Quiero más información del material publicitario"\n\n❌ NO FUNCIONA:\n• "hola hijo"\n• "ayuda por favor"\n• "hola ¿cómo estás?"\n\nSi no es trigger EXACTO, el bot se quedará en silencio.` 
+        : '🤖 MODO: RESPUESTA GENERAL 💬\n\nEl bot responderá a CUALQUIER mensaje.\nSi no hay trigger exacto, enviará mensaje de ayuda.\n\nTriggers exactos: ' + (triggers.length > 0 ? triggers.join(', ') : 'Ninguno'), 
+      sender: 'bot', 
+      timestamp: new Date(), 
+      status: 'read' 
+    }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [waitingForCaptureNodeId, setWaitingForCaptureNodeId] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Update message status progressively
+  const updateMessageStatus = (messageId: string) => {
+    setTimeout(() => {
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, status: 'sent' } : msg
+      ));
+    }, 300);
+    
+    setTimeout(() => {
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, status: 'delivered' } : msg
+      ));
+    }, 800);
+    
+    setTimeout(() => {
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, status: 'read' } : msg
+      ));
+    }, 1500);
+  };
+
+  // Format timestamp
+  const formatTimestamp = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'ahora';
+    if (diffMins < 60) return `hace ${diffMins} min`;
+    if (diffMins < 1440) return `hace ${Math.floor(diffMins / 60)} h`;
+    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  };
+
   const executeNode = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
 
-    if (node.type === 'text') {
-      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: node.data.text || '', sender: 'bot' }]);
+    // Show typing indicator
+    setIsTyping(true);
+    
+    // Random delay for typing (1-3 seconds)
+    const typingDelay = 1000 + Math.random() * 2000;
+    
+    setTimeout(() => {
+      setIsTyping(false);
       
-      // Auto-trigger next node if connected directly
-      const nextEdge = edges.find(e => e.source === nodeId);
-      if (nextEdge && nextEdge.target) {
-        setTimeout(() => executeNode(nextEdge.target), 1000);
-      }
-    } else if (node.type === 'interactive') {
-      setMessages(prev => [
-        ...prev, 
-        { 
-          id: `msg_${Date.now()}`, 
-          text: node.data.bodyText || '', 
-          sender: 'bot', 
-          buttons: node.data.buttons || [] 
+      if (node.type === 'text') {
+        const messageId = `msg_${Date.now()}`;
+        setMessages(prev => [...prev, { 
+          id: messageId, 
+          text: node.data.text || '', 
+          sender: 'bot',
+          timestamp: new Date(),
+          status: 'sending'
+        }]);
+        updateMessageStatus(messageId);
+        
+        // Auto-trigger next node if connected directly
+        const nextEdge = edges.find(e => e.source === nodeId);
+        if (nextEdge && nextEdge.target) {
+          setTimeout(() => executeNode(nextEdge.target), 800 + Math.random() * 1200);
         }
-      ]);
-    } else if (node.type === 'media') {
-      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: `[Multimedia: ${node.data.mediaUrl || 'Sin URL'}]`, sender: 'bot' }]);
-      const nextEdge = edges.find(e => e.source === nodeId);
-      if (nextEdge && nextEdge.target) {
-        setTimeout(() => executeNode(nextEdge.target), 1000);
+      } else if (node.type === 'interactive') {
+        const messageId = `msg_${Date.now()}`;
+        setMessages(prev => [
+          ...prev, 
+          { 
+            id: messageId, 
+            text: node.data.bodyText || '', 
+            sender: 'bot', 
+            buttons: node.data.buttons || [],
+            timestamp: new Date(),
+            status: 'sending'
+          }
+        ]);
+        updateMessageStatus(messageId);
+      } else if (node.type === 'media') {
+        const messageId = `msg_${Date.now()}`;
+        setMessages(prev => [...prev, { 
+          id: messageId, 
+          text: `[📎 Multimedia: ${node.data.mediaUrl || 'Sin URL'}]`, 
+          sender: 'bot',
+          timestamp: new Date(),
+          status: 'sending'
+        }]);
+        updateMessageStatus(messageId);
+        const nextEdge = edges.find(e => e.source === nodeId);
+        if (nextEdge && nextEdge.target) {
+          setTimeout(() => executeNode(nextEdge.target), 800 + Math.random() * 1200);
+        }
+      } else if (node.type === 'capture') {
+        const messageId = `msg_${Date.now()}`;
+        setMessages(prev => [...prev, { 
+          id: messageId, 
+          text: node.data.question || '?', 
+          sender: 'bot',
+          timestamp: new Date(),
+          status: 'sending'
+        }]);
+        updateMessageStatus(messageId);
+        setWaitingForCaptureNodeId(nodeId);
+      } else if (node.type === 'webhook') {
+        const messageId = `msg_${Date.now()}`;
+        setMessages(prev => [...prev, { 
+          id: messageId, 
+          text: `[📡 Webhook Ejecutado: ${node.data.method || 'POST'} ${node.data.url || 'Sin URL'}]`, 
+          sender: 'bot',
+          timestamp: new Date(),
+          status: 'sending'
+        }]);
+        updateMessageStatus(messageId);
+        const nextEdge = edges.find(e => e.source === nodeId);
+        if (nextEdge && nextEdge.target) {
+          setTimeout(() => executeNode(nextEdge.target), 800 + Math.random() * 1200);
+        }
+      } else if (node.type === 'handoff') {
+        const messageId = `msg_${Date.now()}`;
+        setMessages(prev => [...prev, { 
+          id: messageId, 
+          text: '[👩‍💻 Conversación pausada / Transferida a agente humano]', 
+          sender: 'bot',
+          timestamp: new Date(),
+          status: 'sending'
+        }]);
+        updateMessageStatus(messageId);
+      } else if (node.type === 'delay') {
+        const waitTime = (node.data.delaySeconds || 3) * 1000;
+        
+        // Check if invisible message
+        if (!node.data.invisibleMessage) {
+          const messageId = `msg_${Date.now()}`;
+          setMessages(prev => [...prev, { 
+            id: messageId, 
+            text: `[⏳ Esperando ${waitTime/1000}s...]`, 
+            sender: 'bot',
+            timestamp: new Date(),
+            status: 'sending'
+          }]);
+          updateMessageStatus(messageId);
+        }
+        
+        setTimeout(() => {
+          // Auto message if configured
+          if (node.data.autoMessage) {
+            setIsTyping(true);
+            setTimeout(() => {
+              setIsTyping(false);
+              const autoMessageId = `msg_${Date.now()}`;
+              setMessages(prev => [...prev, { 
+                id: autoMessageId, 
+                text: node.data.autoMessage, 
+                sender: 'bot',
+                timestamp: new Date(),
+                status: 'sending'
+              }]);
+              updateMessageStatus(autoMessageId);
+            }, 1000 + Math.random() * 2000);
+          }
+          
+          const nextEdge = edges.find(e => e.source === nodeId);
+          if (nextEdge && nextEdge.target) {
+            setTimeout(() => executeNode(nextEdge.target), 800 + Math.random() * 1200);
+          }
+        }, waitTime);
       }
-    } else if (node.type === 'capture') {
-      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: node.data.question || '?', sender: 'bot' }]);
-      setWaitingForCaptureNodeId(nodeId);
-    } else if (node.type === 'webhook') {
-      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: `[📡 Webhook Ejecutado: ${node.data.method || 'POST'} ${node.data.url || 'Sin URL'}]`, sender: 'bot' }]);
-      const nextEdge = edges.find(e => e.source === nodeId);
-      if (nextEdge && nextEdge.target) {
-        setTimeout(() => executeNode(nextEdge.target), 1000);
-      }
-    } else if (node.type === 'handoff') {
-      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: '[👩‍💻 Conversación pausada / Transferida a agente humano]', sender: 'bot' }]);
-    } else if (node.type === 'delay') {
-      const waitTime = node.data.delaySeconds || 3;
-      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: `[⏳ Esperando ${waitTime}s...]`, sender: 'bot' }]);
-      const nextEdge = edges.find(e => e.source === nodeId);
-      if (nextEdge && nextEdge.target) {
-        setTimeout(() => executeNode(nextEdge.target), waitTime * 1000);
-      }
-    }
+    }, typingDelay);
   };
 
   const handleSendText = (text: string) => {
     if (!text.trim()) return;
     
     // Add user message
-    setMessages(prev => [...prev, { id: `usr_${Date.now()}`, text, sender: 'user' }]);
+    const userMessageId = `usr_${Date.now()}`;
+    setMessages(prev => [...prev, { 
+      id: userMessageId, 
+      text, 
+      sender: 'user',
+      timestamp: new Date(),
+      status: 'sending' as const
+    }]);
+    updateMessageStatus(userMessageId);
     setInputValue('');
 
     if (waitingForCaptureNodeId) {
       setTimeout(() => {
-        setMessages(prev => [...prev, { id: `sys_${Date.now()}`, text: `[💾 Dato guardado exitosamente]`, sender: 'bot' }]);
+        const sysMessageId = `sys_${Date.now()}`;
+        setMessages(prev => [...prev, { 
+          id: sysMessageId, 
+          text: '[💾 Dato guardado exitosamente]', 
+          sender: 'bot',
+          timestamp: new Date(),
+          status: 'sending' as const
+        }]);
+        updateMessageStatus(sysMessageId);
         
         const captureNode = nodes.find(n => n.id === waitingForCaptureNodeId);
         setWaitingForCaptureNodeId(null);
@@ -99,28 +248,73 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onCl
       return;
     }
 
-    const textLower = text.toLowerCase().trim();
-
-    // Check for trigger
-    const triggerNode = nodes.find((n: any) => 
+    // Check for trigger using both node triggers and global triggers (TRUE EXACT MATCH)
+    const nodeTrigger = nodes.find((n: any) => 
       n.type === 'trigger' && 
-      n.data?.keywords?.some((k: string) => textLower.includes(k.toLowerCase()))
+      n.data?.keywords?.some((k: string) => {
+        const triggerLower = k.toLowerCase().trim();
+        const textLowerTrimmed = text.toLowerCase().trim();
+        // TRUE EXACT MATCH: the message must be EXACTLY the trigger, nothing else
+        return textLowerTrimmed === triggerLower;
+      })
     );
+    
+    const globalTrigger = triggers.some((trigger: string) => {
+      const triggerLower = trigger.toLowerCase().trim();
+      const textLowerTrimmed = text.toLowerCase().trim();
+      // TRUE EXACT MATCH: the message must be EXACTLY the trigger, nothing else
+      return textLowerTrimmed === triggerLower;
+    });
 
-    if (triggerNode) {
-      const firstEdge = edges.find((e: any) => e.source === triggerNode.id);
-      if (firstEdge && firstEdge.target) {
-        setTimeout(() => executeNode(firstEdge.target), 600);
+    const hasTrigger = nodeTrigger || globalTrigger;
+
+    // Bot mode logic
+    if (botMode === 'triggers_only') {
+      // Solo Triggers mode: ONLY respond if there's a trigger
+      if (hasTrigger) {
+        // Execute the trigger
+        const triggerToUse = nodeTrigger || { id: 'global-trigger' };
+        const firstEdge = edges.find((e: any) => e.source === triggerToUse.id);
+        if (firstEdge && firstEdge.target) {
+          setTimeout(() => executeNode(firstEdge.target), 600);
+        }
       }
+      // IF NO TRIGGER - BOT STAYS SILENT (no response at all)
     } else {
-       setTimeout(() => {
-          setMessages(prev => [...prev, { id: `err_${Date.now()}`, text: 'No entendí ese comando (Palabra clave no encontrada en el flujo actual).', sender: 'bot' }]);
-       }, 600);
+      // General Response mode: always respond
+      if (hasTrigger) {
+        // Execute the trigger
+        const triggerToUse = nodeTrigger || { id: 'global-trigger' };
+        const firstEdge = edges.find((e: any) => e.source === triggerToUse.id);
+        if (firstEdge && firstEdge.target) {
+          setTimeout(() => executeNode(firstEdge.target), 600);
+        }
+      } else {
+        // No trigger - send fallback message
+        setTimeout(() => {
+          const messageId = `fallback_${Date.now()}`;
+          setMessages(prev => [...prev, { 
+            id: messageId, 
+            text: fallbackMessage, 
+            sender: 'bot',
+            timestamp: new Date(),
+            status: 'sending' as const
+          }]);
+          updateMessageStatus(messageId);
+        }, 600);
+      }
     }
   };
 
   const handleButtonClick = (buttonId: string, buttonTitle: string) => {
-    setMessages(prev => [...prev, { id: `usr_${Date.now()}`, text: buttonTitle, sender: 'user' }]);
+    setMessages(prev => [...prev, { 
+      id: `usr_${Date.now()}`, 
+      text: buttonTitle, 
+      sender: 'user',
+      timestamp: new Date(),
+      status: 'sending' as const
+    }]);
+    updateMessageStatus(`usr_${Date.now()}`);
 
     // Find edge from this button
     const edge = edges.find(e => e.sourceHandle === buttonId || e.source === buttonId); // Simple check if sourceHandle is used, or fallback
@@ -129,7 +323,15 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onCl
       setTimeout(() => executeNode(edge.target), 600);
     } else {
       setTimeout(() => {
-          setMessages(prev => [...prev, { id: `err_${Date.now()}`, text: 'Opción no conectada a ningún nodo.', sender: 'bot' }]);
+          const messageId = `err_${Date.now()}`;
+          setMessages(prev => [...prev, { 
+            id: messageId, 
+            text: 'Opción no conectada a ningún nodo.', 
+            sender: 'bot',
+            timestamp: new Date(),
+            status: 'sending' as const
+          }]);
+          updateMessageStatus(messageId);
        }, 600);
     }
   };
@@ -160,7 +362,20 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onCl
               <div key={msg.id} className={`flex flex-col max-w-[85%] ${msg.sender === 'user' ? 'self-end' : 'self-start'}`}>
                 <div className={`p-3 rounded-2xl shadow-sm relative ${msg.sender === 'user' ? 'bg-[#dcf8c6] dark:bg-emerald-900 text-gray-900 dark:text-gray-100 rounded-tr-none' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-tl-none'}`}>
                   <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
-                  <span className="text-[10px] text-gray-500 dark:text-gray-400 block text-right mt-1.5 opacity-80">ahora</span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400 block text-right mt-1.5 opacity-80">
+                    {formatTimestamp(msg.timestamp)}
+                  </span>
+                  {/* Message Status */}
+                  <div className="flex items-center gap-1 mt-1">
+                    {msg.sender === 'user' && (
+                      <>
+                        {msg.status === 'sending' && <Clock className="w-3 h-3 text-gray-400" />}
+                        {msg.status === 'sent' && <Check className="w-3 h-3 text-gray-400" />}
+                        {msg.status === 'delivered' && <CheckCheck className="w-3 h-3 text-gray-400" />}
+                        {msg.status === 'read' && <CheckCheck className="w-3 h-3 text-blue-500" />}
+                      </>
+                    )}
+                  </div>
                 </div>
                 
                 {/* Interactive Buttons */}
@@ -179,6 +394,18 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onCl
                 )}
               </div>
             ))}
+            {/* Typing Indicator */}
+            {isTyping && (
+              <div className="flex flex-col max-w-[85%] self-start">
+                <div className="bg-white dark:bg-gray-700 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
          </div>
       </div>

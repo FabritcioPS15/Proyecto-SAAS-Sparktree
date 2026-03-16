@@ -16,6 +16,7 @@ class WhatsAppQRService {
   private qr: string | null = null;
   private connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
   private logger = pino({ level: 'silent' });
+  private connectedPhoneNumber: string | null = null;
 
   async initialize() {
     // Si ya estamos conectando o conectados, no reiniciamos a menos que se fuerce
@@ -56,6 +57,12 @@ class WhatsAppQRService {
         console.log('opened connection');
         this.connectionStatus = 'connected';
         this.qr = null;
+        
+        // Capturar el número de teléfono del dispositivo conectado
+        if (this.socket.user?.id) {
+          this.connectedPhoneNumber = this.socket.user.id.split(':')[0] + '@s.whatsapp.net';
+          console.log(`[QR Service] Connected phone number: ${this.connectedPhoneNumber}`);
+        }
       }
     });
 
@@ -339,12 +346,17 @@ class WhatsAppQRService {
     return this.connectionStatus;
   }
 
+  getConnectedPhoneNumber() {
+    return this.connectedPhoneNumber;
+  }
+
   async logout() {
     if (this.socket) {
       await this.socket.logout();
       this.socket = null;
       this.qr = null;
       this.connectionStatus = 'disconnected';
+      this.connectedPhoneNumber = null;
       // Limpiar carpeta de auth
       if (fs.existsSync('auth_info_baileys')) {
         fs.rmSync('auth_info_baileys', { recursive: true, force: true });

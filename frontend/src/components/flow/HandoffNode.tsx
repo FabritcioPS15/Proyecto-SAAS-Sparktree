@@ -1,7 +1,7 @@
 import { Handle, Position } from '@xyflow/react';
 import { UserCheck } from 'lucide-react';
 
-export const HandoffNode = ({ data }: any) => {
+export const HandoffNode = () => {
   // Transfer to agent node usually doesn't have a source handle (it ends the automated flow)
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border-2 border-secondary-500 w-64 overflow-hidden opacity-90">

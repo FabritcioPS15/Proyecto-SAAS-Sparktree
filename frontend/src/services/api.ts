@@ -9,6 +9,28 @@ const api = axios.create({
   },
 });
 
+// Interceptor para manejar errores globalmente
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Manejar errores de autenticación
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token');
+      window.location.href = '/login';
+      return Promise.reject(new Error('Sesión expirada'));
+    }
+    
+    // Manejar errores de red
+    if (!error.response) {
+      return Promise.reject(new Error('Error de conexión. Verifica tu internet.'));
+    }
+    
+    // Manejar otros errores HTTP
+    const message = error.response.data?.message || `Error ${error.response.status}`;
+    return Promise.reject(new Error(message));
+  }
+);
+
 export const getUsers = async () => {
   try {
     const response = await api.get('/users');

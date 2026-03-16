@@ -20,7 +20,8 @@ router.get('/status', async (req, res) => {
 
   res.json({
     status: qrService.getStatus(),
-    qr: qrImage
+    qr: qrImage,
+    phoneNumber: qrService.getConnectedPhoneNumber()
   });
 });
 

@@ -25,7 +25,7 @@ import { TriggerInput } from '../TriggerInput';
 import {
   Save, Bot, Play, Zap, Settings, Layers, Grid3X3, Sparkles,
   Undo2, Redo2, Maximize2, Trash2, MessageSquare,
-  Clock, UserCheck, ChevronRight, Plus, MousePointer2
+  Clock, UserCheck, ChevronRight, Plus
 } from 'lucide-react';
 import { saveFlows } from '../../services/api';
 
@@ -50,14 +50,36 @@ interface FlowBuilderContentProps {
     triggers: string[];
     category: string;
     status?: string;
+    botMode?: 'triggers_only' | 'general_response';
+    fallbackMessage?: string;
   };
   onBack?: () => void;
 }
 
 export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps) => {
+  // Validación de datos de entrada
+  if (!flowData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">Error: No se proporcionaron datos del flow</div>
+      </div>
+    );
+  }
+
+  if (!flowData.id) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">Error: El flow no tiene un ID válido</div>
+      </div>
+    );
+  }
+
   const [nodes, setNodes, onNodesChange] = useNodesState(flowData.nodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(flowData.edges || []);
   const [currentTriggers, setCurrentTriggers] = useState(flowData.triggers || []);
+  const [botMode, setBotMode] = useState<'triggers_only' | 'general_response'>(flowData.botMode || 'general_response');
+  const [fallbackMessage, setFallbackMessage] = useState(flowData.fallbackMessage || 'Lo siento, no entiendo tu mensaje. ¿En qué puedo ayudarte?');
+  const [configChanged, setConfigChanged] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isFlowActive, setIsFlowActive] = useState(flowData.status === 'active');
   const [history, setHistory] = useState([{ nodes: flowData.nodes || [], edges: flowData.edges || [] }]);
@@ -146,9 +168,14 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
         edges,
         triggers: currentTriggers,
         status: isFlowActive ? 'active' : 'draft',
-        category: flowData.category
+        category: flowData.category,
+        botMode,
+        fallbackMessage
       }, flowData.id || flowData._id);
       flowData.triggers = currentTriggers;
+      flowData.botMode = botMode;
+      flowData.fallbackMessage = fallbackMessage;
+      setConfigChanged(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
@@ -256,7 +283,9 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
           <button onClick={() => setShowSimulator(true)} className="px-5 py-2.5 bg-white dark:bg-slate-800 text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-900/50 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-primary-50 transition-all flex items-center gap-2">
             <Play className="w-3.5 h-3.5" /><span>Simular</span>
           </button>
-          <button onClick={saveFlow} disabled={isSaving} className="px-8 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center gap-2">
+          <button onClick={saveFlow} disabled={isSaving} className={`px-8 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center gap-2 ${
+            configChanged ? 'bg-orange-500 hover:bg-orange-600 text-white animate-pulse' : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+          }`}>
             {isSaving ? <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-current" /> : <Save className="w-3.5 h-3.5" />}
             <span>{saveSuccess ? '¡Guardado!' : 'Guardar'}</span>
           </button>
@@ -341,12 +370,49 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
 
           {/* ─── PROPIEDADES TAB — no node selected ─── */}
           {activeTab === 'propiedades' && !selectedNode && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-              <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center mb-4">
-                <MousePointer2 className="w-8 h-8 text-slate-300" />
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <div className="space-y-4">
+                {/* Configuración Global del Bot */}
+                <div className="p-5 bg-slate-50 dark:bg-slate-500/5 rounded-3xl border border-slate-200 dark:border-slate-800">
+                  <label className="block text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest mb-4">Configuración Global del Bot</label>
+
+                  {/* Modo del Bot */}
+                  <div className="mb-4">
+                    <label className="block text-[9px] font-black text-slate-700 uppercase mb-2">Modo de Respuesta</label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <input type="radio" id="general_response" name="botMode" checked={botMode === 'general_response'} onChange={() => { setBotMode('general_response'); setConfigChanged(true); }} className="w-4 h-4 text-slate-600 bg-white border-slate-300 rounded focus:ring-slate-500 dark:focus:ring-slate-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600" />
+                        <label htmlFor="general_response" className="text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase">Respuesta General</label>
+                        <span className="text-[8px] text-slate-500 font-medium">El bot responde a cualquier mensaje</span>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <input type="radio" id="triggers_only" name="botMode" checked={botMode === 'triggers_only'} onChange={() => { setBotMode('triggers_only'); setConfigChanged(true); }} className="w-4 h-4 text-slate-600 bg-white border-slate-300 rounded focus:ring-slate-500 dark:focus:ring-slate-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600" />
+                        <label htmlFor="triggers_only" className="text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase">Solo Triggers</label>
+                        <span className="text-[8px] text-slate-500 font-medium">El bot solo responde a triggers específicos</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mensaje de Fallback */}
+                  <div>
+                    <label className="block text-[9px] font-black text-slate-700 uppercase mb-2">Mensaje cuando no hay Trigger</label>
+                    <textarea value={fallbackMessage} onChange={(e) => { setFallbackMessage(e.target.value); setConfigChanged(true); }} className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] resize-none" rows={3} placeholder="Mensaje que se envía cuando no se reconoce ningún trigger..." />
+                    <p className="text-[8px] text-slate-400 mt-1 font-medium">Deja vacío para que el bot se mantenga en silencio</p>
+                  </div>
+                </div>
+
+                {/* Triggers Globales */}
+                <div className="p-5 bg-emerald-50 dark:bg-emerald-500/5 rounded-3xl border border-emerald-100 dark:border-emerald-500/20">
+                  <label className="block text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-3">Triggers Globales (Palabras Clave)</label>
+                  <TriggerInput
+                    triggers={currentTriggers || []}
+                    onChange={handleTriggersChange}
+                    placeholder="hola, ayuda, información..."
+                    className="mb-2"
+                  />
+                  <p className="text-[9px] text-emerald-600/70 mt-2 font-bold italic">Estas palabras activarán el flujo cuando un usuario las envíe</p>
+                </div>
               </div>
-              <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Sin Selección</h4>
-              <p className="text-[10px] font-bold text-slate-400 mt-1">Haz clic en un nodo del canvas para editarlo</p>
             </div>
           )}
 
@@ -424,8 +490,8 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                   <textarea value={selectedNode.data.bodyText || ''} onChange={(e) => updateNodeData({ bodyText: e.target.value })} onBlur={pushToHistory} className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-primary-200 rounded-2xl text-sm resize-none" rows={3} placeholder="Describe las opciones..." />
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-[10px] font-black text-primary-600 uppercase">Botones (Máx 3)</label>
-                      <span className="text-[9px] font-bold text-slate-400">{(selectedNode.data.buttons || []).length}/3</span>
+                      <label className="text-[10px] font-black text-primary-600 uppercase">Botones (Máx 9)</label>
+                      <span className="text-[9px] font-bold text-slate-400">{(selectedNode.data.buttons || []).length}/9</span>
                     </div>
                     {(selectedNode.data.buttons || []).map((btn: any, idx: number) => (
                       <div key={idx} className="flex gap-2 mb-2 group/btn">
@@ -433,7 +499,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                         <button onClick={() => { updateNodeData({ buttons: selectedNode.data.buttons.filter((_: any, i: number) => i !== idx) }); pushToHistory(); }} className="p-2 opacity-0 group-hover/btn:opacity-100 text-secondary-500 hover:bg-secondary-50 rounded-lg transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     ))}
-                    {(!selectedNode.data.buttons || selectedNode.data.buttons.length < 3) && (
+                    {(!selectedNode.data.buttons || selectedNode.data.buttons.length < 9) && (
                       <button onClick={() => updateNodeData({ buttons: [...(selectedNode.data.buttons || []), { id: `btn-${Date.now()}`, title: 'Nuevo Botón' }] })} className="w-full py-3 border-2 border-dashed border-primary-200 dark:border-primary-800 rounded-2xl text-[9px] font-black text-primary-600 uppercase hover:bg-primary-50 transition-all">
                         + Añadir Botón
                       </button>
@@ -469,13 +535,42 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
 
               {/* Delay */}
               {selectedNode.type === 'delay' && (
-                <div className="p-5 bg-stone-50 dark:bg-stone-500/5 rounded-3xl border border-stone-200 dark:border-stone-800">
-                  <label className="block text-[10px] font-black text-stone-700 dark:text-stone-400 uppercase tracking-widest mb-4">Tiempo de Espera</label>
-                  <div className="flex items-center gap-4">
-                    <input type="range" min="1" max="60" value={selectedNode.data.delaySeconds || 3} onChange={(e) => updateNodeData({ delaySeconds: parseInt(e.target.value) })} onBlur={pushToHistory} className="flex-1 h-2 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-stone-600" />
-                    <span className="text-2xl font-black text-stone-600 dark:text-stone-400 w-12">{selectedNode.data.delaySeconds || 3}s</span>
+                <div className="p-5 bg-stone-50 dark:bg-stone-500/5 rounded-3xl border border-stone-200 dark:border-stone-800 space-y-4">
+                  <label className="block text-[10px] font-black text-stone-700 dark:text-stone-400 uppercase tracking-widest mb-4">Tiempo de Espera Avanzado</label>
+                  
+                  {/* Tiempo de Espera */}
+                  <div>
+                    <label className="block text-[9px] font-black text-stone-700 uppercase mb-2">Tiempo de Espera</label>
+                    <div className="flex items-center gap-4">
+                      <input type="range" min="1" max="60" value={selectedNode.data.delaySeconds || 3} onChange={(e) => updateNodeData({ delaySeconds: parseInt(e.target.value) })} onBlur={pushToHistory} className="flex-1 h-2 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-stone-600" />
+                      <span className="text-2xl font-black text-stone-600 dark:text-stone-400 w-12">{selectedNode.data.delaySeconds || 3}s</span>
+                    </div>
+                    <p className="text-[9px] text-stone-400 mt-2 font-bold italic">Simula escritura humana antes del siguiente mensaje.</p>
                   </div>
-                  <p className="text-[9px] text-stone-400 mt-4 font-bold italic">Simula escritura humana antes del siguiente mensaje.</p>
+                  
+                  {/* Mensaje Invisible */}
+                  <div className="flex items-center gap-3 p-3 bg-stone-100/50 dark:bg-stone-800/50 rounded-2xl border border-stone-200 dark:border-stone-700">
+                    <input type="checkbox" id="invisible-msg" checked={selectedNode.data.invisibleMessage || false} onChange={(e) => updateNodeData({ invisibleMessage: e.target.checked })} className="w-4 h-4 text-stone-600 bg-white border-stone-300 rounded focus:ring-stone-500 dark:focus:ring-stone-600 dark:ring-offset-stone-800 focus:ring-2 dark:bg-stone-700 dark:border-stone-600" />
+                    <label htmlFor="invisible-msg" className="text-[9px] font-black text-stone-700 dark:text-stone-300 uppercase">Mensaje Invisible</label>
+                    <span className="text-[8px] text-stone-500 font-medium">El bot no mostrará "escribiendo..."</span>
+                  </div>
+                  
+                  {/* Mensaje Automático */}
+                  <div>
+                    <label className="block text-[9px] font-black text-stone-700 uppercase mb-2">Mensaje Automático (Opcional)</label>
+                    <textarea value={selectedNode.data.autoMessage || ''} onChange={(e) => updateNodeData({ autoMessage: e.target.value })} onBlur={pushToHistory} className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-stone-200 dark:border-stone-700 rounded-xl text-[10px] resize-none" rows={2} placeholder="Mensaje que enviará el bot automáticamente después de esperar..." />
+                    <p className="text-[8px] text-stone-400 mt-1 font-medium">Deja vacío si no quieres mensaje automático</p>
+                  </div>
+                  
+                  {/* Reinicio Automático */}
+                  <div>
+                    <label className="block text-[9px] font-black text-stone-700 uppercase mb-2">Reinicio Automático</label>
+                    <div className="flex items-center gap-4">
+                      <input type="range" min="0" max="24" value={selectedNode.data.resetHours || 0} onChange={(e) => updateNodeData({ resetHours: parseInt(e.target.value) })} onBlur={pushToHistory} className="flex-1 h-2 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-stone-600" />
+                      <span className="text-lg font-black text-stone-600 dark:text-stone-400 w-16">{selectedNode.data.resetHours || 0}h</span>
+                    </div>
+                    <p className="text-[9px] text-stone-400 mt-2 font-bold italic">Después de este tiempo, el bot volverá al inicio del flujo. 0 = desactivado</p>
+                  </div>
                 </div>
               )}
 
@@ -532,7 +627,14 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
       </div>
 
       {showSimulator && (
-        <FlowSimulator nodes={nodes} edges={edges} onClose={() => setShowSimulator(false)} />
+        <FlowSimulator 
+          nodes={nodes} 
+          edges={edges} 
+          onClose={() => setShowSimulator(false)} 
+          botMode={botMode}
+          fallbackMessage={fallbackMessage}
+          triggers={currentTriggers}
+        />
       )}
     </div>
   );

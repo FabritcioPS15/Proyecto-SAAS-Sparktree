@@ -1,13 +1,44 @@
-import express from 'express';
+import express, { Request } from 'express';
 import { supabase } from '../config/supabase';
+
+// Extend Request interface to include user
+interface AuthenticatedRequest extends Request {
+  user?: {
+    organization_id: string;
+    id: string;
+    email: string;
+  };
+}
 
 const router = express.Router();
 
 // GET /api/flows
-router.get('/', async (req, res) => {
+router.get('/', async (req: AuthenticatedRequest, res) => {
   try {
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    // Multi-tenant: Get organization_id from headers, query params, or fallback to first org
+    const organization_id = req.headers['x-organization-id'] || 
+                          req.query.organization_id || 
+                          req.user?.organization_id;
+
+    let org;
+    if (organization_id) {
+      // Verify organization exists and user has access
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .eq('id', organization_id)
+        .single();
+      
+      if (orgError || !orgData) {
+        return res.status(404).json({ error: 'Organization not found' });
+      }
+      org = orgData;
+    } else {
+      // Fallback to first organization (for development/testing)
+      const { data: orgData } = await supabase.from('organizations').select('id').limit(1).single();
+      if (!orgData) return res.status(404).json({ error: 'Organization not found' });
+      org = orgData;
+    }
 
     const { data: flows, error } = await supabase
       .from('flows')
@@ -27,7 +58,9 @@ router.get('/', async (req, res) => {
     const transformedFlows = flows?.map(flow => ({
       ...flow,
       lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
+      assignedTo: flow.assigned_to?.name || 'Sin asignar',
+      botMode: flow.bot_mode,
+      fallbackMessage: flow.fallback_message
     })) || [];
 
     res.json(transformedFlows);
@@ -62,7 +95,9 @@ router.get('/:id', async (req, res) => {
     const transformedFlow = {
       ...flow,
       lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
+      assignedTo: flow.assigned_to?.name || 'Sin asignar',
+      botMode: flow.bot_mode || 'general_response',
+      fallbackMessage: flow.fallback_message || 'Lo siento, no entiendo tu mensaje. ¿En qué puedo ayudarte?'
     };
 
     res.json(transformedFlow);
@@ -86,7 +121,9 @@ router.post('/', async (req, res) => {
       is_default = false, 
       metrics = { conversations: 0, completionRate: 0, avgResponseTime: 0, satisfaction: 0 },
       nodes = [], 
-      edges = [] 
+      edges = [],
+      botMode = 'general_response',
+      fallbackMessage = 'Lo siento, no entiendo tu mensaje. ¿En qué puedo ayudarte?'
     } = req.body;
 
     const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
@@ -106,7 +143,9 @@ router.post('/', async (req, res) => {
         is_default,
         metrics,
         nodes,
-        edges
+        edges,
+        ...(botMode && { bot_mode: botMode }),
+        ...(fallbackMessage && { fallback_message: fallbackMessage })
       })
       .select(`
         *,
@@ -123,7 +162,9 @@ router.post('/', async (req, res) => {
     const transformedFlow = {
       ...flow,
       lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
+      assignedTo: flow.assigned_to?.name || 'Sin asignar',
+      botMode: flow.bot_mode || 'general_response',
+      fallbackMessage: flow.fallback_message || 'Lo siento, no entiendo tu mensaje. ¿En qué puedo ayudarte?'
     };
 
     res.status(201).json(transformedFlow);
@@ -148,7 +189,9 @@ router.put('/:id', async (req, res) => {
       is_default, 
       metrics, 
       nodes, 
-      edges 
+      edges,
+      botMode,
+      fallbackMessage
     } = req.body;
 
     const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
@@ -168,6 +211,8 @@ router.put('/:id', async (req, res) => {
         metrics,
         nodes,
         edges,
+        ...(botMode && { bot_mode: botMode }),
+        ...(fallbackMessage && { fallback_message: fallbackMessage }),
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -187,38 +232,15 @@ router.put('/:id', async (req, res) => {
     const transformedFlow = {
       ...flow,
       lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
+      assignedTo: flow.assigned_to?.name || 'Sin asignar',
+      botMode: flow.bot_mode || 'general_response',
+      fallbackMessage: flow.fallback_message || 'Lo siento, no entiendo tu mensaje. ¿En qué puedo ayudarte?'
     };
 
     res.json(transformedFlow);
   } catch (error) {
     console.error('Error in PUT /flows/:id:', error);
-    res.status(500).json({ error: 'Failed to update flow' });
-  }
-});
-
-// DELETE /api/flows/:id
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
-
-    const { error } = await supabase
-      .from('flows')
-      .delete()
-      .eq('id', id)
-      .eq('organization_id', org.id);
-
-    if (error) {
-      console.error('Error deleting flow:', error);
-      return res.status(500).json({ error: 'Failed to delete flow' });
-    }
-
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error in DELETE /flows/:id:', error);
-    res.status(500).json({ error: 'Failed to delete flow' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

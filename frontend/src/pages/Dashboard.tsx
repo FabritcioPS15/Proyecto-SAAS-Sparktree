@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Users, MessageSquare, UserPlus, Activity, CheckCircle, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Users, MessageSquare, UserPlus, Activity, CheckCircle, Calendar } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getAnalytics } from '../services/api';
 import { useLayout } from '../components/layout/Layout';
 
@@ -19,7 +19,6 @@ export const Dashboard = () => {
   const { isSidebarCollapsed } = useLayout();
   const [stats, setStats] = useState(initialStats);
   const [messagesData, setMessagesData] = useState<any[]>([]);
-  const [menuData, setMenuData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
   const [startDate, setStartDate] = useState('');
@@ -93,19 +92,7 @@ export const Dashboard = () => {
           return data;
         };
 
-        // Generar datos de menú (opciones dominantes)
-        const generateMenuData = () => {
-          return [
-            { option: 'Precios', count: Math.floor(120 + Math.random() * 40) },
-            { option: 'Contacto', count: Math.floor(80 + Math.random() * 30) },
-            { option: 'Servicios', count: Math.floor(60 + Math.random() * 25) },
-            { option: 'Inicio', count: Math.floor(40 + Math.random() * 20) },
-            { option: 'Sobre', count: Math.floor(30 + Math.random() * 15) }
-          ];
-        };
-
         setMessagesData(generateMessagesData(selectedTimeRange, startDate, endDate));
-        setMenuData(generateMenuData());
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
