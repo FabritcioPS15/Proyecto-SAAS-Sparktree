@@ -298,12 +298,15 @@ class MultiWhatsAppService {
       .select()
       .single();
 
-    let { data: conversation } = await supabase
+    let { data: conversations } = await supabase
       .from('conversations')
       .select('*')
       .eq('organization_id', connection.organizationId)
       .eq('contact_id', contact.id)
-      .single();
+      .order('last_message_at', { ascending: false })
+      .limit(1);
+
+    let conversation = conversations && conversations.length > 0 ? conversations[0] : null;
 
     if (!conversation) {
       const { data: newConversation } = await supabase
@@ -435,6 +438,10 @@ class MultiWhatsAppService {
 
   getUserConnections(userId: string) {
     return Array.from(this.connections.values()).filter(conn => conn.userId === userId);
+  }
+
+  getOrganizationConnections(organizationId: string) {
+    return Array.from(this.connections.values()).filter(conn => conn.organizationId === organizationId);
   }
 
   getConnection(connectionId: string) {

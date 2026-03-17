@@ -6,8 +6,8 @@ const router = express.Router();
 // GET /api/flows
 router.get('/', async (req, res) => {
   try {
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     const { data: flows, error } = await supabase
       .from('flows')
@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
         *,
         assigned_to:users(name, email)
       `)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -41,8 +41,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     const { data: flow, error } = await supabase
       .from('flows')
@@ -51,7 +51,7 @@ router.get('/:id', async (req, res) => {
         assigned_to:users(name, email)
       `)
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (error || !flow) {
@@ -89,13 +89,13 @@ router.post('/', async (req, res) => {
       edges = [] 
     } = req.body;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     const { data: flow, error } = await supabase
       .from('flows')
       .insert({
-        organization_id: org.id,
+        organization_id: orgId,
         name,
         description,
         status,
@@ -151,8 +151,8 @@ router.put('/:id', async (req, res) => {
       edges 
     } = req.body;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     const { data: flow, error } = await supabase
       .from('flows')
@@ -171,7 +171,7 @@ router.put('/:id', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select(`
         *,
         assigned_to:users(name, email)
@@ -201,14 +201,14 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     const { error } = await supabase
       .from('flows')
       .delete()
       .eq('id', id)
-      .eq('organization_id', org.id);
+      .eq('organization_id', orgId);
 
     if (error) {
       console.error('Error deleting flow:', error);
@@ -226,15 +226,15 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/duplicate', async (req, res) => {
   try {
     const { id } = req.params;
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Get the original flow
     const { data: originalFlow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !originalFlow) {
@@ -245,7 +245,7 @@ router.post('/:id/duplicate', async (req, res) => {
     const { data: newFlow, error: duplicateError } = await supabase
       .from('flows')
       .insert({
-        organization_id: org.id,
+        organization_id: orgId,
         name: `${originalFlow.name} (Copia)`,
         description: originalFlow.description,
         status: 'draft',
@@ -289,15 +289,15 @@ router.put('/:id/nodes/:nodeId', async (req, res) => {
     const { id, nodeId } = req.params;
     const { position, data } = req.body;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Obtener el flujo actual
     const { data: flow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !flow) {
@@ -318,7 +318,7 @@ router.put('/:id/nodes/:nodeId', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select('*')
       .single();
 
@@ -345,15 +345,15 @@ router.delete('/:id/nodes/:nodeId', async (req, res) => {
   try {
     const { id, nodeId } = req.params;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Obtener el flujo actual
     const { data: flow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !flow) {
@@ -376,7 +376,7 @@ router.delete('/:id/nodes/:nodeId', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select('*')
       .single();
 
@@ -404,15 +404,15 @@ router.post('/:id/nodes', async (req, res) => {
     const { id } = req.params;
     const { type, position, data } = req.body;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Obtener el flujo actual
     const { data: flow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !flow) {
@@ -436,7 +436,7 @@ router.post('/:id/nodes', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select('*')
       .single();
 
@@ -464,15 +464,15 @@ router.put('/:id/edges/:edgeId', async (req, res) => {
     const { id, edgeId } = req.params;
     const { source, target, type, sourceHandle, targetHandle } = req.body;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Obtener el flujo actual
     const { data: flow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !flow) {
@@ -500,7 +500,7 @@ router.put('/:id/edges/:edgeId', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select('*')
       .single();
 
@@ -527,15 +527,15 @@ router.delete('/:id/edges/:edgeId', async (req, res) => {
   try {
     const { id, edgeId } = req.params;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Obtener el flujo actual
     const { data: flow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !flow) {
@@ -552,7 +552,7 @@ router.delete('/:id/edges/:edgeId', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select('*')
       .single();
 
@@ -580,15 +580,15 @@ router.post('/:id/edges', async (req, res) => {
     const { id } = req.params;
     const { source, target, type, sourceHandle, targetHandle } = req.body;
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Obtener el flujo actual
     const { data: flow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !flow) {
@@ -614,7 +614,7 @@ router.post('/:id/edges', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select('*')
       .single();
 
@@ -642,15 +642,15 @@ router.put('/:id/reorder-nodes', async (req, res) => {
     const { id } = req.params;
     const { nodeOrder } = req.body; // Array de node IDs en nuevo orden
 
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
-    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     // Obtener el flujo actual
     const { data: flow, error: fetchError } = await supabase
       .from('flows')
       .select('*')
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (fetchError || !flow) {
@@ -676,7 +676,7 @@ router.put('/:id/reorder-nodes', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .select('*')
       .single();
 
@@ -695,6 +695,77 @@ router.put('/:id/reorder-nodes', async (req, res) => {
   } catch (error) {
     console.error('Error in PUT /flows/:id/reorder-nodes:', error);
     res.status(500).json({ error: 'Failed to reorder nodes' });
+  }
+});
+
+// Create default flow endpoint
+router.post('/create-default', async (req, res) => {
+  try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
+    // Check if active flow already exists
+    const { data: existingFlow } = await supabase
+      .from('flows')
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    if (existingFlow) {
+      return res.json({ message: 'Active flow already exists', flow: existingFlow });
+    }
+
+    // Create default flow
+    const { data: flow, error } = await supabase
+      .from('flows')
+      .insert({
+        organization_id: orgId,
+        name: 'Flujo de Bienvenida',
+        description: 'Flujo básico de bienvenida con triggers',
+        status: 'active',
+        version: '1.0.0',
+        category: 'welcome',
+        triggers: ['hola', 'información', 'material', 'publicitario', 'ayuda', 'quiero'],
+        is_active: true,
+        nodes: [
+          {
+            id: '1',
+            type: 'trigger',
+            position: { x: 100, y: 100 },
+            data: {}
+          },
+          {
+            id: '2',
+            type: 'text',
+            position: { x: 300, y: 100 },
+            data: {
+              text: '¡Hola! 👋\n\nSoy el asistente virtual. Estoy aquí para ayudarte con información sobre nuestro material publicitario.\n\n¿Qué te gustaría conocer?\n\n1. Precios\n2. Características\n3. Contacto'
+            }
+          }
+        ],
+        edges: [
+          {
+            id: 'edge-1',
+            source: '1',
+            target: '2',
+            type: 'default'
+          }
+        ]
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating default flow:', error);
+      return res.status(500).json({ error: 'Failed to create default flow' });
+    }
+
+    res.json({ message: 'Default flow created successfully', flow });
+  } catch (error: any) {
+    console.error('Error in create-default flow:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

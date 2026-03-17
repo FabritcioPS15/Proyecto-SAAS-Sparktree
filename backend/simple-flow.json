@@ -1,0 +1,33 @@
+{
+  "name": "Flujo Simple Funcional",
+  "description": "Flujo básico con triggers y respuestas",
+  "status": "active",
+  "version": "1.0.0",
+  "category": "welcome",
+  "triggers": ["hola", "Informacion", "ayuda", "quiero", "información"],
+  "is_active": true,
+  "nodes": [
+    {
+      "id": "trigger_1",
+      "type": "trigger",
+      "position": {"x": 100, "y": 100},
+      "data": {"label": "Inicio", "description": "Punto de inicio del flujo"}
+    },
+    {
+      "id": "text_1",
+      "type": "text",
+      "position": {"x": 300, "y": 100},
+      "data": {
+        "text": "¡Hola! 👋\n\nSoy el asistente virtual. Estoy aquí para ayudarte.\n\n¿En qué puedo asistirte hoy?\n\n1. Información sobre productos\n2. Soporte técnico\n3. Contacto con un agente"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_1",
+      "source": "trigger_1",
+      "target": "text_1",
+      "type": "default"
+    }
+  ]
+}

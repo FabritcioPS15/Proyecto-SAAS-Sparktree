@@ -6,30 +6,33 @@ const router = express.Router();
 // GET /api/analytics
 router.get('/', async (req: any, res) => {
   try {
-    console.log('Analytics API called');
-    
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     // Try to fetch real data from different endpoints
     const [weeklyData, topFlowsData, dailyData, hourlyData] = await Promise.allSettled([
       supabase
         .from('weekly_flow_summary')
         .select('*')
-        .eq('organization_name', req.user?.organization_name || 'Default Organization')
+        .eq('organization_id', orgId)
         .order('semana', { ascending: false })
         .limit(12),
       supabase
         .from('top_flows_weekly')
         .select('*')
+        .eq('organization_id', orgId)
         .order('ejecuciones_semana', { ascending: false })
         .limit(10),
       supabase
         .from('daily_flow_summary')
         .select('*')
-        .eq('organization_name', req.user?.organization_name || 'Default Organization')
+        .eq('organization_id', orgId)
         .order('dia', { ascending: false })
         .limit(30),
       supabase
         .from('hourly_activity')
         .select('*')
+        .eq('organization_id', orgId)
         .order('hora', { ascending: true })
     ]);
 
@@ -84,10 +87,13 @@ router.get('/', async (req: any, res) => {
 // GET /api/analytics/flows/weekly
 router.get('/flows/weekly', async (req: any, res) => {
   try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     const { data, error } = await supabase
       .from('weekly_flow_summary')
       .select('*')
-      .eq('organization_name', req.user?.organization_name || 'Default Organization')
+      .eq('organization_id', orgId)
       .order('semana', { ascending: false })
       .limit(12);
 
@@ -102,9 +108,13 @@ router.get('/flows/weekly', async (req: any, res) => {
 // GET /api/analytics/flows/top
 router.get('/flows/top', async (req: any, res) => {
   try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     const { data, error } = await supabase
       .from('top_flows_weekly')
       .select('*')
+      .eq('organization_id', orgId)
       .order('ejecuciones_semana', { ascending: false })
       .limit(10);
 
@@ -119,10 +129,13 @@ router.get('/flows/top', async (req: any, res) => {
 // GET /api/analytics/flows/daily
 router.get('/flows/daily', async (req: any, res) => {
   try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     const { data, error } = await supabase
       .from('daily_flow_summary')
       .select('*')
-      .eq('organization_name', req.user?.organization_name || 'Default Organization')
+      .eq('organization_id', orgId)
       .order('dia', { ascending: false })
       .limit(30);
 
@@ -137,9 +150,13 @@ router.get('/flows/daily', async (req: any, res) => {
 // GET /api/analytics/activity/hourly
 router.get('/activity/hourly', async (req: any, res) => {
   try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     const { data, error } = await supabase
       .from('hourly_activity')
       .select('*')
+      .eq('organization_id', orgId)
       .order('hora', { ascending: true });
 
     if (error) throw error;

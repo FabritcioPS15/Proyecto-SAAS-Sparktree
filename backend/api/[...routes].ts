@@ -10,8 +10,11 @@ import flowsRoutes from '../src/routes/flows';
 import qrRoutes from '../src/routes/whatsappQR';
 import leadsRoutes from '../src/routes/leads';
 import debugRoutes from '../src/routes/debug';
-import { qrService } from '../src/services/whatsappQRService';
+import adminRoutes from '../src/routes/admin';
+import authRoutes from '../src/routes/auth';
+import { multiWhatsAppService } from '../src/services/multiWhatsAppService';
 
+import { tenantMiddleware } from '../src/middleware/tenant';
 const app = express();
 
 // Supabase is a cloud DB, no persistent connection needed
@@ -19,6 +22,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(tenantMiddleware);
 
 // Rutas base para el frontend y validación
 app.get('/', (req: Request, res: Response) => {
@@ -34,6 +38,8 @@ app.use('/api/flows', flowsRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/debug', debugRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/auth', authRoutes);
 
 // Rutas de WhatsApp Webhook
 app.get('/api/webhook', verifyWebhook);
@@ -47,8 +53,23 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Iniciar el servicio de QR automáticamente al arrancar
-qrService.initialize().catch(err => console.error('Error auto-initializing QR service:', err));
+// Iniciar todas las conexiones de WhatsApp al arrancar
+const initializeWhatsApp = async () => {
+  try {
+    const { data: connections } = await require('../config/supabase').supabase
+      .from('whatsapp_connections')
+      .select('*');
+    
+    for (const conn of connections || []) {
+      await multiWhatsAppService.initializeConnection(conn);
+    }
+    console.log(`[Backend] Initialized ${connections?.length || 0} WhatsApp connections`);
+  } catch (err) {
+    console.error('Error auto-initializing WhatsApp connections:', err);
+  }
+};
+
+initializeWhatsApp();
 
 // Exportar como handler serverless para Vercel
 export default app;

@@ -19,7 +19,7 @@ export async function handleIncomingMessage(
   const contactJid = (contactData as any)?.custom_attributes?.whatsapp_jid;
 
   const saveOutgoingMessage = async (type: string, content: any, waResponse: any) => {
-    if (organizationConfig.organizationId && organizationConfig.conversationId && organizationConfig.contactId) {
+    if (organizationConfig.conversationId && organizationConfig.contactId) {
       await supabase.from('messages').insert({
         organization_id: organizationConfig.organizationId,
         conversation_id: organizationConfig.conversationId,
@@ -28,7 +28,7 @@ export async function handleIncomingMessage(
         type: type,
         content: typeof content === 'string' ? content : JSON.stringify(content),
         status: 'sent',
-        whatsapp_message_id: waResponse?.messages?.[0]?.id
+        whatsapp_message_id: waResponse?.key?.id
       });
 
       await supabase
@@ -42,8 +42,8 @@ export async function handleIncomingMessage(
   const trackFlowExecution = async (flowId: string, triggerWord?: string) => {
     try {
       const { error } = await supabase.from('flow_executions').insert({
-        flow_id: flowId,
         organization_id: organizationConfig.organizationId,
+        flow_id: flowId,
         contact_id: organizationConfig.contactId,
         conversation_id: organizationConfig.conversationId,
         trigger_word: triggerWord,
@@ -67,6 +67,7 @@ export async function handleIncomingMessage(
           status,
           completed_at: status === 'completed' ? new Date().toISOString() : null
         })
+        .eq('organization_id', organizationConfig.organizationId)
         .eq('flow_id', flowId)
         .eq('contact_id', organizationConfig.contactId)
         .eq('status', 'started')
@@ -137,7 +138,8 @@ export async function handleIncomingMessage(
         await supabase
           .from('contacts')
           .update({ bot_state: `capture_${currentNodeId}` })
-          .eq('id', organizationConfig.contactId);
+          .eq('id', organizationConfig.contactId)
+          .eq('organization_id', organizationConfig.organizationId);
         break; // Wait for user text input
       } else if (node.type === 'webhook') {
         try {
@@ -156,7 +158,8 @@ export async function handleIncomingMessage(
         await supabase
           .from('contacts')
           .update({ bot_state: 'handoff' })
-          .eq('id', organizationConfig.contactId);
+          .eq('id', organizationConfig.contactId)
+          .eq('organization_id', organizationConfig.organizationId);
         break; // Pause bot
       } else if (node.type === 'delay') {
         const waitTime = (node.data?.delaySeconds || 3) * 1000;
@@ -206,7 +209,7 @@ export async function handleIncomingMessage(
     } else if (flow) {
       console.log(`[Bot Engine] Active flow found: ${flow.name}`);
     } else {
-      console.log('[Bot Engine] No active flow found for this organization.');
+      console.log('[Bot Engine] No active flow found.');
       return;
     }
 
@@ -250,7 +253,8 @@ export async function handleIncomingMessage(
                custom_attributes: currentAttributes,
                bot_state: null // Clear state
             })
-            .eq('id', organizationConfig.contactId);
+            .eq('id', organizationConfig.contactId)
+            .eq('organization_id', organizationConfig.organizationId);
 
           // Continue flow
           const nextEdge = flow.edges.find((e: any) => e.source === nodeId);

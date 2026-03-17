@@ -3,7 +3,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   MessageCircle, CreditCard,  TrendingUp, Cog, QrCode,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, ShieldAlert, BadgeInfo
 } from 'lucide-react';
 import { SiDialogflow } from "react-icons/si";
 import { TbReportSearch } from "react-icons/tb";
@@ -20,6 +20,8 @@ const menuItems = [
   { icon: SiDialogflow, label: 'Constructor de Bots', path: '/flows' },
   { icon: Cog, label: 'Gestor de Flujos', path: '/flow-manager' },
   { icon: QrCode, label: 'Conexión WhatsApp', path: '/whatsapp-qr' },
+  { icon: ShieldAlert, label: 'Empresas', path: '/admin/organizations' },
+  { icon: BadgeInfo, label: 'Personal', path: '/admin/staff' },
 ];
 
 const menuCategories = [
@@ -27,6 +29,7 @@ const menuCategories = [
   { name: 'Negocio', items: ['/leads', '/analytics', '/reports'] },
   { name: 'Chatbot', items: ['/flows', '/flow-manager'] },
   { name: 'Sistema', items: ['/settings', '/whatsapp-qr'] },
+  { name: 'Administración', items: ['/admin/organizations', '/admin/staff'] },
   { name: 'Facturación', items: ['/billing'] }
 ];
 

@@ -6,10 +6,14 @@ const router = express.Router();
 // GET /api/users (WhatsApp contacts)
 router.get('/', async (req, res) => {
   try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     // Fetch contacts
     const { data: contacts, error: contactsError } = await supabase
       .from('contacts')
       .select('id, phone_number, profile_name, last_active_at, created_at')
+      .eq('organization_id', orgId)
       .order('last_active_at', { ascending: false });
 
     if (contactsError) throw contactsError;
@@ -21,6 +25,7 @@ router.get('/', async (req, res) => {
     const { data: counts, error: countsError } = await supabase
       .from('messages')
       .select('contact_id')
+      .eq('organization_id', orgId)
       .in('contact_id', contactIds);
 
     if (countsError) throw countsError;

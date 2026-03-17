@@ -1,6 +1,9 @@
 import { Moon, Sun, Menu } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { NotificationBell } from '../../contexts/NotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useState } from 'react';
+import { LogOut, User, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -8,6 +11,9 @@ interface HeaderProps {
 
 export const Header = ({ onMenuClick }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const isSidebarCollapsed = false; // Placeholder or use context if needed
 
   return (
     <header className="sticky top-0 z-30 bg-gradient-to-r from-white/95 via-white/90 to-white/95 dark:from-gray-900/95 dark:via-gray-900/90 dark:to-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 shadow-lg transition-all duration-300">
@@ -63,13 +69,51 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           
           <div className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-blueaccent-500 via-primary-500 to-accent-600 rounded-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300 blur-sm"></div>
-            <div className="ml-2 w-11 h-11 rounded-xl bg-gradient-to-tr from-blueaccent-500 via-primary-500 to-accent-600 p-[2px] hover:scale-105 transition-all duration-300 hover:shadow-xl hover:shadow-accent-500/25 cursor-pointer">
-               <div className="w-full h-full rounded-xl border-2 border-white dark:border-gray-900 overflow-hidden">
-                  <img src={`https://ui-avatars.com/api/?name=Admin&background=random`} alt="User avatar" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"/>
-               </div>
+            <div 
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="ml-2 flex items-center gap-2 bg-white dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 hover:shadow-xl transition-all duration-300 cursor-pointer group"
+            >
+              <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-primary-500/20">
+                <img src={`https://ui-avatars.com/api/?name=${user?.full_name || 'Admin'}&background=random`} alt="User avatar" className="w-full h-full object-cover"/>
+              </div>
+              {!isSidebarCollapsed && (
+                <div className="hidden lg:block pr-2">
+                  <p className="text-xs font-black text-gray-900 dark:text-white truncate max-w-[100px]">{user?.full_name || 'Inicia Sesión'}</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{user?.role || 'Guest'}</p>
+                </div>
+              )}
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`} />
             </div>
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900 animate-ping"></div>
+
+            {isProfileOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
+                <div className="absolute right-0 mt-3 w-64 bg-white dark:bg-[#11141b] rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-2xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                  <div className="p-6 border-b border-gray-50 dark:border-gray-800/50">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Conectado como</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white truncate">{user?.email}</p>
+                  </div>
+                  <div className="p-2">
+                    <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors">
+                      <User className="w-4 h-4" />
+                      Mi Perfil
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors">
+                      <SettingsIcon className="w-4 h-4" />
+                      Ajustes
+                    </button>
+                    <div className="h-px bg-gray-50 dark:bg-gray-800/50 my-2" />
+                    <button 
+                      onClick={logout}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-black text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Cerrar Sesión
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

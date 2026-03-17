@@ -135,12 +135,17 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
             contactId: contact.id
           };
           
-          // Usar QR service si está conectado, sino usar WhatsAppService
-          const { qrService } = await import('../services/whatsappQRService');
-          const waService = qrService.getStatus() === 'connected' ? qrService : new WhatsAppService({
-            phoneNumberId: organization.whatsapp_phone_number_id || '',
-            accessToken: organization.whatsapp_access_token || ''
-          });
+          // Usar MultiWhatsApp service si está conectado, sino usar WhatsAppService (Cloud API)
+          const { multiWhatsAppService } = await import('../services/multiWhatsAppService');
+          const connections = multiWhatsAppService.getOrganizationConnections(organization.id);
+          const activeConn = connections.find(c => c.status === 'connected');
+          
+          const waService = activeConn 
+            ? multiWhatsAppService.createWaServiceAdapter(activeConn)
+            : new WhatsAppService({
+                phoneNumberId: organization.whatsapp_phone_number_id || '',
+                accessToken: organization.whatsapp_access_token || ''
+              });
           
           await handleIncomingMessage(message, senderPhone, organizationConfig, waService);
         }

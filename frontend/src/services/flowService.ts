@@ -129,6 +129,7 @@ class FlowService {
   async duplicateFlow(id: string): Promise<FlowBot> {
     return this.request<FlowBot>(`/flows/${id}/duplicate`, {
       method: 'POST',
+      body: JSON.stringify({}),
     });
   }
 

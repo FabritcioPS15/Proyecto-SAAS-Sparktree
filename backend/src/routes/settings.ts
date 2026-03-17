@@ -7,8 +7,8 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   try {
     const { botName, whatsappToken, verifyToken, phoneNumberId } = req.body;
-
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     const updates: any = {};
     if (botName) updates.name = botName;
@@ -16,19 +16,10 @@ router.post('/', async (req, res) => {
     if (whatsappToken !== undefined) updates.whatsapp_access_token = whatsappToken;
     if (verifyToken !== undefined) updates.whatsapp_verify_token = verifyToken;
 
-    if (org) {
-      await supabase.from('organizations').update(updates).eq('id', org.id);
-      res.status(200).json({ message: 'Settings saved successfully' });
-    } else {
-      // Create first org
-      await supabase.from('organizations').insert({
-        name: botName || 'My Bot',
-        whatsapp_phone_number_id: phoneNumberId,
-        whatsapp_access_token: whatsappToken,
-        whatsapp_verify_token: verifyToken
-      });
-      res.status(201).json({ message: 'Organization created and settings saved' });
-    }
+    const { error } = await supabase.from('organizations').update(updates).eq('id', orgId);
+    
+    if (error) throw error;
+    res.status(200).json({ message: 'Settings saved successfully' });
   } catch (error) {
     console.error('Error saving settings:', error);
     res.status(500).json({ error: 'Failed to save settings' });
@@ -38,7 +29,10 @@ router.post('/', async (req, res) => {
 // GET /api/settings
 router.get('/', async (req, res) => {
   try {
-    const { data: org } = await supabase.from('organizations').select('*').limit(1).single();
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
+    const { data: org } = await supabase.from('organizations').select('*').eq('id', orgId).single();
     if (!org) return res.status(404).json({ error: 'Settings not found' });
 
     res.status(200).json({

@@ -16,12 +16,22 @@ class WhatsAppQRService {
   private qr: string | null = null;
   private connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
   private logger = pino({ level: 'silent' });
+  private organizationId: string | null = null;
 
   async initialize() {
     // Si ya estamos conectando o conectados, no reiniciamos a menos que se fuerce
     if (this.connectionStatus === 'connecting' || this.connectionStatus === 'connected') {
       console.log(`Aborting initialization: already ${this.connectionStatus}`);
       return;
+    }
+
+    // Inicializar el organizationId si no está seteado
+    if (!this.organizationId) {
+      const { data: org } = await supabase.from('organizations').select('id').order('created_at', { ascending: true }).limit(1).single();
+      if (org) {
+        this.organizationId = org.id;
+        console.log(`[QR Service] Linked to organization: ${this.organizationId}`);
+      }
     }
 
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -60,21 +70,44 @@ class WhatsAppQRService {
     });
 
     this.socket.ev.on('messages.upsert', async (m: { messages: proto.IWebMessageInfo[], type: string }) => {
-      console.log(`[QR Service] Received messages.upsert of type: ${m.type}`);
+      console.log(`[QR Service] 📩 MESSAGES.UPSERT RECIBIDO!`);
+      console.log(`[QR Service] Type: ${m.type}`);
+      console.log(`[QR Service] Messages count: ${m.messages.length}`);
+      
       if (m.type === 'notify') {
         for (const msg of m.messages) {
-          console.log(`[QR Service] Raw message: fromMe=${msg.key?.fromMe}, type=${Object.keys(msg.message || {})[0]}`);
+          console.log(`[QR Service] 🔍 Procesando mensaje...`);
+          console.log(`[QR Service] fromMe=${msg.key?.fromMe}, type=${Object.keys(msg.message || {})[0]}`);
+          console.log(`[QR Service] Message ID: ${msg.key?.id}`);
+          console.log(`[QR Service] Remote JID: ${msg.key?.remoteJid}`);
+          
           if (msg.key && !msg.key.fromMe && msg.message) {
+            console.log(`[QR Service] ✅ Mensaje entrante detectado!`);
             await this.processIncomingMessage(msg);
+          } else {
+            console.log(`[QR Service] ❌ Mensaje ignorado (fromMe=${msg.key?.fromMe} o sin mensaje)`);
           }
         }
+      } else {
+        console.log(`[QR Service] ❌ Tipo de mensaje ignorado: ${m.type}`);
       }
     });
   }
 
   private async processIncomingMessage(msg: proto.IWebMessageInfo) {
-    if (!msg.key || !msg.key.id) return;
+    console.log(`[QR Service] 🚀 INICIANDO PROCESAMIENTO DE MENSAJE`);
+    console.log(`[QR Service] Message ID: ${msg.key?.id}`);
+    console.log(`[QR Service] From: ${msg.key?.remoteJid}`);
+    console.log(`[QR Service] Message content keys:`, Object.keys(msg.message || {}));
+    console.log(`[QR Service] Full message object:`, JSON.stringify(msg.message, null, 2));
+    
+    if (!msg.key || !msg.key.id) {
+      console.log(`[QR Service] ❌ Mensaje sin key o ID, ignorando`);
+      return;
+    }
+    
     const remoteJid = msg.key.remoteJid || '';
+    console.log(`[QR Service] Remote JID: ${remoteJid}`);
     
     // ATTEMPT TO RESOLVE REAL PHONE NUMBER (JID) FROM LID
     // Priority: remoteJidAlt > senderPn > remoteJid (if not LID)
@@ -110,6 +143,22 @@ class WhatsAppQRService {
     const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
     const buttonReply = msg.message?.buttonsResponseMessage;
     const listReply = msg.message?.listResponseMessage;
+    const protocolMsg = msg.message?.protocolMessage;
+
+    // Handle protocol messages (edits, deletes, etc.)
+    if (protocolMsg) {
+      console.log(`[QR Service] Protocol message detected, type: ${protocolMsg.type}`);
+      
+      // Ignorar mensajes de sincronización de historial
+      if (protocolMsg.type === 5 || (protocolMsg.type as any) === 'HISTORY_SYNC_NOTIFICATION') {
+        console.log(`[QR Service] ❌ Ignorando HISTORY_SYNC_NOTIFICATION`);
+        return;
+      }
+      
+      // Para otros protocol messages, también ignorar por ahora
+      console.log(`[QR Service] ❌ Ignorando protocol message type: ${protocolMsg.type}`);
+      return;
+    }
 
     if (text) {
       // Check if this is a numeric response to button options
@@ -138,95 +187,140 @@ class WhatsAppQRService {
       };
     } else {
       // Handle other types if needed
+      console.log(`[QR Service] Message type not handled:`, Object.keys(msg.message || {}));
       return;
     }
 
     try {
-      // Basic organizational lookup (same logic as webhookController)
-      console.log(`[QR Service] Looking up organization...`);
-      const { data: organization, error: orgError } = await supabase.from('organizations').select('*').limit(1).single();
+      // Buscar flujo activo para esta organización
+      console.log(`[QR Service] Looking for active flow for org ${this.organizationId}...`);
+      const { data: flow, error: flowError } = await supabase
+        .from('flows')
+        .select('*')
+        .eq('organization_id', this.organizationId)
+        .eq('is_active', true)
+        .limit(1)
+        .single();
       
-      if (orgError) {
-        console.error(`[QR Service] Error finding organization:`, orgError);
+      if (flowError || !flow) {
+        console.log(`[QR Service] No active flow found`);
         return;
       }
       
-      if (organization) {
-        console.log(`[QR Service] Organization found: ${organization.id}`);
-        console.log(`[QR Service] Saving contact with REAL WhatsApp number: ${senderPhone}`);
-        console.log(`[QR Service] Contact name: ${msg.pushName || 'No name'}`);
+      console.log(`[QR Service] Active flow found: ${flow.name} with triggers:`, flow.triggers);
 
-        // Guardar contacto con el NÚMERO REAL (o LID resuelto)
-        const { data: contact, error: contactError } = await supabase
+      // Buscar contacto existente primero 
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('organization_id', this.organizationId)
+        .eq('phone_number', senderPhone)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const existingContact = contacts && contacts.length > 0 ? contacts[0] : null;
+
+      let contact;
+      if (existingContact) {
+        console.log(`[QR Service] Reusando contacto existente: ${existingContact.id}`);
+        // Actualizar contacto existente
+        const { data: updatedContact } = await supabase
           .from('contacts')
-          .upsert({
-            organization_id: organization.id,
+          .update({
+            profile_name: msg.pushName || existingContact.profile_name,
+            last_active_at: new Date().toISOString(),
+            custom_attributes: {
+              ...existingContact.custom_attributes,
+              whatsapp_jid: msg.key.remoteJid
+            }
+          })
+          .eq('id', existingContact.id)
+          .select()
+          .single();
+        contact = updatedContact;
+      } else {
+        console.log(`[QR Service] Creando nuevo contacto para: ${senderPhone}`);
+        // Crear nuevo contacto
+        const { data: newContact } = await supabase
+          .from('contacts')
+          .insert({
+            organization_id: this.organizationId,
             phone_number: senderPhone,
             profile_name: msg.pushName || '',
             last_active_at: new Date().toISOString(),
             custom_attributes: {
-              whatsapp_jid: remoteJid, // Store original JID for precise replies
-              is_lid: remoteJid.endsWith('@lid')
+              whatsapp_jid: msg.key.remoteJid
             }
-          }, { onConflict: 'organization_id,phone_number' })
-          .select().single();
-
-        if (contactError) {
-          console.error(`[QR Service] Error saving contact:`, contactError);
-          return;
-        }
-
-        console.log(`[QR Service] Contact saved:`, contact);
-
-        if (contact) {
-          console.log(`[QR Service] Creating conversation...`);
-          // Upsert Conversation
-          let { data: conversation } = await supabase
-            .from('conversations')
-            .select('*')
-            .eq('organization_id', organization.id)
-            .eq('contact_id', contact.id)
-            .single();
-
-          if (!conversation) {
-            console.log(`[QR Service] Creating new conversation...`);
-            const { data: newConversation } = await supabase
-              .from('conversations')
-              .insert({
-                organization_id: organization.id,
-                contact_id: contact.id,
-                status: 'open',
-                last_message_at: new Date().toISOString(),
-                created_at: new Date().toISOString()
-              })
-              .select()
-              .single();
-            conversation = newConversation;
-            console.log(`[QR Service] New conversation created:`, conversation);
-          } else {
-            console.log(`[QR Service] Existing conversation found:`, conversation);
-          }
-
-          // Save Message
-          await supabase.from('messages').insert({
-            organization_id: organization.id,
-            conversation_id: conversation?.id,
-            contact_id: contact.id,
-            direction: 'inbound',
-            type: formattedMessage.type,
-            content: text || JSON.stringify(formattedMessage),
-            whatsapp_message_id: msg.key.id
-          });
-
-          const organizationConfig = {
-            organizationId: organization.id,
-            conversationId: conversation?.id,
-            contactId: contact.id
-          };
-
-          await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this);
-        }
+          })
+          .select()
+          .single();
+        contact = newContact;
       }
+
+      console.log(`[QR Service] Contact saved:`, contact?.id);
+
+      // Buscar conversación con organización
+      let { data: conversations } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('organization_id', this.organizationId)
+        .eq('contact_id', contact?.id)
+        .order('last_message_at', { ascending: false })
+        .limit(1);
+
+      let conversation = conversations && conversations.length > 0 ? conversations[0] : null;
+
+      if (!conversation) {
+        console.log(`[QR Service] Creando nueva conversación para contacto ${contact?.id}`);
+        const { data: newConversation } = await supabase
+          .from('conversations')
+          .insert({
+            organization_id: this.organizationId,
+            contact_id: contact?.id,
+            status: 'open',
+            last_message_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        conversation = newConversation;
+      } else {
+        console.log(`[QR Service] Reusando conversación existente: ${conversation.id}`);
+      }
+
+      // Guardar mensaje sin organización
+      console.log(`[QR Service] 💾 Guardando mensaje...`);
+      console.log(`[QR Service] Conversation ID: ${conversation?.id}`);
+      console.log(`[QR Service] Contact ID: ${contact?.id}`);
+      console.log(`[QR Service] Message type: ${formattedMessage.type}`);
+      console.log(`[QR Service] Message content: ${text || JSON.stringify(formattedMessage)}`);
+      
+      const { error: messageError } = await supabase.from('messages').insert({
+        organization_id: this.organizationId,
+        conversation_id: conversation?.id,
+        contact_id: contact?.id,
+        direction: 'inbound',
+        type: formattedMessage.type,
+        content: text || JSON.stringify(formattedMessage),
+        whatsapp_message_id: msg.key.id
+      });
+
+      if (messageError) {
+        console.error(`[QR Service] ❌ Error guardando mensaje:`, messageError);
+        return;
+      } else {
+        console.log(`[QR Service] ✅ Mensaje guardado exitosamente`);
+      }
+
+      const organizationConfig = {
+        organizationId: this.organizationId || undefined,
+        conversationId: conversation?.id,
+        contactId: contact?.id
+      };
+
+      console.log(`[QR Service] Processing flow with config:`, organizationConfig);
+      
+      await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this);
+      console.log(`[QR Service] ✅ Flow processing completed`);
     } catch (error) {
       console.error('Error processing Baileys message:', error);
     }

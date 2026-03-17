@@ -1,76 +1,89 @@
 import express from 'express';
 // @ts-ignore
 import QRCode from 'qrcode';
-import { qrService } from '../services/whatsappQRService';
+import { multiWhatsAppService } from '../services/multiWhatsAppService';
+import { supabase } from '../config/supabase';
 
 const router = express.Router();
 
+// Helper to get primary connection for organization
+async function getOrgConnection(orgId: string) {
+  let connections = multiWhatsAppService.getOrganizationConnections(orgId);
+  
+  if (connections.length === 0) {
+    // Check DB in case it wasn't initialized
+    const { data: dbConns } = await supabase
+      .from('whatsapp_connections')
+      .select('*')
+      .eq('organization_id', orgId)
+      .limit(1);
+    
+    if (dbConns && dbConns.length > 0) {
+      await multiWhatsAppService.initializeConnection(dbConns[0]);
+      return multiWhatsAppService.getConnection(dbConns[0].id);
+    }
+    return null;
+  }
+  
+  return connections[0];
+}
+
 // GET /api/qr/status
 router.get('/status', async (req, res) => {
-  const qrRaw = qrService.getQR();
-  let qrImage = null;
+  try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(401).json({ error: 'No organization context' });
 
-  if (qrRaw) {
-    try {
-      qrImage = await QRCode.toDataURL(qrRaw);
-    } catch (err) {
-      console.error('Error generating QR image:', err);
+    const connection = await getOrgConnection(orgId);
+    
+    if (!connection) {
+      return res.json({ status: 'disconnected', message: 'No connection found for this organization' });
     }
-  }
 
-  res.json({
-    status: qrService.getStatus(),
-    qr: qrImage
-  });
+    let qrImage = null;
+    if (connection.qr) {
+      try {
+        qrImage = await QRCode.toDataURL(connection.qr);
+      } catch (err) {
+        console.error('Error generating QR image:', err);
+      }
+    }
+
+    res.json({
+      id: connection.id,
+      status: connection.status,
+      qr: qrImage,
+      displayName: connection.displayName
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // POST /api/qr/init
 router.post('/init', async (req, res) => {
   try {
-    await qrService.initialize();
-    res.json({ message: 'QR Service initialized' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to initialize QR service' });
-  }
-});
+    const orgId = (req as any).organizationId;
+    const userId = (req as any).headers['x-user-id']; // We should ideally get this from auth middleware
+    
+    if (!orgId) return res.status(401).json({ error: 'No organization context' });
 
-// POST /api/qr/update-phone
-router.post('/update-phone', async (req, res) => {
-  try {
-    const { contactName, newPhone } = req.body;
+    let connection = await getOrgConnection(orgId);
     
-    if (!contactName || !newPhone) {
-      return res.status(400).json({ error: 'Se requiere contactName y newPhone' });
+    if (!connection) {
+      if (!userId) return res.status(400).json({ error: 'UserId required to create connection' });
+      // Create a default connection if none exists
+      connection = await multiWhatsAppService.createConnection(userId, 'Principal');
+    } else {
+      // Just re-init if existing
+      await multiWhatsAppService.initializeConnection(connection);
     }
-    
-    console.log(`[QR Service] Actualizando teléfono para ${contactName} a ${newPhone}`);
-    
-    // Usar el mismo supabase que usa el resto del sistema
-    const { supabase } = require('../config/supabase');
-    
-    const { data: contacts, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .ilike('profile_name', contactName);
-    
-    if (error || !contacts || contacts.length === 0) {
-      return res.status(404).json({ error: 'Contacto no encontrado' });
+
+    if (!connection) {
+      return res.status(500).json({ error: 'Failed to initialize or create connection' });
     }
-    
-    const { error: updateError } = await supabase
-      .from('contacts')
-      .update({ phone_number: newPhone })
-      .eq('id', contacts[0].id);
-    
-    if (updateError) {
-      return res.status(500).json({ error: 'Error actualizando teléfono' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: `Teléfono actualizado de ${contacts[0].phone_number} a ${newPhone}` 
-    });
-    
+
+    res.json({ message: 'WhatsApp connection initialized', id: connection.id });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -79,13 +92,21 @@ router.post('/update-phone', async (req, res) => {
 // POST /api/qr/test-send
 router.post('/test-send', async (req, res) => {
   try {
+    const orgId = (req as any).organizationId;
     const { to, message } = req.body;
     
     if (!to || !message) {
       return res.status(400).json({ error: 'Se requiere "to" y "message"' });
     }
+
+    const connection = await getOrgConnection(orgId);
+    if (!connection || connection.status !== 'connected') {
+      return res.status(400).json({ error: 'WhatsApp no está conectado para esta organización' });
+    }
+
+    const adapter = multiWhatsAppService.createWaServiceAdapter(connection);
+    const result = await adapter.sendTextMessage(to, message);
     
-    const result = await qrService.sendTextMessage(to, message);
     res.json({ success: true, result });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -95,10 +116,18 @@ router.post('/test-send', async (req, res) => {
 // POST /api/qr/logout
 router.post('/logout', async (req, res) => {
   try {
-    await qrService.logout();
-    res.json({ message: 'Logged out successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to logout' });
+    const orgId = (req as any).organizationId;
+    const userId = (req as any).headers['x-user-id'];
+
+    const connection = await getOrgConnection(orgId);
+    if (connection && connection.userId) {
+      await multiWhatsAppService.deleteConnection(connection.id, connection.userId);
+      res.json({ message: 'Logged out and connection deleted' });
+    } else {
+      res.status(404).json({ error: 'No connection found' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

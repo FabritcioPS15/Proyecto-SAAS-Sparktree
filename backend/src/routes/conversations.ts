@@ -1,17 +1,21 @@
 import express from 'express';
 import { supabase } from '../config/supabase';
-import { qrService } from '../services/whatsappQRService';
+import { multiWhatsAppService } from '../services/multiWhatsAppService';
 
 const router = express.Router();
 
 // GET /api/conversations
 router.get('/', async (req, res) => {
   try {
-    console.log('[Conversations API] Fetching conversations...');
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
+    console.log(`[Conversations API] Fetching conversations for org: ${orgId}`);
     
     const { data: conversations, error } = await supabase
       .from('conversations')
       .select('*, contacts(phone_number, profile_name, profile_picture)')
+      .eq('organization_id', orgId)
       .order('last_message_at', { ascending: false });
 
     console.log('[Conversations API] DB Response:');
@@ -47,10 +51,14 @@ router.get('/', async (req, res) => {
 // GET /api/conversations/:id/messages
 router.get('/:id/messages', async (req, res) => {
   try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     const { data: messages } = await supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', req.params.id)
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: true });
 
     const formattedMessages = (messages || []).map((msg: any) => ({
@@ -78,11 +86,15 @@ router.post('/:id/send', async (req, res) => {
       return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
     }
 
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     // Get conversation with contact phone and JID
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('*, contacts(phone_number, custom_attributes)')
       .eq('id', id)
+      .eq('organization_id', orgId)
       .single();
 
     if (convError || !conversation) {
@@ -115,22 +127,22 @@ router.post('/:id/send', async (req, res) => {
     console.log(`[Conversations] Final corrected phone: ${correctedPhone}`);
 
     // Send via WhatsApp
-    const status = qrService.getStatus();
-    if (status !== 'connected') {
-      return res.status(503).json({ error: 'WhatsApp no está conectado. Por favor conecta el dispositivo primero.' });
+    const connections = multiWhatsAppService.getOrganizationConnections(orgId);
+    const activeConn = connections.find(c => c.status === 'connected');
+    
+    if (!activeConn) {
+      return res.status(503).json({ error: 'WhatsApp no está conectado para esta organización. Por favor conecta el dispositivo primero.' });
     }
 
     const contactJid = (conversation.contacts as any)?.custom_attributes?.whatsapp_jid;
-    await qrService.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
-
-    // Get org id
-    const { data: org } = await supabase.from('organizations').select('id').limit(1).single();
+    const adapter = multiWhatsAppService.createWaServiceAdapter(activeConn);
+    await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
 
     // Save message to DB
     const { data: savedMessage } = await supabase
       .from('messages')
       .insert({
-        organization_id: org?.id,
+        organization_id: orgId,
         conversation_id: id,
         contact_id: conversation.contact_id,
         direction: 'outbound',
@@ -145,7 +157,8 @@ router.post('/:id/send', async (req, res) => {
     await supabase
       .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('organization_id', orgId);
 
     res.json({
       _id: savedMessage?.id,
@@ -164,10 +177,14 @@ router.post('/:id/send', async (req, res) => {
 // DELETE /api/conversations/:id
 router.delete('/:id', async (req, res) => {
   try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
     const { error } = await supabase
       .from('conversations')
       .delete()
-      .eq('id', req.params.id);
+      .eq('id', req.params.id)
+      .eq('organization_id', orgId);
 
     if (error) throw error;
     res.json({ success: true });

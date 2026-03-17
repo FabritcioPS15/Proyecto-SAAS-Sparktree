@@ -9,6 +9,27 @@ const api = axios.create({
   },
 });
 
+// Add a request interceptor to include auth headers
+api.interceptors.request.use((config) => {
+  const savedSession = localStorage.getItem('sparktree_session');
+  if (savedSession) {
+    try {
+      const { user, organizationId } = JSON.parse(savedSession);
+      if (organizationId) {
+        config.headers['X-Organization-ID'] = organizationId;
+      }
+      if (user?.id) {
+        config.headers['X-User-ID'] = user.id;
+      }
+    } catch (e) {
+      console.error('Interceptor: Failed to parse session', e);
+    }
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
 export const getUsers = async () => {
   try {
     const response = await api.get('/users');

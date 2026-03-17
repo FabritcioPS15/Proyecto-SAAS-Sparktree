@@ -7,7 +7,9 @@ const router = express.Router();
 router.get('/bot-status', async (req, res) => {
   try {
     // Get organization
-    const { data: org } = await supabase.from('organizations').select('*').limit(1).single();
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+    const { data: org } = await supabase.from('organizations').select('*').eq('id', orgId).single();
     
     if (!org) {
       return res.json({
@@ -87,8 +89,9 @@ router.post('/test-bot', async (req, res) => {
     // Import the handleIncomingMessage function
     const { handleIncomingMessage } = await import('../flows');
 
-    // Get organization
-    const { data: org } = await supabase.from('organizations').select('*').limit(1).single();
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+    const { data: org } = await supabase.from('organizations').select('*').eq('id', orgId).single();
     
     if (!org) {
       return res.json({
@@ -101,7 +104,7 @@ router.post('/test-bot', async (req, res) => {
     const { data: contact } = await supabase
       .from('contacts')
       .upsert({
-        organization_id: org.id,
+        organization_id: orgId,
         phone_number: phoneNumber,
         profile_name: 'Test User',
         last_active_at: new Date().toISOString()
@@ -109,17 +112,19 @@ router.post('/test-bot', async (req, res) => {
       .select().single();
 
     // Create or get conversation
-    let { data: conversation } = await supabase
+    let { data: conversations } = await supabase
       .from('conversations')
       .select('*')
-      .eq('organization_id', org.id)
+      .eq('organization_id', orgId)
       .eq('contact_id', contact.id)
-      .single();
+      .limit(1);
+    
+    let conversation = conversations && conversations.length > 0 ? conversations[0] : null;
 
     if (!conversation) {
       const { data: newConv } = await supabase
         .from('conversations')
-        .insert({ organization_id: org.id, contact_id: contact.id })
+        .insert({ organization_id: orgId, contact_id: contact.id })
         .select().single();
       conversation = newConv;
     }
@@ -131,7 +136,7 @@ router.post('/test-bot', async (req, res) => {
     };
 
     const organizationConfig = {
-      organizationId: org.id,
+      organizationId: orgId,
       conversationId: conversation?.id,
       contactId: contact.id
     };
