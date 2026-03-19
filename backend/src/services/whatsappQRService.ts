@@ -192,23 +192,6 @@ class WhatsAppQRService {
     }
 
     try {
-      // Buscar flujo activo para esta organización
-      console.log(`[QR Service] Looking for active flow for org ${this.organizationId}...`);
-      const { data: flow, error: flowError } = await supabase
-        .from('flows')
-        .select('*')
-        .eq('organization_id', this.organizationId)
-        .eq('is_active', true)
-        .limit(1)
-        .single();
-      
-      if (flowError || !flow) {
-        console.log(`[QR Service] No active flow found`);
-        return;
-      }
-      
-      console.log(`[QR Service] Active flow found: ${flow.name} with triggers:`, flow.triggers);
-
       // Buscar contacto existente primero 
       const { data: contacts } = await supabase
         .from('contacts')

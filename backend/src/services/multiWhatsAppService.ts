@@ -24,9 +24,26 @@ interface WhatsAppConnection {
   lastConnectedAt?: Date;
 }
 
-class MultiWhatsAppService {
+export class MultiWhatsAppService {
   private connections: Map<string, WhatsAppConnection> = new Map();
   private logger = pino({ level: 'silent' });
+
+  // Initialize all connections in the database (for server startup)
+  async initializeAllConnections() {
+    console.log('[MultiWhatsApp] Initializing all dormant connections...');
+    const { data: connections, error } = await supabase
+      .from('whatsapp_connections')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching all connections:', error);
+      return;
+    }
+
+    for (const conn of connections || []) {
+      await this.initializeConnection(conn);
+    }
+  }
 
   // Initialize all connections for a user
   async initializeUserConnections(userId: string) {
@@ -59,26 +76,40 @@ class MultiWhatsAppService {
 
     this.connections.set(connectionData.id, connection);
 
-    // Check if auth state exists
+    // Initial load: only connect if auth state exists (to avoid headless QR generation on startup)
     if (connection.authStatePath && fs.existsSync(connection.authStatePath)) {
       await this.connectSocket(connection);
     }
   }
 
+  // Force start a connection (e.g. to get a QR code)
+  async startConnection(connectionId: string) {
+    const connection = this.connections.get(connectionId);
+    if (!connection) throw new Error('Conexión no encontrada');
+
+    // If already connected, do nothing
+    if (connection.status === 'connected' && connection.socket) return;
+
+    await this.connectSocket(connection);
+  }
+
   // Create new WhatsApp connection for user
   async createConnection(userId: string, displayName: string) {
     // Check user's connection limit
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from('users')
       .select('whatsapp_connections_limit, active_whatsapp_connections')
       .eq('id', userId)
       .single();
 
-    if (!user) {
-      throw new Error('Usuario no encontrado');
+    if (userError) {
+      console.warn('[MultiWhatsApp] Warning: WhatsApp limit columns missing or user not found. Using defaults.', userError.message);
     }
 
-    if (user.active_whatsapp_connections >= user.whatsapp_connections_limit) {
+    const connectionsLimit = user?.whatsapp_connections_limit ?? 3;
+    const activeConnections = user?.active_whatsapp_connections ?? 0;
+
+    if (activeConnections >= connectionsLimit) {
       throw new Error('Has alcanzado tu límite de conexiones WhatsApp');
     }
 
@@ -110,10 +141,12 @@ class MultiWhatsAppService {
     }
 
     // Update user's active connections count
-    await supabase
-      .from('users')
-      .update({ active_whatsapp_connections: user.active_whatsapp_connections + 1 })
-      .eq('id', userId);
+    if (user && user.active_whatsapp_connections !== undefined) {
+      await supabase
+        .from('users')
+        .update({ active_whatsapp_connections: (user?.active_whatsapp_connections || 0) + 1 })
+        .eq('id', userId);
+    }
 
     await this.initializeConnection(connection);
     return connection;
@@ -157,10 +190,15 @@ class MultiWhatsAppService {
             setTimeout(() => this.connectSocket(connection), 5000);
           }
         } else if (connStatus === 'open') {
+          const userJid = connection.socket.user?.id;
+          const phoneNumber = userJid ? userJid.split(':')[0].split('@')[0] : undefined;
+          
           connection.status = 'connected';
           connection.qr = undefined;
+          connection.phoneNumber = phoneNumber;
           connection.lastConnectedAt = new Date();
-          this.updateConnectionStatus(connection.id, 'connected');
+          
+          this.updateConnectionStatus(connection.id, 'connected', undefined, phoneNumber);
         }
       });
 
@@ -183,39 +221,29 @@ class MultiWhatsAppService {
 
   // Process incoming message for a specific connection
   private async processIncomingMessage(msg: proto.IWebMessageInfo, connection: WhatsAppConnection) {
-    // Similar to existing QR service but using connection-specific data
     try {
       const senderPhone = this.extractPhoneNumber(msg);
-      if (!senderPhone) return;
-
-      // Format message
-      const formattedMessage = this.formatMessage(msg, senderPhone);
-
-      // Get flows assigned to this connection
-      const { data: flowAssignments } = await supabase
-        .from('flow_assignments')
-        .select(`
-          flows!inner(*)
-        `)
-        .eq('whatsapp_connection_id', connection.id)
-        .eq('is_active', true);
-
-      if (!flowAssignments || flowAssignments.length === 0) {
-        console.log(`No active flows for connection ${connection.id}`);
+      if (!senderPhone) {
+        console.log('[MultiWhatsApp] Could not extract phone number from message');
         return;
       }
 
-      // Use the first active flow (could be enhanced for multiple flows)
-      const flow = flowAssignments[0].flows;
+      console.log(`[MultiWhatsApp] Incoming message from ${senderPhone} on connection ${connection.displayName}`);
 
-      // Save contact, conversation, message (similar to existing logic)
-      const { contact, conversation } = await this.saveMessageData(formattedMessage, senderPhone, connection, flow);
+      // Format message for flow engine
+      const formattedMessage = this.formatMessage(msg, senderPhone);
 
-      // Process flow
+      // 3. ALWAYS save to history
+      const profileName = msg.pushName || '';
+      const { contact, conversation } = await this.saveMessageData(formattedMessage, senderPhone, connection, null, profileName);
+
+      // 4. Delegate to flow engine (it will smartly resolve the correct bot assignment or fallback)
       const organizationConfig = {
         organizationId: connection.organizationId,
         conversationId: conversation?.id || undefined,
-        contactId: contact?.id || undefined
+        contactId: contact?.id || undefined,
+        whatsappConnectionId: connection.id,
+        senderJid: msg.key?.remoteJid || undefined
       };
 
       await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this.createWaServiceAdapter(connection));
@@ -282,17 +310,19 @@ class MultiWhatsAppService {
       };
     }
 
+    formattedMessage.jid = msg.key?.remoteJid || `${senderPhone}@s.whatsapp.net`;
+
     return formattedMessage;
   }
 
-  private async saveMessageData(message: any, senderPhone: string, connection: WhatsAppConnection, flow: any): Promise<{contact: any, conversation: any}> {
+  private async saveMessageData(message: any, senderPhone: string, connection: WhatsAppConnection, flow: any, profileName: string = ''): Promise<{contact: any, conversation: any}> {
     // Similar to existing logic but using connection-specific organization
     const { data: contact } = await supabase
       .from('contacts')
       .upsert({
         organization_id: connection.organizationId,
         phone_number: senderPhone,
-        profile_name: '', // Could be extracted from msg
+        profile_name: profileName, 
         last_active_at: new Date().toISOString()
       }, { onConflict: 'organization_id,phone_number' })
       .select()
@@ -303,6 +333,7 @@ class MultiWhatsAppService {
       .select('*')
       .eq('organization_id', connection.organizationId)
       .eq('contact_id', contact.id)
+      .eq('whatsapp_connection_id', connection.id)
       .order('last_message_at', { ascending: false })
       .limit(1);
 
@@ -313,7 +344,8 @@ class MultiWhatsAppService {
         .from('conversations')
         .insert({
           organization_id: connection.organizationId,
-          contact_id: contact.id
+          contact_id: contact.id,
+          whatsapp_connection_id: connection.id
         })
         .select()
         .single();
@@ -329,6 +361,11 @@ class MultiWhatsAppService {
       content: JSON.stringify(message),
       whatsapp_message_id: message.id
     });
+
+    await supabase
+      .from('conversations')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', conversation.id);
 
     return { contact, conversation };
   }
@@ -359,20 +396,27 @@ class MultiWhatsAppService {
     };
   }
 
-  private async updateConnectionStatus(connectionId: string, status: string, qr?: string) {
+  private async updateConnectionStatus(connectionId: string, status: string, qr?: string, phoneNumber?: string) {
     const connection = this.connections.get(connectionId);
     if (!connection) return;
 
     connection.status = status as any;
     if (qr) connection.qr = qr;
+    if (phoneNumber) connection.phoneNumber = phoneNumber;
+
+    const updateData: any = { 
+      status, 
+      qr_code: qr || null,
+      last_connected_at: status === 'connected' ? new Date().toISOString() : null
+    };
+
+    if (phoneNumber) {
+      updateData.phone_number = phoneNumber;
+    }
 
     await supabase
       .from('whatsapp_connections')
-      .update({ 
-        status, 
-        qr_code: qr,
-        last_connected_at: status === 'connected' ? new Date().toISOString() : null
-      })
+      .update(updateData)
       .eq('id', connectionId);
   }
 
@@ -398,26 +442,42 @@ class MultiWhatsAppService {
 
   async deleteConnection(connectionId: string, userId: string) {
     const connection = this.connections.get(connectionId);
-    if (!connection || connection.userId !== userId) {
-      throw new Error('Conexión no encontrada');
+    
+    // Even if not in memory, we should try to delete from DB
+    // But we need the userId to be sure we're deleting the right one
+    
+    if (connection) {
+      // Disconnect socket if exists
+      if (connection.socket) {
+        try {
+          await connection.socket.logout();
+        } catch (err) {
+          console.error('Error during socket logout:', err);
+        }
+      }
+
+      // Clean up auth state
+      if (connection.authStatePath && fs.existsSync(connection.authStatePath)) {
+        try {
+          fs.rmSync(connection.authStatePath, { recursive: true, force: true });
+        } catch (err) {
+          console.error('Error removing auth state:', err);
+        }
+      }
+      
+      this.connections.delete(connectionId);
     }
 
-    // Disconnect socket
-    if (connection.socket) {
-      await connection.socket.logout();
-    }
-
-    // Clean up auth state
-    if (connection.authStatePath && fs.existsSync(connection.authStatePath)) {
-      fs.rmSync(connection.authStatePath, { recursive: true, force: true });
-    }
-
-    // Delete from database
-    await supabase
+    // Always attempt to delete from database if we have the userId
+    const { error: dbError } = await supabase
       .from('whatsapp_connections')
       .delete()
       .eq('id', connectionId)
       .eq('user_id', userId);
+
+    if (dbError) {
+      console.error('Error deleting connection from DB:', dbError);
+    }
 
     // Update user's active connections count
     const { data: user } = await supabase
@@ -426,7 +486,7 @@ class MultiWhatsAppService {
       .eq('id', userId)
       .single();
 
-    if (user) {
+    if (user && user.active_whatsapp_connections !== undefined) {
       await supabase
         .from('users')
         .update({ active_whatsapp_connections: Math.max(0, user.active_whatsapp_connections - 1) })

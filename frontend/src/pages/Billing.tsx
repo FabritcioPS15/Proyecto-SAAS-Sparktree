@@ -11,6 +11,11 @@ const WHATSAPP_PRICING = {
   authentication: 0.015 // $0.015 per message for authentication
 };
 
+import { PageHeader } from '../components/layout/PageHeader';
+import { PageBody } from '../components/layout/PageBody';
+import { PageContainer } from '../components/layout/PageContainer';
+import { PageLoader } from '../components/layout/PageLoader';
+
 export const Billing = () => {
   const [billingData, setBillingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -97,27 +102,18 @@ export const Billing = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
+    return <PageLoader sectionName="Facturación" />;
   }
 
   const { totalApiCost, saasCost, totalCost, totalMessages, utilityMessages, marketingMessages, authMessages, utilityCost, marketingCost, authCost } = billingData || {};
   return (
-    <div className="h-[calc(100vh-8rem)] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 p-4 lg:p-5 space-y-4 relative overflow-y-auto">
-        {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
-          <div className="space-y-1">
-            <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Gestión de <span className="text-primary-600 dark:text-primary-400">Costos</span>
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl leading-relaxed">
-              Monitoriza el consumo de la API de WhatsApp y tu plan de suscripción en tiempo real.
-            </p>
-          </div>
+    <PageContainer>
+      <PageHeader 
+        title="Gestión de"
+        highlight="Costos"
+        description="Monitoriza el consumo de la API de WhatsApp y tu plan de suscripción en tiempo real."
+        icon={CreditCard}
+        action={
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleRefresh}
@@ -132,7 +128,11 @@ export const Billing = () => {
               Meta Portal
             </button>
           </div>
-        </div>
+        }
+      />
+
+      <PageBody>
+        <div className="space-y-4">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -318,7 +318,8 @@ export const Billing = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+        </div>
+      </PageBody>
+    </PageContainer>
   );
 };

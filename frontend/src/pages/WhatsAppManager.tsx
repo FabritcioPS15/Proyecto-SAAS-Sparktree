@@ -11,6 +11,8 @@ import {
   Settings,
   Link as LinkIcon
 } from 'lucide-react';
+import api from '../services/api';
+import { PageLoader } from '../components/layout/PageLoader';
 
 interface WhatsAppConnection {
   id: string;
@@ -40,8 +42,7 @@ export const WhatsAppManager = () => {
   const [testMessage, setTestMessage] = useState({ to: '', message: '' });
   const [error, setError] = useState<string | null>(null);
 
-  // Mock user ID - in real app, this would come from auth
-  const userId = 'mock-user-id';
+
 
   useEffect(() => {
     loadConnections();
@@ -50,11 +51,8 @@ export const WhatsAppManager = () => {
 
   const loadConnections = async () => {
     try {
-      const response = await fetch('/api/multi-whatsapp/connections', {
-        headers: { 'x-user-id': userId }
-      });
-      const data = await response.json();
-      setConnections(data);
+      const response = await api.get('/multi-whatsapp/connections');
+      setConnections(response.data);
     } catch (err) {
       setError('Error loading connections');
     } finally {
@@ -64,9 +62,8 @@ export const WhatsAppManager = () => {
 
   const loadFlows = async () => {
     try {
-      const response = await fetch('/api/flows');
-      const data = await response.json();
-      setFlows(data);
+      const response = await api.get('/flows');
+      setFlows(response.data);
     } catch (err) {
       console.error('Error loading flows:', err);
     }
@@ -79,21 +76,11 @@ export const WhatsAppManager = () => {
     }
 
     try {
-      const response = await fetch('/api/multi-whatsapp/connections', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId
-        },
-        body: JSON.stringify({ displayName: newConnectionName.trim() })
+      const response = await api.post('/multi-whatsapp/connections', { 
+        displayName: newConnectionName.trim() 
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error);
-      }
-
-      const newConnection = await response.json();
+      const newConnection = response.data;
       setConnections(prev => [newConnection, ...prev]);
       setNewConnectionName('');
       setShowCreateForm(false);
@@ -101,28 +88,21 @@ export const WhatsAppManager = () => {
       // Show QR for new connection
       setTimeout(() => showQRCode(newConnection), 1000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     }
   };
 
   const showQRCode = async (connection: WhatsAppConnection) => {
     try {
-      const response = await fetch(`/api/multi-whatsapp/connections/${connection.id}/qr`, {
-        headers: { 'x-user-id': userId }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get QR code');
-      }
-
-      const data = await response.json();
+      const response = await api.get(`/multi-whatsapp/connections/${connection.id}/qr`);
+      const data = response.data;
       if (data.qr) {
         setQrModal({ connection, qr: data.qr });
       } else {
         setError('QR code not available. Connection might already be active.');
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     }
   };
 
@@ -132,39 +112,19 @@ export const WhatsAppManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/multi-whatsapp/connections/${connectionId}`, {
-        method: 'DELETE',
-        headers: { 'x-user-id': userId }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete connection');
-      }
-
+      await api.delete(`/multi-whatsapp/connections/${connectionId}`);
       setConnections(prev => prev.filter(c => c.id !== connectionId));
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     }
   };
 
   const assignFlow = async (connectionId: string, flowId: string) => {
     try {
-      const response = await fetch(`/api/multi-whatsapp/connections/${connectionId}/assign-flow`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId
-        },
-        body: JSON.stringify({ flowId })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to assign flow');
-      }
-
+      await api.post(`/multi-whatsapp/connections/${connectionId}/assign-flow`, { flowId });
       alert('Flow assigned successfully!');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     }
   };
 
@@ -175,23 +135,11 @@ export const WhatsAppManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/multi-whatsapp/connections/${connectionId}/test-message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId
-        },
-        body: JSON.stringify(testMessage)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send test message');
-      }
-
+      await api.post(`/multi-whatsapp/connections/${connectionId}/test-message`, testMessage);
       alert('Test message sent successfully!');
       setTestMessage({ to: '', message: '' });
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     }
   };
 
@@ -222,11 +170,7 @@ export const WhatsAppManager = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
+    return <PageLoader sectionName="Multi-WhatsApp" />;
   }
 
   return (

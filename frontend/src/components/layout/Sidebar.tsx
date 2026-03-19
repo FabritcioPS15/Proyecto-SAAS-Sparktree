@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   MessageCircle, CreditCard,  TrendingUp, Cog, QrCode,
@@ -8,7 +9,22 @@ import {
 import { SiDialogflow } from "react-icons/si";
 import { TbReportSearch } from "react-icons/tb";
 
-const menuItems = [
+// Menú para rol EMPRESA (acceso limitado)
+const empresaMenuItems = [
+  { icon: LayoutDashboard, label: 'Inicio', path: '/' },
+  { icon: MessageSquare, label: 'Conversaciones', path: '/conversations' },
+  { icon: TrendingUp, label: 'Clientes Potenciales', path: '/leads' },
+  { icon: BarChart3, label: 'Analíticas', path: '/analytics' },
+  { icon: TbReportSearch, label: 'Reportes', path: '/reports' },
+  { icon: SiDialogflow, label: 'Constructor de Bots', path: '/flows' },
+  { icon: Cog, label: 'Gestor de Flujos', path: '/flow-manager' },
+  { icon: QrCode, label: 'Conexión WhatsApp', path: '/whatsapp-qr' },
+  { icon: Settings, label: 'Configuración', path: '/settings' },
+  { icon: CreditCard, label: 'Facturación', path: '/billing' },
+];
+
+// Menú completo para roles ADMIN y STAFF
+const adminMenuItems = [
   { icon: LayoutDashboard, label: 'Inicio', path: '/' },
   { icon: Users, label: 'Usuarios', path: '/users' },
   { icon: MessageSquare, label: 'Conversaciones', path: '/conversations' },
@@ -24,7 +40,17 @@ const menuItems = [
   { icon: BadgeInfo, label: 'Personal', path: '/admin/staff' },
 ];
 
-const menuCategories = [
+// Categorías para rol EMPRESA
+const empresaCategories = [
+  { name: 'Principal', items: ['/', '/conversations'] },
+  { name: 'Negocio', items: ['/leads', '/analytics', '/reports'] },
+  { name: 'Chatbot', items: ['/flows', '/flow-manager'] },
+  { name: 'Sistema', items: ['/settings', '/whatsapp-qr'] },
+  { name: 'Facturación', items: ['/billing'] }
+];
+
+// Categorías para roles ADMIN y STAFF
+const adminCategories = [
   { name: 'Principal', items: ['/', '/users', '/conversations'] },
   { name: 'Negocio', items: ['/leads', '/analytics', '/reports'] },
   { name: 'Chatbot', items: ['/flows', '/flow-manager'] },
@@ -39,9 +65,15 @@ interface SidebarProps {
 
 export const Sidebar = ({ onCollapsedChange }: SidebarProps) => {
   const location = useLocation();
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
+
+  // Determinar menú y categorías según el rol del usuario
+  const isEmpresa = user?.role === 'empresa';
+  const menuItems = isEmpresa ? empresaMenuItems : adminMenuItems;
+  const menuCategories = isEmpresa ? empresaCategories : adminCategories;
 
   const toggleCollapsed = () => {
     const newCollapsed = !collapsed;

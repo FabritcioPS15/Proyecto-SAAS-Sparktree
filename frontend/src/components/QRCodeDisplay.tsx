@@ -14,10 +14,10 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
       {/* Decorative Background Elements */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary-500 to-transparent opacity-50" />
       <div className="absolute -right-20 -top-20 w-40 h-40 bg-primary-500/10 blur-[80px] rounded-full group-hover:bg-primary-500/20 transition-all duration-700" />
-      
+
       <div className="relative z-10 w-full max-w-sm flex flex-col items-center text-center space-y-8">
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/20">
+          <div className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-primary-50 dark:bg-primary-500/10 border border-primary-100 dark:border-primary-500/20">
             <QrCode className="w-4 h-4 text-primary-600 dark:text-primary-400" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">Vinculación Rápida</span>
           </div>
@@ -38,8 +38,8 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
             )}
 
             {status === 'qr_ready' && qrValue && (
-              <QRCodeSVG 
-                value={qrValue} 
+              <QRCodeSVG
+                value={qrValue}
                 size={256}
                 level="H"
                 includeMargin={false}
@@ -76,7 +76,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
             {status === 'expired' && (
               <div className="absolute inset-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4">
                 <p className="text-sm font-bold text-slate-900 dark:text-white">El código ha expirado</p>
-                <button 
+                <button
                   onClick={onRefresh}
                   className="px-6 py-3 bg-primary-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary-600/20 hover:bg-primary-700 transition-all flex items-center gap-2"
                 >

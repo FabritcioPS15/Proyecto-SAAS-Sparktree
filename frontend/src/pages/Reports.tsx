@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { TbReportSearch } from "react-icons/tb";
 import { BarChart3, TrendingUp, FileText, Download, Filter, Calendar } from 'lucide-react';
 
-export const ReportsPage = () => {
+import { PageHeader } from '../components/layout/PageHeader';
+import { PageContainer } from '../components/layout/PageContainer';
+import { PageBody } from '../components/layout/PageBody';
+
+export const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedReport, setSelectedReport] = useState('conversations');
 
@@ -38,23 +42,15 @@ export const ReportsPage = () => {
   ];
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5 relative">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm">
-          <div className="space-y-1">
-            <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Reportes <span className="text-primary-600 dark:text-primary-400">Avanzados</span>
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-              Análisis detallados y métricas de rendimiento del sistema
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="p-3 bg-primary-50 dark:bg-primary-500/10 rounded-xl">
-              <TbReportSearch className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            </div>
-          </div>
-        </div>
+    <PageContainer>
+      <PageHeader 
+        title="Centro de"
+        highlight="Reportes"
+        description="Genera informes detallados y exporta datos estratégicos."
+        icon={TbReportSearch}
+      />
+
+      <PageBody>
 
         {/* Controls */}
         <div className="bg-white dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm p-6">
@@ -178,9 +174,9 @@ export const ReportsPage = () => {
             </table>
           </div>
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </PageContainer>
   );
 };
 
-export default ReportsPage;
+export default Reports;

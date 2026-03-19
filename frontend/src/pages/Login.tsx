@@ -126,6 +126,19 @@ export const Login = () => {
                   <ArrowRight className="w-4 h-4 text-gray-600" />
                 </div>
               </div>
+              <div 
+                onClick={() => { setEmail('empresa@demo.com'); setPassword('hashed_password_placeholder'); }}
+                className="p-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl cursor-pointer hover:from-emerald-500/20 hover:to-teal-500/20 transition-all group"
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs font-bold text-emerald-400 group-hover:text-emerald-300 transition-colors">Usuario Empresa</p>
+                    <p className="text-[10px] text-emerald-600">empresa@demo.com</p>
+                    <p className="text-[8px] text-emerald-700 mt-1">Acceso limitado</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-emerald-600" />
+                </div>
+              </div>
             </div>
           </div>
 

@@ -5,6 +5,7 @@ const router = express.Router();
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
+  console.log('[Auth Route] Login attempt for email:', req.body?.email);
   try {
     const { email, password } = req.body;
 

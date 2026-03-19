@@ -24,11 +24,18 @@ router.get('/', async (req, res) => {
     }
 
     // Transform the data to match frontend interface
-    const transformedFlows = flows?.map(flow => ({
-      ...flow,
-      lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
-    })) || [];
+    const transformedFlows = flows?.map(flow => {
+      // Fallback: Read from trigger node if columns are missing
+      const triggerNode = flow.nodes?.find((n: any) => n.type === 'trigger');
+      
+      return {
+        ...flow,
+        lastModified: flow.updated_at,
+        assignedTo: flow.assigned_to?.name || 'Sin asignar',
+        matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
+        reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
+      };
+    }) || [];
 
     res.json(transformedFlows);
   } catch (error) {
@@ -59,10 +66,13 @@ router.get('/:id', async (req, res) => {
     }
 
     // Transform the data to match frontend interface
+    const triggerNode = flow.nodes?.find((n: any) => n.type === 'trigger');
     const transformedFlow = {
       ...flow,
       lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
+      assignedTo: flow.assigned_to?.name || 'Sin asignar',
+      matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
+      reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
     };
 
     res.json(transformedFlow);
@@ -120,10 +130,13 @@ router.post('/', async (req, res) => {
     }
 
     // Transform the data to match frontend interface
+    const triggerNode = flow.nodes?.find((n: any) => n.type === 'trigger');
     const transformedFlow = {
       ...flow,
       lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
+      assignedTo: flow.assigned_to?.name || 'Sin asignar',
+      matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
+      reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
     };
 
     res.status(201).json(transformedFlow);
@@ -151,43 +164,59 @@ router.put('/:id', async (req, res) => {
       edges 
     } = req.body;
 
-    const orgId = (req as any).organizationId;
-    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+    const organization_id = (req as any).organizationId;
+    if (!organization_id) return res.status(400).json({ error: 'Organization ID missing' });
+
+    // Prepare update object - only include fields that are present in req.body
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    const fields = [
+      'name', 'description', 'status', 'version', 'category', 
+      'triggers', 'assigned_to', 'is_default', 'metrics', 'nodes', 'edges'
+    ];
+
+    fields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    console.log(`[Flows API] Updating flow ${id} for org ${organization_id}`);
 
     const { data: flow, error } = await supabase
       .from('flows')
-      .update({
-        name,
-        description,
-        status,
-        version,
-        category,
-        triggers,
-        assigned_to,
-        is_default,
-        metrics,
-        nodes,
-        edges,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
-      .eq('organization_id', orgId)
+      .eq('organization_id', organization_id)
       .select(`
         *,
         assigned_to:users(name, email)
       `)
       .single();
 
-    if (error || !flow) {
+    if (error) {
       console.error('Error updating flow:', error);
-      return res.status(404).json({ error: 'Flow not found or update failed' });
+      return res.status(500).json({ 
+        error: 'Failed to update flow', 
+        details: error.message,
+        code: error.code
+      });
+    }
+
+    if (!flow) {
+      return res.status(404).json({ error: 'Flow not found' });
     }
 
     // Transform the data to match frontend interface
+    const triggerNode = flow.nodes?.find((n: any) => n.type === 'trigger');
     const transformedFlow = {
       ...flow,
       lastModified: flow.updated_at,
-      assignedTo: flow.assigned_to?.name || 'Sin asignar'
+      assignedTo: flow.assigned_to?.name || 'Sin asignar',
+      matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
+      reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
     };
 
     res.json(transformedFlow);

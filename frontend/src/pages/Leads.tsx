@@ -26,6 +26,11 @@ interface Lead {
   currentStage: string; // Current stage in the happy path
 }
 
+import { PageHeader } from '../components/layout/PageHeader';
+import { PageContainer } from '../components/layout/PageContainer';
+import { PageBody } from '../components/layout/PageBody';
+import { PageLoader } from '../components/layout/PageLoader';
+
 export const Leads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,38 +123,30 @@ export const Leads = () => {
   };
 
   if (loading) {
-    return (
-      <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Cargando leads...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader sectionName="Prospectos" />;
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 p-4 lg:p-5 space-y-4 relative overflow-y-auto">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-5 lg:p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-xl duration-500">
-          <div className="space-y-1">
-            <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Gestión de <span className="text-primary-600 dark:text-primary-400">Leads</span>
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium max-w-xl leading-relaxed">
-              Monitoriza a los usuarios que han completado el <span className="text-emerald-500 font-bold">Happy Path</span> y están listos para la conversión.
-            </p>
-          </div>
+    <PageContainer>
+      <PageHeader 
+        title="Gestión de"
+        highlight="Leads"
+        description="Monitoriza a los usuarios que han completado el Happy Path y están listos para la conversión."
+        icon={TrendingUp}
+        action={
           <button
             className="px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 group"
           >
             <User className="w-4 h-4 group-hover:rotate-12 transition-transform" />
             Nuevo Cliente
           </button>
-        </div>
+        }
+      />
+
+      <PageBody>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-2">
           {[
             { label: 'Total Leads', value: stats.total, icon: User, color: 'primary' },
             { label: 'Nuevos', value: stats.new, icon: AlertCircle, color: 'blue' },
@@ -168,7 +165,7 @@ export const Leads = () => {
         </div>
 
         {/* Filters Area */}
-        <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[1.5rem] p-4 border border-gray-200 dark:border-gray-800/50 shadow-sm">
+        <div className="bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[1.5rem] p-4 border border-gray-200 dark:border-gray-800/50 shadow-sm mb-2">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
@@ -425,7 +422,7 @@ export const Leads = () => {
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </PageBody>
+    </PageContainer>
   );
 };

@@ -21,6 +21,12 @@ export const tenantMiddleware = async (req: TenantRequest, res: Response, next: 
       return next();
     }
 
+    // Try to use organization from authenticated user
+    if (req.user && req.user.organization_id) {
+      req.organizationId = req.user.organization_id;
+      return next();
+    }
+
     // fallback to a default organization if none provided (for development without full auth)
     // In production, we should always have an authenticated user and their organization
     const { data: defaultOrg } = await supabase

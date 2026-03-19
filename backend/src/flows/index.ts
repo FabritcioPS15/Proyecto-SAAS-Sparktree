@@ -5,8 +5,9 @@ import axios from 'axios';
 export async function handleIncomingMessage(
   message: any,
   senderPhone: string,
-  organizationConfig: { phoneNumberId?: string; accessToken?: string, organizationId?: string, conversationId?: string, contactId?: string },
-  waService: any // Pass the service instance (Cloud or QR)
+  organizationConfig: { phoneNumberId?: string; accessToken?: string, organizationId?: string, conversationId?: string, contactId?: string, whatsappConnectionId?: string, senderJid?: string },
+  waService: any, // Pass the service instance (Cloud or QR)
+  preloadedFlow?: any // Pass a specific flow if one is already resolved
 ) {
 
   // Fetch contact to get stored JID if available
@@ -16,7 +17,7 @@ export async function handleIncomingMessage(
     .eq('id', organizationConfig.contactId)
     .single();
 
-  const contactJid = (contactData as any)?.custom_attributes?.whatsapp_jid;
+  const contactJid = organizationConfig.senderJid || (contactData as any)?.custom_attributes?.whatsapp_jid;
 
   const saveOutgoingMessage = async (type: string, content: any, waResponse: any) => {
     if (organizationConfig.conversationId && organizationConfig.contactId) {
@@ -88,6 +89,12 @@ export async function handleIncomingMessage(
 
     while (currentNodeId) {
       console.log(`[Flow Engine] Executing node ID: ${currentNodeId}`);
+      
+      if (!flow.nodes || !Array.isArray(flow.nodes)) {
+        console.error('[Flow Engine] Flow nodes missing or not an array!');
+        break;
+      }
+
       const node = flow.nodes.find((n: any) => n.id === currentNodeId);
       if (!node) {
         console.log(`[Flow Engine] Node ${currentNodeId} not found in flow definition!`);
@@ -167,7 +174,7 @@ export async function handleIncomingMessage(
       }
 
       // Find next node
-      const nextEdge = flow.edges.find((e: any) => e.source === currentNodeId);
+      const nextEdge = (flow.edges || []).find((e: any) => e.source === currentNodeId);
       if (nextEdge && nextEdge.target && !['interactive', 'capture', 'handoff'].includes(node.type)) {
         console.log(`[Flow Engine] Moving to next node via edge: ${nextEdge.id} -> ${nextEdge.target}`);
         currentNodeId = nextEdge.target;
@@ -179,6 +186,11 @@ export async function handleIncomingMessage(
   };
 
   if (message.type === 'text') {
+    if (!message?.text?.body) {
+      console.log(`[Bot Engine] Received text message with no body (maybe empty or unsupported type). Skipping bot processing.`);
+      return;
+    }
+
     const textBody = message.text.body.trim();
     const textLower = textBody.toLowerCase();
     console.log(`[Bot Engine] Processing text message: "${textBody}" from ${senderPhone}`);
@@ -191,26 +203,50 @@ export async function handleIncomingMessage(
       .single();
 
     if (contact?.bot_state === 'handoff') {
-      console.log('[Bot Engine] Contact is in handoff mode. Bot is paused.');
+      console.log(`[Bot Engine] Contact ${senderPhone} is in handoff mode. Bot is paused for connection ${organizationConfig.whatsappConnectionId}.`);
       return; // Bot is silent, human agent is handling
     }
 
     // Get active flow
-    const { data: flow, error: flowError } = await supabase
-      .from('flows')
-      .select('*')
-      .eq('organization_id', organizationConfig.organizationId)
-      .eq('is_active', true)
-      .limit(1)
-      .single();
+    let flow = preloadedFlow;
+    
+    if (!flow) {
+      if (organizationConfig.whatsappConnectionId) {
+        console.log(`[Bot Engine] Checking specific assignment for connection ${organizationConfig.whatsappConnectionId}`);
+        const { data: assignments } = await supabase
+          .from('flow_assignments')
+          .select(`flows!inner(*)`)
+          .eq('whatsapp_connection_id', organizationConfig.whatsappConnectionId)
+          .eq('is_active', true);
+        
+        if (assignments && assignments.length > 0) {
+          flow = (assignments[0] as any).flows;
+          console.log(`[Bot Engine] Specific flow assignment found: ${flow.name}`);
+        }
+      }
 
-    if (flowError) {
-      console.error('Error fetching active flow:', flowError);
-    } else if (flow) {
-      console.log(`[Bot Engine] Active flow found: ${flow.name}`);
-    } else {
-      console.log('[Bot Engine] No active flow found.');
+      if (!flow) {
+        console.log(`[Bot Engine] No specific connection assignment, checking default flows for org ${organizationConfig.organizationId}`);
+        const { data: fetchedFlow } = await supabase
+          .from('flows')
+          .select('*')
+          .eq('organization_id', organizationConfig.organizationId)
+          .eq('is_active', true)
+          .order('is_default', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        flow = fetchedFlow;
+        if (flow) {
+          console.log(`[Bot Engine] Using default organization flow: ${flow.name}`);
+        }
+      }
+    }
+
+    if (!flow) {
+      console.log(`[Bot Engine] No active flow found for sender ${senderPhone} (Connection: ${organizationConfig.whatsappConnectionId})`);
       return;
+    } else {
+      console.log(`[Bot Engine] Active flow for processing: ${flow.name} (ID: ${flow.id})`);
     }
 
     // Check if waiting for capture input
@@ -272,25 +308,62 @@ export async function handleIncomingMessage(
       }
     }
 
-    // PRIORITY 1: Check if this is a trigger for starting the flow
-    if (flow.triggers && Array.isArray(flow.triggers)) {
-      const matchedTrigger = flow.triggers.find((trigger: string) => 
-        trigger && textLower.includes(trigger.toLowerCase())
-      );
+    // Get trigger node configuration
+    const triggerNode = (flow.nodes || []).find((n: any) => n.type === 'trigger') || (flow.nodes && flow.nodes[0]);
+    const strategy = triggerNode?.data?.matchingStrategy || 'flexible';
+    const waitTimeMin = triggerNode?.data?.reactivationTime || 30;
 
-      if (matchedTrigger) {
-        console.log(`[Bot Engine] Trigger matched: "${matchedTrigger}"`);
-        // Track flow execution start
-        await trackFlowExecution(flow.id, matchedTrigger);
+    // REACTIVATION TIMER CHECK
+    const { data: lastExec } = await supabase
+      .from('flow_executions')
+      .select('executed_at')
+      .eq('contact_id', organizationConfig.contactId)
+      .eq('conversation_id', organizationConfig.conversationId)
+      .eq('flow_id', flow.id)
+      .order('executed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastExec) {
+      const lastExecTime = new Date(lastExec.executed_at).getTime();
+      const now = new Date().getTime();
+      const diffMin = (now - lastExecTime) / (1000 * 60);
+      
+      if (diffMin < waitTimeMin) {
+        console.log(`[Bot Engine] Blocking reactivation for flow "${flow.name}". User ${senderPhone} last executed ${Math.round(diffMin)}m ago (Threshold: ${waitTimeMin}m)`);
+        return; 
+      }
+    }
+
+    // PRIORITY 1: Check if this is a trigger for starting the flow
+    let matchedTrigger: string | null = null;
+    
+    if (flow.triggers && Array.isArray(flow.triggers) && flow.triggers.length > 0) {
+      matchedTrigger = flow.triggers.find((trigger: string) => {
+        if (!trigger) return false;
+        const triggerLower = trigger.toLowerCase().trim();
         
-        // Find trigger node (usually node ID "1")
-        const triggerNode = flow.nodes.find((n: any) => n.type === 'trigger');
-        if (triggerNode) {
-          await executeNode(flow, triggerNode.id);
-          // Mark as completed when flow finishes naturally
-          await updateFlowExecution(flow.id, 'completed');
-          return;
+        if (strategy === 'strict') {
+          // Exact match (ignoring only outer spaces)
+          return textLower === triggerLower;
+        } else {
+          // Flexible match (presence in text)
+          return textLower.includes(triggerLower);
         }
+      }) || null;
+    } else {
+      // Catch-all
+      matchedTrigger = textBody;
+    }
+
+    if (matchedTrigger) {
+      console.log(`[Bot Engine] Trigger matched (${strategy}): "${matchedTrigger}"`);
+      await trackFlowExecution(flow.id, matchedTrigger);
+      
+      if (triggerNode) {
+        await executeNode(flow, triggerNode.id);
+        await updateFlowExecution(flow.id, 'completed');
+        return;
       }
     }
 
@@ -347,6 +420,11 @@ export async function handleIncomingMessage(
     }
 
     // PRIORITY 3: Fallback if no trigger matched and not a valid button response
+    if (strategy === 'strict') {
+      console.log('[Bot Engine] No trigger matched in Strict mode. Staying quiet.');
+      return;
+    }
+    
     console.log('[Bot Engine] No trigger matched. Sending fallback message.');
     const fallbackText = 'No entendí ese comando. Intenta con otras palabras clave configuradas en tus Flujos.';
     const res = await waService.sendTextMessage(senderPhone, fallbackText, { jid: contactJid });
@@ -357,13 +435,28 @@ export async function handleIncomingMessage(
   if (message.type === 'interactive') {
     const buttonId = message.interactive.button_reply.id;
 
-    const { data: flow } = await supabase
-      .from('flows')
-      .select('*')
-      .eq('organization_id', organizationConfig.organizationId)
-      .eq('is_active', true)
-      .limit(1)
-      .single();
+    let flow = preloadedFlow;
+    if (!flow) {
+      if (organizationConfig.whatsappConnectionId) {
+        const { data: assignments } = await supabase
+          .from('flow_assignments')
+          .select(`flows!inner(*)`)
+          .eq('whatsapp_connection_id', organizationConfig.whatsappConnectionId)
+          .eq('is_active', true);
+        if (assignments && assignments.length > 0) flow = assignments[0].flows;
+      }
+      if (!flow) {
+        const { data: fetchedFlow } = await supabase
+          .from('flows')
+          .select('*')
+          .eq('organization_id', organizationConfig.organizationId)
+          .eq('is_active', true)
+          .order('is_default', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        flow = fetchedFlow;
+      }
+    }
 
     if (flow && flow.edges) {
       const edge = flow.edges.find((e: any) => e.sourceHandle === buttonId || e.source === buttonId);

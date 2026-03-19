@@ -3,6 +3,9 @@ import { getConversations, getConversationMessages, deleteConversation } from '.
 import api from '../services/api';
 import { Check, TrendingUp, Trash2, Send, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
 
+import { PageBody } from '../components/layout/PageBody';
+import { PageLoader } from '../components/layout/PageLoader';
+
 export const Conversations = () => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConv, setSelectedConv] = useState<any | null>(null);
@@ -239,9 +242,14 @@ export const Conversations = () => {
     });
   };
 
+  if (loading) {
+    return <PageLoader sectionName="Conversaciones" />;
+  }
+
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 flex h-full">
+    <div className="h-full flex flex-col animate-in fade-in duration-500">
+      <PageBody scrollable={false} className="h-full py-0">
+        <div className="flex-1 flex h-full overflow-hidden">
         {/* Sidebar */}
         <div className="w-full md:w-80 lg:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-slate-50/50 dark:bg-transparent">
           <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent sticky top-0 z-10">
@@ -326,13 +334,13 @@ export const Conversations = () => {
                 <p className="text-slate-400 text-sm font-medium">No hay conversaciones activas</p>
               </div>
             ) : (
-              conversations.map((conv) => {
+              conversations.map((conv, idx) => {
                 const contact = conv.contactId || {};
                 const isSelected = selectedConv?._id === conv._id;
                 const avatar = generateAvatar(contact);
                 return (
                   <div
-                    key={conv._id}
+                    key={conv._id || conv.id || `conv-${idx}`}
                     onClick={() => setSelectedConv(conv)}
                     role="button"
                     tabIndex={0}
@@ -486,13 +494,35 @@ export const Conversations = () => {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-slate-500/5 blur-[120px] rounded-full pointer-events-none" />
 
                 {messages.length > 0 ? (
-                  messages.map((message) => {
+                  messages.map((message, idx) => {
                     const isUser = message.direction === 'inbound';
-                    const text = message.content?.body || message.content || '';
+                    
+                    // Helper to extract clean text from message content
+                    const getMessageText = (msg: any) => {
+                      const content = msg.content;
+                      if (!content) return '';
+                      
+                      if (typeof content === 'object') {
+                        return content.body || content.text?.body || content.interactive?.button_reply?.title || JSON.stringify(content);
+                      }
+                      
+                      if (typeof content === 'string' && content.trim().startsWith('{')) {
+                        try {
+                          const parsed = JSON.parse(content);
+                          return parsed.body || parsed.text?.body || parsed.interactive?.button_reply?.title || content;
+                        } catch (e) {
+                          return content;
+                        }
+                      }
+                      
+                      return content;
+                    };
+
+                    const text = getMessageText(message);
 
                     return (
                       <div
-                        key={message._id}
+                        key={message._id || message.id || `msg-${idx}`}
                         className={`flex ${isUser ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10`}
                       >
                         <div className={`flex flex-col max-w-[95%] gap-2`}>
@@ -503,7 +533,7 @@ export const Conversations = () => {
                               }`}
                           >
                             <p className="text-sm md:text-base whitespace-pre-wrap leading-relaxed font-medium">
-                              {typeof text === 'string' ? text : JSON.stringify(text)}
+                              {text}
                             </p>
                           </div>
                           <div className={`flex items-center gap-2 px-2 ${!isUser ? 'justify-end' : 'justify-start'}`}>
@@ -588,6 +618,7 @@ export const Conversations = () => {
           )}
         </div>
       </div>
+      </PageBody>
     </div>
   );
 };

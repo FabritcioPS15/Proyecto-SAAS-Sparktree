@@ -12,9 +12,12 @@ export const useLayout = () => useContext(LayoutContext);
 
 interface LayoutProps {
   children: ReactNode;
+  fullWidth?: boolean;
+  noPadding?: boolean;
+  noHeader?: boolean;
 }
 
-export const Layout = ({ children }: LayoutProps) => {
+export const Layout = ({ children, fullWidth = false, noPadding = false, noHeader = false }: LayoutProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('sidebar-collapsed') === 'true';
@@ -37,10 +40,10 @@ export const Layout = ({ children }: LayoutProps) => {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 blur-[120px] rounded-full -mr-64 -mt-64 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent-500/5 blur-[100px] rounded-full -ml-32 -mb-32 pointer-events-none" />
 
-        <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
+        {!noHeader && <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />}
 
-        <main className={`flex-1 overflow-hidden px-4 sm:px-8 py-8 relative z-10 min-h-0 transition-all duration-300 ${isSidebarCollapsed ? 'max-w-[1800px]' : 'max-w-[1600px]'}`}>
-          <div className="w-full mx-auto">
+        <main className={`flex-1 overflow-hidden ${noPadding ? '' : 'px-4 sm:px-8 py-8'} relative z-10 min-h-0 transition-all duration-300 flex flex-col ${fullWidth ? 'max-w-none' : (isSidebarCollapsed ? 'max-w-[1800px]' : 'max-w-[1600px]')}`}>
+          <div className={`${noPadding ? '' : 'w-full h-full mx-auto'} flex flex-col flex-1`}>
             {children}
           </div>
         </main>

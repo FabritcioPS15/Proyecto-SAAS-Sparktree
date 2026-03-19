@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Users, MessageSquare, UserPlus, Activity, CheckCircle, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getAnalytics } from '../services/api';
 import { useLayout } from '../components/layout/Layout';
+import { PageContainer } from '../components/layout/PageContainer';
+import { PageBody } from '../components/layout/PageBody';
+import { PageLoader } from '../components/layout/PageLoader';
 
 const initialStats = {
   totalUsers: 0,
@@ -19,7 +22,6 @@ export const Dashboard = () => {
   const { isSidebarCollapsed } = useLayout();
   const [stats, setStats] = useState(initialStats);
   const [messagesData, setMessagesData] = useState<any[]>([]);
-  const [menuData, setMenuData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
   const [startDate, setStartDate] = useState('');
@@ -93,19 +95,8 @@ export const Dashboard = () => {
           return data;
         };
 
-        // Generar datos de menú (opciones dominantes)
-        const generateMenuData = () => {
-          return [
-            { option: 'Precios', count: Math.floor(120 + Math.random() * 40) },
-            { option: 'Contacto', count: Math.floor(80 + Math.random() * 30) },
-            { option: 'Servicios', count: Math.floor(60 + Math.random() * 25) },
-            { option: 'Inicio', count: Math.floor(40 + Math.random() * 20) },
-            { option: 'Sobre', count: Math.floor(30 + Math.random() * 15) }
-          ];
-        };
 
         setMessagesData(generateMessagesData(selectedTimeRange, startDate, endDate));
-        setMenuData(generateMenuData());
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -118,20 +109,13 @@ export const Dashboard = () => {
   }, [selectedTimeRange, startDate, endDate, whatsappConnected]);
 
   if (loading) {
-    return (
-      <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Cargando métricas...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader sectionName="Panel de Control" />;
   }
 
   return (
-    <div className={`w-full h-[calc(100vh-8rem)] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'mx-4' : ''}`}>
-      <div className="overflow-hidden flex-1">
-        <div className="h-full overflow-y-auto custom-scrollbar p-6 lg:p-8 space-y-8">
+    <PageContainer>
+      <PageBody>
+        <div className="space-y-4">
         {/* Premium Header / Welcome Section */}
         <div className="relative group overflow-hidden bg-white dark:bg-[#11141b]/50 backdrop-blur-xl p-8 lg:p-10 rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-2xl duration-700">
           <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-primary-500/10 to-accent-500/10 blur-[150px] rounded-full -mr-64 -mt-64 transition-transform group-hover:scale-110 duration-1000" />
@@ -539,7 +523,7 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
-    </div>
-    </div>
+      </PageBody>
+    </PageContainer>
   );
 };

@@ -6,7 +6,7 @@ const router = express.Router();
 // POST /api/settings
 router.post('/', async (req, res) => {
   try {
-    const { botName, whatsappToken, verifyToken, phoneNumberId } = req.body;
+    const { botName, whatsappToken, verifyToken, phoneNumberId, connectionMethod } = req.body;
     const orgId = (req as any).organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
@@ -15,6 +15,7 @@ router.post('/', async (req, res) => {
     if (phoneNumberId !== undefined) updates.whatsapp_phone_number_id = phoneNumberId;
     if (whatsappToken !== undefined) updates.whatsapp_access_token = whatsappToken;
     if (verifyToken !== undefined) updates.whatsapp_verify_token = verifyToken;
+    if (connectionMethod !== undefined) updates.whatsapp_connection_method = connectionMethod;
 
     const { error } = await supabase.from('organizations').update(updates).eq('id', orgId);
     
@@ -40,7 +41,8 @@ router.get('/', async (req, res) => {
       systemStatus: 'active',
       whatsappToken: org.whatsapp_access_token || '',
       verifyToken: org.whatsapp_verify_token || '',
-      phoneNumberId: org.whatsapp_phone_number_id || ''
+      phoneNumberId: org.whatsapp_phone_number_id || '',
+      connectionMethod: org.whatsapp_connection_method || 'qr'
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to load settings' });

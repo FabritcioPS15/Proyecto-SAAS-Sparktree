@@ -31,7 +31,9 @@ router.get('/', async (req, res) => {
       id: conv.id,
       contactId: {
         phoneNumber: conv.contacts?.phone_number || 'Desconocido',
-        name: conv.contacts?.profile_name || 'Sin nombre',
+        name: (conv.contacts?.profile_name && conv.contacts.profile_name !== 'Sin nombre') 
+          ? conv.contacts.profile_name 
+          : (conv.contacts?.phone_number || 'Sin nombre'),
         profilePicture: conv.contacts?.profile_picture || null
       },
       lastMessageAt: conv.last_message_at,
@@ -127,15 +129,15 @@ router.post('/:id/send', async (req, res) => {
     console.log(`[Conversations] Final corrected phone: ${correctedPhone}`);
 
     // Send via WhatsApp
-    const connections = multiWhatsAppService.getOrganizationConnections(orgId);
-    const activeConn = connections.find(c => c.status === 'connected');
+    const connections = (multiWhatsAppService as any).getOrganizationConnections(orgId);
+    const activeConn = connections.find((c: any) => c.status === 'connected');
     
     if (!activeConn) {
       return res.status(503).json({ error: 'WhatsApp no está conectado para esta organización. Por favor conecta el dispositivo primero.' });
     }
 
     const contactJid = (conversation.contacts as any)?.custom_attributes?.whatsapp_jid;
-    const adapter = multiWhatsAppService.createWaServiceAdapter(activeConn);
+    const adapter = (multiWhatsAppService as any).createWaServiceAdapter(activeConn);
     await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
 
     // Save message to DB

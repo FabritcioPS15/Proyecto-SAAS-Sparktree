@@ -53,7 +53,8 @@ router.get('/status', async (req, res) => {
       id: connection.id,
       status: connection.status,
       qr: qrImage,
-      displayName: connection.displayName
+      displayName: connection.displayName,
+      phoneNumber: connection.phoneNumber
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -82,6 +83,9 @@ router.post('/init', async (req, res) => {
     if (!connection) {
       return res.status(500).json({ error: 'Failed to initialize or create connection' });
     }
+
+    // Force start connection to ensure QR is generated
+    await multiWhatsAppService.startConnection(connection.id);
 
     res.json({ message: 'WhatsApp connection initialized', id: connection.id });
   } catch (error: any) {

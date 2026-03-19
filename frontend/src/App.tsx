@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { WhatsAppProvider } from './contexts/WhatsAppContext';
 import { Layout } from './components/layout/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Dashboard } from './pages/Dashboard';
@@ -13,7 +14,7 @@ import { FlowBuilder } from './pages/FlowBuilder';
 import { FlowManager } from './pages/FlowManager';
 import { Leads } from './pages/Leads';
 import { WhatsAppQR } from './pages/WhatsAppQR';
-import { ReportsPage } from './pages/Reports';
+import { Reports } from './pages/Reports';
 import { Organizations } from './pages/Organizations';
 import { StaffManagement } from './pages/StaffManagement';
 import { Login } from './pages/Login';
@@ -38,10 +39,10 @@ function AppContent() {
       <Route path="/users" element={<ProtectedRoute><Layout><Users /></Layout></ProtectedRoute>} />
       <Route path="/conversations" element={<ProtectedRoute><Layout><Conversations /></Layout></ProtectedRoute>} />
       <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />
-      <Route path="/flows" element={<ProtectedRoute><Layout><FlowBuilder /></Layout></ProtectedRoute>} />
+      <Route path="/flows" element={<ProtectedRoute><Layout fullWidth noPadding><FlowBuilder /></Layout></ProtectedRoute>} />
       <Route path="/flow-manager" element={<ProtectedRoute><Layout><FlowManager /></Layout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Layout><ReportsPage /></Layout></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><Layout><Reports /></Layout></ProtectedRoute>} />
       <Route path="/billing" element={<ProtectedRoute><Layout><Billing /></Layout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
       <Route path="/whatsapp-qr" element={<ProtectedRoute><Layout><WhatsAppQR /></Layout></ProtectedRoute>} />
@@ -55,11 +56,13 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <AuthProvider>
-          <BrowserRouter>
-            <AppContent />
-          </BrowserRouter>
-        </AuthProvider>
+        <WhatsAppProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              <AppContent />
+            </BrowserRouter>
+          </AuthProvider>
+        </WhatsAppProvider>
       </NotificationProvider>
     </ThemeProvider>
   );

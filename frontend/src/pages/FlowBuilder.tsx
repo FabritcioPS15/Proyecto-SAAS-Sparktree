@@ -3,6 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { FlowBuilderContent } from '../components/flow/FlowBuilderContent';
 import { getFlows } from '../services/api';
 import { AlertCircle } from 'lucide-react';
+import { PageLoader } from '../components/layout/PageLoader';
 
 export const FlowBuilder = () => {
   const [loading, setLoading] = useState(true);
@@ -31,14 +32,7 @@ export const FlowBuilder = () => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-[#0f1117]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Preparando editor...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader sectionName="Constructor de Flujo" />;
   }
 
   if (error || !flow) {
@@ -69,7 +63,7 @@ export const FlowBuilder = () => {
 
   return (
     <ReactFlowProvider>
-      <div className="relative w-full h-screen overflow-hidden">
+      <div className="relative w-full h-full overflow-hidden">
         <FlowBuilderContent flowData={flow} />
       </div>
     </ReactFlowProvider>

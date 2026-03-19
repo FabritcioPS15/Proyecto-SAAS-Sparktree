@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { TrendingUp, Users, MessageCircle, Activity, CheckCircle, BarChart3 } from 'lucide-react';
+import { getAnalytics } from '../services/api';
 
 interface HourlyActivity {
   hora: number;
@@ -33,19 +34,14 @@ const generateEmptyData = () => {
     date.setDate(date.getDate() - i);
     data.push({
       date: date.toISOString(),
-      value: Math.floor(Math.random() * 100) + 20
+      value: 0
     });
   }
   return data;
 };
 
 const generateEmptyFlowsData = () => {
-  return [
-    { option: 'Bienvenida', count: Math.floor(Math.random() * 50) + 10 },
-    { option: 'Soporte', count: Math.floor(Math.random() * 30) + 5 },
-    { option: 'Ventas', count: Math.floor(Math.random() * 40) + 8 },
-    { option: 'Información', count: Math.floor(Math.random() * 25) + 3 }
-  ];
+  return [];
 };
 
 const generateHourlyActivityData = (): HourlyActivity[] => {
@@ -53,8 +49,8 @@ const generateHourlyActivityData = (): HourlyActivity[] => {
   for (let i = 0; i < 24; i++) {
     data.push({
       hora: i,
-      ejecuciones: Math.floor(Math.random() * 50),
-      dias_activos: Math.floor(Math.random() * 10)
+      ejecuciones: 0,
+      dias_activos: 0
     });
   }
   return data;
@@ -63,11 +59,7 @@ const generateHourlyActivityData = (): HourlyActivity[] => {
 // Function to fetch analytics data from API
 const fetchAnalyticsData = async (): Promise<AnalyticsData> => {
   try {
-    const response = await fetch('/api/analytics');
-    if (!response.ok) {
-      throw new Error('Failed to fetch analytics');
-    }
-    const data = await response.json();
+    const data = await getAnalytics();
     return data;
   } catch (error) {
     console.error('Error fetching analytics:', error);
@@ -80,9 +72,9 @@ const fetchAnalyticsData = async (): Promise<AnalyticsData> => {
       dailyFlowSummary: [],
       hourlyActivity: generateHourlyActivityData(),
       stats: {
-        avgResponseTime: 1.2,
-        satisfactionRate: 94,
-        completionRate: 87,
+        avgResponseTime: 0,
+        satisfactionRate: 0,
+        completionRate: 0,
         totalUsers: 0,
         totalMessages: 0,
         totalConversations: 0
@@ -90,6 +82,11 @@ const fetchAnalyticsData = async (): Promise<AnalyticsData> => {
     };
   }
 };
+
+import { PageHeader } from '../components/layout/PageHeader';
+import { PageContainer } from '../components/layout/PageContainer';
+import { PageBody } from '../components/layout/PageBody';
+import { PageLoader } from '../components/layout/PageLoader';
 
 export const Analytics = () => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
@@ -117,14 +114,7 @@ export const Analytics = () => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="h-[calc(100vh-8rem)] min-h-[600px] flex items-center justify-center bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Cargando analíticas...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader sectionName="Analíticas" />;
   }
 
   if (error) {
@@ -147,42 +137,33 @@ export const Analytics = () => {
 
   const { interactionsPerDay, topFlows, activeUsers, weeklySummary, dailyFlowSummary, hourlyActivity, stats } = analyticsData;
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[600px] bg-white/50 dark:bg-[#11141b]/50 backdrop-blur-xl rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col">
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5 relative">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#11141b]/50 backdrop-blur-md p-6 rounded-[2rem] border border-gray-200 dark:border-gray-800/50 shadow-sm">
-          <div className="space-y-1">
-            <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Analíticas <span className="text-primary-600 dark:text-primary-400">Avanzadas</span>
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
-              Descubre patrones y optimiza flujos en tiempo real.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="p-3 bg-primary-50 dark:bg-primary-500/10 rounded-xl">
-              <BarChart3 className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            </div>
-          </div>
-        </div>
+    <PageContainer>
+      <PageHeader 
+        title="Analíticas"
+        highlight="Avanzadas"
+        description="Descubre patrones y optimiza flujos en tiempo real."
+        icon={BarChart3}
+      />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <PageBody scrollable={true}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
           {[
             { icon: TrendingUp, label: 'Tiempo Respuesta', value: `${stats.avgResponseTime}s`, color: 'slate' },
             { icon: Users, label: 'Satisfacción', value: `${stats.satisfactionRate}%`, color: 'slate' },
             { icon: MessageCircle, label: 'Finalización', value: `${stats.completionRate}%`, color: 'slate' },
             { icon: Activity, label: 'Usuarios Activos', value: stats.totalUsers.toLocaleString(), color: 'slate' }
           ].map((item, idx) => (
-            <div key={idx} className="bg-white dark:bg-[#11141b] rounded-[1.5rem] p-4 border border-gray-100 dark:border-gray-800/50 shadow-lg shadow-slate-200/5 dark:shadow-none hover:shadow-xl dark:hover:border-gray-700/50 transition-all duration-500 group overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-slate-500/5 blur-[40px] rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700" />
+            <div key={idx} className="bg-white/40 dark:bg-slate-800/20 rounded-3xl p-5 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 group overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-slate-500/5 blur-2xl rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
 
               <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-slate-600 dark:text-slate-400 group-hover:bg-slate-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-slate-900 transition-all duration-300">
+                <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl text-slate-600 dark:text-slate-400 group-hover:bg-slate-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-slate-900 transition-all duration-300 shadow-sm border border-slate-50 dark:border-slate-800">
                   <item.icon className="w-5 h-5" />
                 </div>
                 <Activity className="w-3 h-3 text-slate-300 dark:text-slate-600" />
               </div>
               <div className="space-y-1 relative z-10">
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{item.label}</p>
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.label}</p>
                 <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
                   {item.value}
                 </p>
@@ -191,11 +172,11 @@ export const Analytics = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-          <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-2">
+          <div className="bg-white/40 dark:bg-slate-800/20 rounded-3xl p-6 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 flex flex-col min-h-[400px]">
+            <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Interacciones Diarias</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Mensajes procesados por día</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">Mensajes procesados</p>
             </div>
             <div className="flex-1 min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -212,8 +193,8 @@ export const Analytics = () => {
                     stroke="#94a3b8"
                     axisLine={false}
                     tickLine={false}
-                    tickMargin={10}
-                    fontSize={11}
+                    tickMargin={15}
+                    fontSize={10}
                     fontWeight={600}
                     tickFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
                   />
@@ -221,30 +202,29 @@ export const Analytics = () => {
                     stroke="#94a3b8" 
                     axisLine={false} 
                     tickLine={false} 
-                    fontSize={11}
-                    label={{ value: 'Mensajes', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#94a3b8' } }}
+                    fontSize={10}
                   />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'rgba(15, 23, 42, 0.9)',
                       backdropFilter: 'blur(12px)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
-                      color: '#fff'
+                      borderRadius: '16px',
+                      color: '#fff',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
                     }}
                     labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
-                    formatter={(value: any) => [`${value} mensajes`, 'Interacciones']}
                   />
-                  <Line type="monotone" dataKey="value" stroke="url(#interactionColor)" strokeWidth={3} dot={{ fill: '#6366f1', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="value" stroke="url(#interactionColor)" strokeWidth={4} dot={{ fill: '#6366f1', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white/40 dark:bg-slate-800/20 rounded-3xl p-6 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 flex flex-col min-h-[400px]">
+            <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Flujos más Utilizados</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Ejecuciones por flujo</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">Ejecuciones por flujo</p>
             </div>
             <div className="flex-1 min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -261,20 +241,18 @@ export const Analytics = () => {
                     stroke="#94a3b8" 
                     axisLine={false} 
                     tickLine={false} 
-                    fontSize={11}
-                    label={{ value: 'Ejecuciones', position: 'insideBottom', offset: -5, style: { fontSize: 11, fill: '#94a3b8' } }}
+                    fontSize={10}
                   />
-                  <YAxis dataKey="option" type="category" stroke="#94a3b8" axisLine={false} tickLine={false} width={80} fontSize={11} fontWeight={600} />
+                  <YAxis dataKey="option" type="category" stroke="#94a3b8" axisLine={false} tickLine={false} width={80} fontSize={10} fontWeight={600} />
                   <Tooltip
                     cursor={{ fill: 'rgba(99, 102, 241, 0.05)', radius: 8 }}
                     contentStyle={{
                       backgroundColor: 'rgba(15, 23, 42, 0.9)',
                       backdropFilter: 'blur(12px)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
+                      borderRadius: '16px',
                       color: '#fff'
                     }}
-                    formatter={(value: any) => [`${value} ejecuciones`, 'Flujo']}
                   />
                   <Bar dataKey="count" fill="url(#flowColor)" radius={[0, 8, 8, 0]} maxBarSize={30} />
                 </BarChart>
@@ -282,13 +260,13 @@ export const Analytics = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500 flex flex-col lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-500" />
+          <div className="lg:col-span-2 bg-white/40 dark:bg-slate-800/20 rounded-3xl p-8 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 flex flex-col min-h-[450px]">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                <span className="p-2.5 bg-emerald-500/10 rounded-xl"><CheckCircle className="w-5 h-5 text-emerald-500" /></span>
                 Evolución de Usuarios Activos
               </h3>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Usuarios únicos por día</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest text-right">Usuarios únicos por día</p>
             </div>
             <div className="flex-1 min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -305,8 +283,8 @@ export const Analytics = () => {
                     stroke="#94a3b8"
                     axisLine={false}
                     tickLine={false}
-                    tickMargin={10}
-                    fontSize={11}
+                    tickMargin={15}
+                    fontSize={10}
                     fontWeight={600}
                     tickFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
                   />
@@ -314,21 +292,19 @@ export const Analytics = () => {
                     stroke="#94a3b8" 
                     axisLine={false} 
                     tickLine={false} 
-                    fontSize={11}
-                    label={{ value: 'Usuarios', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#94a3b8' } }}
+                    fontSize={10}
                   />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'rgba(15, 23, 42, 0.9)',
                       backdropFilter: 'blur(12px)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
+                      borderRadius: '16px',
                       color: '#fff'
                     }}
                     labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
-                    formatter={(value: any) => [`${value} usuarios`, 'Usuarios Activos']}
                   />
-                  <Line type="monotone" dataKey="value" stroke="url(#activeColor)" strokeWidth={3} dot={{ fill: '#10b981', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="value" stroke="url(#activeColor)" strokeWidth={4} dot={{ fill: '#10b981', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -524,7 +500,7 @@ export const Analytics = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </PageContainer>
   );
 };

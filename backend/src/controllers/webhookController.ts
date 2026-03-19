@@ -135,17 +135,32 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
             contactId: contact.id
           };
           
-          // Usar MultiWhatsApp service si está conectado, sino usar WhatsAppService (Cloud API)
-          const { multiWhatsAppService } = await import('../services/multiWhatsAppService');
-          const connections = multiWhatsAppService.getOrganizationConnections(organization.id);
-          const activeConn = connections.find(c => c.status === 'connected');
-          
-          const waService = activeConn 
-            ? multiWhatsAppService.createWaServiceAdapter(activeConn)
-            : new WhatsAppService({
+          // Determine which service to use based on connection method
+          const connectionMethod = organization.whatsapp_connection_method || 'qr';
+          let waService;
+
+          if (connectionMethod === 'qr') {
+            const { multiWhatsAppService } = await import('../services/multiWhatsAppService');
+            const connections = multiWhatsAppService.getOrganizationConnections(organization.id);
+            const activeConn = connections.find(c => c.status === 'connected');
+            
+            if (activeConn) {
+              waService = multiWhatsAppService.createWaServiceAdapter(activeConn);
+            } else {
+              // Fallback to Cloud API if QR is not connected? Or just null?
+              // For now, let's keep Cloud API as fallback if configured
+              waService = new WhatsAppService({
                 phoneNumberId: organization.whatsapp_phone_number_id || '',
                 accessToken: organization.whatsapp_access_token || ''
               });
+            }
+          } else {
+            // connectionMethod === 'cloud'
+            waService = new WhatsAppService({
+              phoneNumberId: organization.whatsapp_phone_number_id || '',
+              accessToken: organization.whatsapp_access_token || ''
+            });
+          }
           
           await handleIncomingMessage(message, senderPhone, organizationConfig, waService);
         }

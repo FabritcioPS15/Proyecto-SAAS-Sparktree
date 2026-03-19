@@ -42,36 +42,25 @@ router.get('/', async (req: any, res) => {
     const dailyFlowSummary = dailyData.status === 'fulfilled' ? dailyData.value.data || [] : [];
     const hourlyActivity = hourlyData.status === 'fulfilled' ? hourlyData.value.data || [] : [];
 
-    // Generate sample data for interactions per day and active users
-    const interactionsPerDay = [];
-    const activeUsers = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      interactionsPerDay.push({
-        date: date.toISOString(),
-        value: Math.floor(Math.random() * 100) + 20
-      });
-      activeUsers.push({
-        date: date.toISOString(),
-        value: Math.floor(Math.random() * 50) + 10
-      });
-    }
-
     const response = {
-      interactionsPerDay,
+      interactionsPerDay: dailyFlowSummary.map((item: any) => ({
+        date: item.dia,
+        value: item.interacciones || 0
+      })),
       topFlows,
-      activeUsers,
+      activeUsers: dailyFlowSummary.map((item: any) => ({
+        date: item.dia,
+        value: item.usuarios_unicos || 0
+      })),
       weeklySummary,
       dailyFlowSummary,
       hourlyActivity,
       stats: {
-        avgResponseTime: 1.2,
-        satisfactionRate: 94,
-        completionRate: 87,
+        avgResponseTime: 0, // Should be calculated from real data if available
+        satisfactionRate: 0,
+        completionRate: 0,
         totalUsers: weeklySummary.reduce((sum: number, item: any) => sum + (item.usuarios_unicos || 0), 0),
-        totalMessages: interactionsPerDay.reduce((sum: number, item: any) => sum + item.value, 0),
+        totalMessages: dailyFlowSummary.reduce((sum: number, item: any) => sum + (item.interacciones || 0), 0),
         totalConversations: dailyFlowSummary.reduce((sum: number, item: any) => sum + (item.conversaciones || 0), 0)
       }
     };

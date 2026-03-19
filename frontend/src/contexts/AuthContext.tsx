@@ -45,23 +45,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       const response = await axios.post(`${API_URL}/auth/login`, { email, password });
-      const { user, organizationId } = response.data;
       
-      setUser(user);
-      setOrganizationId(organizationId);
+      const { user: userData, organizationId: orgId } = response.data;
       
-      localStorage.setItem('sparktree_session', JSON.stringify({ user, organizationId }));
-    } catch (error) {
+      setUser(userData);
+      setOrganizationId(orgId);
+      
+      localStorage.setItem('sparktree_session', JSON.stringify({ 
+        user: userData, 
+        organizationId: orgId 
+      }));
+    } catch (error: any) {
       console.error('Login failed', error);
-      throw error;
+      throw new Error(error.response?.data?.error || 'Error al iniciar sesión');
     }
   };
 
   const logout = () => {
+    console.log('Logging out...');
     setUser(null);
     setOrganizationId(null);
     localStorage.removeItem('sparktree_session');
-    window.location.href = '/login';
+    
+    // Forzar la redirección al login
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 100);
   };
 
   return (
