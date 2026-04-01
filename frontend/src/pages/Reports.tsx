@@ -16,21 +16,21 @@ export const Reports = () => {
       name: 'Reporte de Conversaciones',
       description: 'Análisis detallado de todas las conversaciones',
       icon: FileText,
-      color: 'bg-blue-500'
+      color: 'bg-black'
     },
     {
       id: 'performance',
       name: 'Reporte de Rendimiento',
       description: 'Métricas de rendimiento del chatbot',
       icon: BarChart3,
-      color: 'bg-green-500'
+      color: 'bg-accent-500'
     },
     {
       id: 'leads',
       name: 'Reporte de Leads',
       description: 'Seguimiento de clientes potenciales',
       icon: TrendingUp,
-      color: 'bg-primary-500'
+      color: 'bg-accent-600'
     }
   ];
 
@@ -60,7 +60,7 @@ export const Reports = () => {
               <select 
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-[#11141b] text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium"
+                className="px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-black text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500 focus:border-transparent font-medium"
               >
                 {periods.map(period => (
                   <option key={period.value} value={period.value}>
@@ -70,7 +70,7 @@ export const Reports = () => {
               </select>
             </div>
             
-            <button className="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-black uppercase tracking-wider text-[11px] transition-all duration-200 hover:shadow-lg hover:scale-105">
+            <button className="flex items-center gap-2 px-6 py-3 bg-black dark:bg-accent-500 text-white dark:text-black rounded-xl font-black uppercase tracking-wider text-[11px] transition-all duration-200 hover:shadow-lg hover:scale-105">
               <Download className="w-4 h-4" />
               Exportar Reporte
             </button>
@@ -87,8 +87,8 @@ export const Reports = () => {
                 onClick={() => setSelectedReport(report.id)}
                 className={`group p-6 rounded-[2rem] border-2 transition-all duration-200 hover:scale-105 ${
                   selectedReport === report.id
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-lg shadow-primary-500/20'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-[#11141b]/50 backdrop-blur-xl hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-xl'
+                    ? 'border-accent-500 bg-accent-500/5 dark:bg-accent-500/10 shadow-lg shadow-accent-500/20'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-black/40 backdrop-blur-xl hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-xl'
                 }`}
               >
                 <div className="flex items-center gap-4 mb-4">
@@ -135,18 +135,18 @@ export const Reports = () => {
                 <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="py-4 px-6 text-slate-900 dark:text-white font-medium">2024-01-15</td>
                   <td className="py-4 px-6">
-                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full text-xs font-black uppercase tracking-wider">
+                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-xs font-black uppercase tracking-wider">
                       Conversación
                     </span>
                   </td>
                   <td className="py-4 px-6 text-slate-600 dark:text-slate-400">Cliente interesado en producto premium</td>
                   <td className="py-4 px-6">
-                    <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 rounded-full text-xs font-black uppercase tracking-wider">
+                    <span className="px-3 py-1 bg-accent-500/10 dark:bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded-full text-xs font-black uppercase tracking-wider">
                       Completado
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <button className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-black text-sm uppercase tracking-wider">
+                    <button className="text-accent-600 dark:text-accent-400 hover:text-accent-800 dark:hover:text-accent-300 font-black text-sm uppercase tracking-wider">
                       Ver detalles
                     </button>
                   </td>
@@ -165,7 +165,7 @@ export const Reports = () => {
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <button className="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-black text-sm uppercase tracking-wider">
+                    <button className="text-accent-600 dark:text-accent-400 hover:text-accent-800 dark:hover:text-accent-300 font-black text-sm uppercase tracking-wider">
                       Ver detalles
                     </button>
                   </td>

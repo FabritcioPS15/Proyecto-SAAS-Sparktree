@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Trash2, Smartphone, QrCode, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 export const WhatsAppNumbersManager = () => {
-  const { numbers, loading, addNumber, removeNumber, updateNumberStatus, getNumbersByOrganization, canAddMoreNumbers } = useWhatsApp();
+  const { addNumber, removeNumber, getNumbersByOrganization, canAddMoreNumbers, loading } = useWhatsApp();
   const { user } = useAuth();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPhoneNumber, setNewPhoneNumber] = useState('');
@@ -59,7 +59,7 @@ export const WhatsAppNumbersManager = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-500"></div>
       </div>
     );
   }
@@ -79,7 +79,7 @@ export const WhatsAppNumbersManager = () => {
           disabled={!canAdd}
           className={`px-4 py-2 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${
             canAdd
-              ? 'bg-primary-600 text-white hover:bg-primary-700 hover:scale-105 active:scale-95'
+              ? 'bg-black text-white dark:bg-accent-500 dark:text-black hover:scale-105 active:scale-95'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
@@ -91,16 +91,16 @@ export const WhatsAppNumbersManager = () => {
       {/* Límite de números */}
       <div className={`p-4 rounded-xl border ${
         canAdd 
-          ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20' 
+          ? 'bg-accent-500/10 dark:bg-accent-500/10 border-accent-500/20 dark:border-accent-500/20' 
           : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20'
       }`}>
         <div className="flex items-center gap-3">
-          <Smartphone className={`w-5 h-5 ${canAdd ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`} />
+          <Smartphone className={`w-5 h-5 ${canAdd ? 'text-accent-500 dark:text-accent-400' : 'text-amber-600 dark:text-amber-400'}`} />
           <div className="flex-1">
-            <p className={`text-sm font-black ${canAdd ? 'text-blue-900 dark:text-blue-100' : 'text-amber-900 dark:text-amber-100'}`}>
+            <p className={`text-sm font-black ${canAdd ? 'text-accent-600 dark:text-accent-400' : 'text-amber-900 dark:text-amber-100'}`}>
               {organizationNumbers.length}/2 números autorizados
             </p>
-            <p className={`text-xs ${canAdd ? 'text-blue-700 dark:text-blue-300' : 'text-amber-700 dark:text-amber-300'}`}>
+            <p className={`text-xs ${canAdd ? 'text-accent-600 dark:text-accent-300' : 'text-amber-700 dark:text-amber-300'}`}>
               {canAdd 
                 ? `Puedes agregar ${2 - organizationNumbers.length} número(s) más` 
                 : 'Has alcanzado el límite máximo de números autorizados'
@@ -124,7 +124,7 @@ export const WhatsAppNumbersManager = () => {
                 value={newPhoneNumber}
                 onChange={(e) => setNewPhoneNumber(e.target.value)}
                 placeholder="+5491112345678"
-                className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
               />
             </div>
             <div>
@@ -136,14 +136,14 @@ export const WhatsAppNumbersManager = () => {
                 value={newDisplayName}
                 onChange={(e) => setNewDisplayName(e.target.value)}
                 placeholder="Número Principal"
-                className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
               />
             </div>
             <div className="flex gap-3">
               <button
                 onClick={handleAddNumber}
                 disabled={isAdding || !newPhoneNumber || !newDisplayName}
-                className="px-6 py-3 bg-primary-600 text-white rounded-xl font-black hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="px-6 py-3 bg-black text-white dark:bg-accent-500 dark:text-black rounded-xl font-black hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isAdding ? 'Agregando...' : 'Agregar Número'}
               </button>
@@ -182,8 +182,8 @@ export const WhatsAppNumbersManager = () => {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary-100 dark:bg-primary-500/10 rounded-xl">
-                    <Smartphone className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                  <div className="p-3 bg-accent-500/10 dark:bg-accent-500/10 rounded-xl">
+                    <Smartphone className="w-6 h-6 text-accent-600 dark:text-accent-400" />
                   </div>
                   <div>
                     <p className="font-black text-gray-900 dark:text-white">{number.displayName}</p>
@@ -203,7 +203,7 @@ export const WhatsAppNumbersManager = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {number.status === 'disconnected' && (
-                    <button className="p-2 text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-500/10 rounded-xl transition-colors">
+                    <button className="p-2 text-accent-600 hover:bg-accent-50 dark:text-accent-400 dark:hover:bg-accent-500/10 rounded-xl transition-colors">
                       <QrCode className="w-4 h-4" />
                     </button>
                   )}

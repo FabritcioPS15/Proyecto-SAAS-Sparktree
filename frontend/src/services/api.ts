@@ -40,6 +40,26 @@ export const getUsers = async () => {
   }
 };
 
+export const deleteUser = async (id: string) => {
+  try {
+    const response = await api.delete(`/users/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    throw error;
+  }
+};
+
+export const deleteUsersBulk = async (ids: string[]) => {
+  try {
+    const response = await api.post('/users/delete-bulk', { ids });
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting users bulk:', error);
+    throw error;
+  }
+};
+
 export const getConversations = async () => {
   try {
     const response = await api.get('/conversations');
@@ -121,6 +141,56 @@ export const saveFlows = async (flowData: any, id?: string) => {
     }
   } catch (error) {
     console.error('Error saving flow:', error);
+    throw error;
+  }
+};
+
+export const getActiveConnectionsForFlow = async (flowId: string) => {
+  try {
+    const response = await api.get(`/flows/${flowId}/active-connections`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching active connections for flow:', error);
+    throw error;
+  }
+};
+
+export const getOrganizations = async () => {
+  try {
+    const response = await api.get('/admin/organizations');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    throw error;
+  }
+};
+
+export const createOrganization = async (orgData: any) => {
+  try {
+    const response = await api.post('/admin/organizations', orgData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating organization:', error);
+    throw error;
+  }
+};
+
+export const updateOrganization = async (id: string, orgData: any) => {
+  try {
+    const response = await api.put(`/admin/organizations/${id}`, orgData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating organization:', error);
+    throw error;
+  }
+};
+
+export const deleteOrganization = async (id: string) => {
+  try {
+    const response = await api.delete(`/admin/organizations/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting organization:', error);
     throw error;
   }
 };

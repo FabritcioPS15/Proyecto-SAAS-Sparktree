@@ -40,9 +40,8 @@ export class MultiWhatsAppService {
       return;
     }
 
-    for (const conn of connections || []) {
-      await this.initializeConnection(conn);
-    }
+    // Initialize in parallel to avoid one hang blocking others
+    await Promise.allSettled((connections || []).map(conn => this.initializeConnection(conn)));
   }
 
   // Initialize all connections for a user
@@ -159,22 +158,50 @@ export class MultiWhatsAppService {
         throw new Error('Auth state path not defined');
       }
 
+      if (connection.status === 'connected' && connection.socket) {
+        console.log(`[MultiWhatsApp] Already connected for ${connection.id}.`);
+        return;
+      }
+
+      console.log(`[MultiWhatsApp] Connecting socket for ${connection.id}...`);
       const { state, saveCreds } = await useMultiFileAuthState(connection.authStatePath);
-      const { version } = await fetchLatestBaileysVersion();
+      
+      let version: any = [2, 3000, 1015901307]; // Fallback version
+      try {
+        console.log('[MultiWhatsApp] Fetching latest Baileys version...');
+        // Timeout after 5s to avoid hanging the whole service
+        const latestPromise = fetchLatestBaileysVersion();
+        const latest = await Promise.race([
+          latestPromise,
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Version fetch timeout')), 5000))
+        ]);
+        version = latest.version;
+        console.log(`[MultiWhatsApp] Using Baileys version: ${version}`);
+      } catch (err) {
+        console.warn('[MultiWhatsApp] Failed to fetch latest Baileys version, using fallback:', err);
+      }
 
       connection.socket = makeWASocket({
         version,
         printQRInTerminal: false,
         auth: state,
         logger: this.logger,
+        defaultQueryTimeoutMs: 60000,
+        connectTimeoutMs: 60000,
       });
 
-      connection.socket.ev.on('creds.update', saveCreds);
+      connection.status = 'connecting';
+
+      connection.socket.ev.on('creds.update', async () => {
+        console.log(`[MultiWhatsApp] Creds updated for ${connection.id}`);
+        await saveCreds();
+      });
 
       connection.socket.ev.on('connection.update', (update: any) => {
         const { connection: connStatus, lastDisconnect, qr } = update;
 
         if (qr) {
+          console.log(`[MultiWhatsApp] QR Code received for connection ${connection.id}`);
           connection.qr = qr;
           connection.status = 'connecting';
           this.updateConnectionStatus(connection.id, 'connecting', qr);
@@ -205,7 +232,23 @@ export class MultiWhatsAppService {
       connection.socket.ev.on('messages.upsert', async (m: { messages: proto.IWebMessageInfo[], type: string }) => {
         if (m.type === 'notify') {
           for (const msg of m.messages) {
-            if (msg.key && !msg.key.fromMe && msg.message) {
+            const jid = msg.key?.remoteJid;
+            const fromMe = msg.key?.fromMe;
+            console.log(`[DEBUG_JID] Incoming message from: ${jid} (fromMe: ${fromMe})`);
+
+            if (msg.key && !fromMe && msg.message) {
+              // Ignore WhatsApp status updates and other broadcast JIDs
+              if (jid === 'status@broadcast' || jid?.includes('@broadcast')) {
+                console.log(`[MultiWhatsApp] Ignoring broadcast/status message from: ${jid}`);
+                continue;
+              }
+
+              // If group, log but continue (this will allow groups to be processed)
+              const isGroup = jid?.includes('@g.us');
+              if (isGroup) {
+                console.log(`[MultiWhatsApp] Group message detected from: ${jid}`);
+              }
+
               await this.processIncomingMessage(msg, connection);
             }
           }
@@ -232,6 +275,10 @@ export class MultiWhatsAppService {
 
       // Format message for flow engine
       const formattedMessage = this.formatMessage(msg, senderPhone);
+      if (!formattedMessage) {
+        console.log('[MultiWhatsApp] Skipping technical/ignored message');
+        return;
+      }
 
       // 3. ALWAYS save to history
       const profileName = msg.pushName || '';
@@ -272,20 +319,32 @@ export class MultiWhatsAppService {
   }
 
   private formatMessage(msg: proto.IWebMessageInfo, senderPhone: string): any {
-    if (!msg.message) {
-      return {
-        id: msg.key?.id || '',
-        from: senderPhone,
-        type: 'text'
-      };
-    }
+    if (!msg.message) return null;
 
-    const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
-    const buttonReply = msg.message?.buttonsResponseMessage;
+    // Detect technical/control messages that should be ignored in the UI
+    const isControlMessage = !!(
+      msg.message?.protocolMessage || 
+      msg.message?.senderKeyDistributionMessage ||
+      msg.message?.stickerMessage || // Optional: ignore stickers if not handled
+      msg.message?.reactionMessage
+    );
+
+    if (isControlMessage) return null;
+
+    const text = msg.message?.conversation || 
+                 msg.message?.extendedTextMessage?.text || 
+                 msg.message?.imageMessage?.caption ||
+                 msg.message?.videoMessage?.caption ||
+                 msg.message?.documentMessage?.caption;
+
+    const buttonReply = msg.message?.buttonsResponseMessage || 
+                        msg.message?.templateButtonReplyMessage ||
+                        msg.message?.interactiveResponseMessage;
 
     let formattedMessage: any = {
       id: msg.key?.id || '',
       from: senderPhone,
+      jid: msg.key?.remoteJid || `${senderPhone}@s.whatsapp.net`,
       type: 'text'
     };
 
@@ -293,37 +352,53 @@ export class MultiWhatsAppService {
       const cleanText = text.trim();
       const numberMatch = cleanText.match(/^(\d+)$/);
       
+      formattedMessage.text = { body: text };
       if (numberMatch) {
-        formattedMessage.type = 'text';
-        formattedMessage.text = { body: text };
         formattedMessage.isNumericButtonResponse = true;
         formattedMessage.buttonNumber = numberMatch[1];
-      } else {
-        formattedMessage.type = 'text';
-        formattedMessage.text = { body: text };
       }
     } else if (buttonReply) {
+      const selectedId = (buttonReply as any).selectedButtonId || (buttonReply as any).selectedId;
+      const selectedText = (buttonReply as any).selectedDisplayText || (buttonReply as any).bodyText;
+      
       formattedMessage.type = 'interactive';
       formattedMessage.interactive = {
         type: 'button_reply',
-        button_reply: { id: buttonReply.selectedButtonId, title: buttonReply.selectedDisplayText }
+        button_reply: { 
+          id: selectedId, 
+          title: selectedText
+        }
       };
+    } else if (msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.audioMessage || msg.message?.documentMessage) {
+      formattedMessage.type = 'media';
+      formattedMessage.media = {
+        type: msg.message?.imageMessage ? 'image' : 
+              msg.message?.videoMessage ? 'video' : 
+              msg.message?.audioMessage ? 'audio' : 'document'
+      };
+    } else {
+      // If we reach here and it's not a known type, it's likely a technical message we don't want
+      return null;
     }
-
-    formattedMessage.jid = msg.key?.remoteJid || `${senderPhone}@s.whatsapp.net`;
 
     return formattedMessage;
   }
 
   private async saveMessageData(message: any, senderPhone: string, connection: WhatsAppConnection, flow: any, profileName: string = ''): Promise<{contact: any, conversation: any}> {
     // Similar to existing logic but using connection-specific organization
+    const isGroup = (message.jid || '').includes('@g.us');
+    
     const { data: contact } = await supabase
       .from('contacts')
       .upsert({
         organization_id: connection.organizationId,
         phone_number: senderPhone,
         profile_name: profileName, 
-        last_active_at: new Date().toISOString()
+        last_active_at: new Date().toISOString(),
+        custom_attributes: {
+          whatsapp_jid: message.jid,
+          is_group: isGroup
+        }
       }, { onConflict: 'organization_id,phone_number' })
       .select()
       .single();
@@ -378,9 +453,20 @@ export class MultiWhatsAppService {
       },
       sendButtonMessage: async (to: string, bodyText: string, buttons: any[], options?: { jid?: string }) => {
         const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
-        const numberedOptions = buttons.map((btn, index) => `${index + 1}. ${btn.title}`).join('\n');
+        const numberedOptions = buttons.map((btn, index) => `${index + 1}. ${btn.text || btn.title || 'Opción'}`).join('\n');
         const fullMessage = `${bodyText}\n\n${numberedOptions}\n\n💡 *Responde con el número de tu opción*`;
-        return await connection.socket?.sendMessage(jid, { text: fullMessage });
+        const result = await connection.socket?.sendMessage(jid, { text: fullMessage });
+        
+        const buttonMapping: { [key: string]: string } = {};
+        buttons.forEach((btn, index) => {
+          buttonMapping[(index + 1).toString()] = btn.id || `btn-${index}`;
+        });
+        
+        return {
+          ...result,
+          buttonMapping,
+          isNumericButtons: true
+        };
       },
       sendMediaMessage: async (to: string, url: string, options?: any) => {
         const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
@@ -427,9 +513,12 @@ export class MultiWhatsAppService {
       throw new Error('Conexión no encontrada');
     }
 
-    if (connection.status === 'disconnected') {
+    if (connection.status === 'disconnected' || connection.status === 'error') {
       await this.connectSocket(connection);
     }
+
+    // No waiting here to avoid blocking API responses.
+    // The frontend should poll or wait.
 
     // Generate QR image
     if (connection.qr) {

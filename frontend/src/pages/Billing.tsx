@@ -3,12 +3,14 @@ import { CreditCard, ExternalLink, AlertCircle, TrendingUp, TrendingDown, Refres
 import { StatCard } from '../components/dashboard/StatCard';
 import { getAnalytics } from '../services/api';
 
-// WhatsApp Business API Pricing (2024)
+import { formatCurrency } from '../utils/currency';
+
+// WhatsApp Business API Pricing (2024) - Soles Peruanos
 const WHATSAPP_PRICING = {
-  service: 0.00,        // Free for user-initiated conversations
-  utility: 0.035,       // $0.035 per message for business-initiated
-  marketing: 0.06,      // $0.06 per message for marketing
-  authentication: 0.015 // $0.015 per message for authentication
+  service: 0,             // Free for user-initiated conversations
+  utility: 0.12,           // S/. 0.12 per 1000 messages for business-initiated
+  marketing: 0.20,         // S/. 0.20 per 1000 messages for marketing
+  authentication: 0.05    // S/. 0.05 per 1000 messages for authentication
 };
 
 import { PageHeader } from '../components/layout/PageHeader';
@@ -40,8 +42,11 @@ export const Billing = () => {
           marketingCost: 0,
           authCost: 0,
           totalApiCost: 0,
-          saasCost: 49.00,
-          totalCost: 49.00
+          saasCost: 189.90,
+          totalCost: 189.90,
+          estimatedUsageHours: 0,
+          estimatedUsageDays: 0,
+          subscriptionDuration: '1 mes'
         });
         return;
       }
@@ -52,9 +57,9 @@ export const Billing = () => {
       const authMessages = Math.floor(totalMessages * 0.05); // 5% authentication
 
       const serviceCost = 0; // Free for user-initiated
-      const utilityCost = utilityMessages * WHATSAPP_PRICING.utility;
-      const marketingCost = marketingMessages * WHATSAPP_PRICING.marketing;
-      const authCost = authMessages * WHATSAPP_PRICING.authentication;
+      const utilityCost = (utilityMessages * WHATSAPP_PRICING.utility) / 1000;
+      const marketingCost = (marketingMessages * WHATSAPP_PRICING.marketing) / 1000;
+      const authCost = (authMessages * WHATSAPP_PRICING.authentication) / 1000;
       const totalApiCost = serviceCost + utilityCost + marketingCost + authCost;
 
       setBillingData({
@@ -67,8 +72,12 @@ export const Billing = () => {
         marketingCost,
         authCost,
         totalApiCost,
-        saasCost: 49.00,
-        totalCost: totalApiCost + 49.00
+        saasCost: 189.90,
+        totalCost: totalApiCost + 189.90,
+        // Tiempo de uso estimado del bot
+        estimatedUsageHours: Math.round(totalMessages * 0.02), // ~2 minutos por mensaje
+        estimatedUsageDays: Math.round((totalMessages * 0.02) / 8), // 8 horas día laboral
+        subscriptionDuration: '1 mes'
       });
     } catch (error) {
       console.error('Failed to fetch billing data:', error);
@@ -83,8 +92,11 @@ export const Billing = () => {
         marketingCost: 0,
         authCost: 0,
         totalApiCost: 0,
-        saasCost: 49.00,
-        totalCost: 49.00
+        saasCost: 189.90,
+        totalCost: 189.90,
+        estimatedUsageHours: 0,
+        estimatedUsageDays: 0,
+        subscriptionDuration: '1 mes'
       });
     } finally {
       setLoading(false);
@@ -105,7 +117,7 @@ export const Billing = () => {
     return <PageLoader sectionName="Facturación" />;
   }
 
-  const { totalApiCost, saasCost, totalCost, totalMessages, utilityMessages, marketingMessages, authMessages, utilityCost, marketingCost, authCost } = billingData || {};
+  const { totalApiCost, saasCost, totalCost, totalMessages, utilityMessages, marketingMessages, authMessages, utilityCost, marketingCost, authCost, estimatedUsageHours, estimatedUsageDays, subscriptionDuration } = billingData || {};
   return (
     <PageContainer>
       <PageHeader 
@@ -118,12 +130,12 @@ export const Billing = () => {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-black hover:text-accent-500 dark:hover:bg-white dark:hover:text-black transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Sincronizar
             </button>
-            <button className="px-4 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+            <button className="px-4 py-2.5 bg-black dark:bg-accent-500 text-white dark:text-black rounded-xl font-black uppercase tracking-widest text-[9px] shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
               <ExternalLink className="w-3.5 h-3.5" />
               Meta Portal
             </button>
@@ -135,14 +147,14 @@ export const Billing = () => {
         <div className="space-y-4">
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <StatCard
             title="Consumo Total"
-            value={`$${totalCost.toFixed(2)}`}
+            value={formatCurrency(totalCost)}
             icon={CreditCard}
             trend={{
-              value: totalApiCost > 45 ? 12 : 8,
-              isPositive: totalApiCost <= 45
+              value: totalApiCost > 120 ? 12 : 8,
+              isPositive: totalApiCost <= 120
             }}
           />
           <StatCard
@@ -155,20 +167,29 @@ export const Billing = () => {
             }}
           />
           <StatCard
-            title="Gasto API Meta"
-            value={`$${totalApiCost.toFixed(2)}`}
-            icon={AlertCircle}
+            title="Tiempo de Uso"
+            value={`${estimatedUsageHours}h`}
+            icon={RefreshCw}
             trend={{
-              value: totalApiCost > 45 ? 5 : 0,
-              isPositive: totalApiCost <= 45
+              value: estimatedUsageHours > 40 ? 5 : 0,
+              isPositive: estimatedUsageHours <= 40
             }}
           />
           <StatCard
-            title="Plan SaaS"
-            value={`$${saasCost.toFixed(2)}`}
+            title="Días Activos"
+            value={`${estimatedUsageDays}d`}
             icon={CheckCircle}
+            trend={{
+              value: estimatedUsageDays > 20 ? 3 : 0,
+              isPositive: estimatedUsageDays <= 20
+            }}
           />
-        </div>
+          <StatCard
+            title="Duración"
+            value={subscriptionDuration}
+            icon={AlertCircle}
+          />
+          </div>
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
@@ -177,7 +198,7 @@ export const Billing = () => {
               <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
                 Análisis Detallado de Consumo
               </h3>
-              <span className="px-3 py-1.5 bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 rounded-lg text-[10px] font-black uppercase tracking-widest">
+              <span className="px-3 py-1.5 bg-accent-500/10 dark:bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded-lg text-[10px] font-black uppercase tracking-widest">
                 WhatsApp Business API
               </span>
             </div>
@@ -191,40 +212,44 @@ export const Billing = () => {
                   price: '$0.00',
                   total: '$0.00',
                   status: 'FREE',
-                  color: 'slate'
+                  color: 'slate',
+                  iconColor: 'slate-500'
                 },
                 {
                   label: 'Utility Messages',
                   desc: 'Iniciados por el negocio',
                   count: utilityMessages,
-                  price: '$0.035',
-                  total: `$${utilityCost.toFixed(2)}`,
-                  trend: utilityCost > 22.75,
-                  color: 'blue'
+                  price: 'S/. 0.12/1000',
+                  total: formatCurrency(utilityCost),
+                  trend: utilityCost > 60,
+                  color: 'black',
+                  iconColor: 'black'
                 },
                 {
                   label: 'Marketing Messages',
                   desc: 'Campañas y ventas',
                   count: marketingMessages,
-                  price: '$0.06',
-                  total: `$${marketingCost.toFixed(2)}`,
-                  trend: marketingCost > 22.45,
-                  color: 'amber'
+                  price: 'S/. 0.20/1000',
+                  total: formatCurrency(marketingCost),
+                  trend: marketingCost > 50,
+                  color: 'accent',
+                  iconColor: 'accent-500'
                 },
                 {
                   label: 'Auth Messages',
                   desc: 'Códigos OTP',
                   count: authMessages,
-                  price: '$0.015',
-                  total: `$${authCost.toFixed(2)}`,
+                  price: 'S/. 0.05/1000',
+                  total: formatCurrency(authCost),
                   trend: authCost > 0,
-                  color: 'emerald'
+                  color: 'accent',
+                  iconColor: 'accent-600'
                 }
               ].map((item, i) => (
-                <div key={i} className="group p-4 rounded-2xl border border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-white/5 hover:bg-white dark:hover:bg-slate-800 hover:shadow-lg hover:border-primary-500/20 transition-all duration-300 flex justify-between items-center">
+                <div key={i} className="group p-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-black/20 hover:bg-white dark:hover:bg-black hover:shadow-lg hover:border-accent-500/20 transition-all duration-300 flex justify-between items-center">
                   <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl bg-${item.color}-500/10 flex items-center justify-center`}>
-                      <MessageSquare className={`w-5 h-5 text-${item.color}-500`} />
+                    <div className={`w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center`}>
+                      <MessageSquare className={`w-5 h-5 text-${item.iconColor || 'slate-500'}`} />
                     </div>
                     <div>
                       <p className="font-black text-slate-900 dark:text-white text-sm tracking-tight">{item.label}</p>
@@ -238,7 +263,7 @@ export const Billing = () => {
                     {item.status ? (
                       <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{item.status}</span>
                     ) : (
-                      <div className={`flex items-center justify-end gap-1 text-[9px] font-bold ${item.trend ? 'text-secondary-500' : 'text-emerald-500'}`}>
+                      <div className={`flex items-center justify-end gap-1 text-[9px] font-bold ${item.trend ? 'text-red-500' : 'text-accent-500'}`}>
                         {item.trend ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                         {item.trend ? '+' : '-'}{Math.floor(Math.random() * 20)}%
                       </div>
@@ -248,14 +273,14 @@ export const Billing = () => {
               ))}
             </div>
 
-            <div className="mt-4 p-5 bg-slate-900 dark:bg-white rounded-[1.5rem] flex items-center justify-between shadow-lg">
+            <div className="mt-4 p-5 bg-black dark:bg-white rounded-[1.5rem] flex items-center justify-between shadow-lg border border-white/5">
               <div className="space-y-1">
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Total Meta API</span>
-                <p className="text-xl font-black text-white dark:text-slate-900 tracking-tighter">Consumo de Mensajería</p>
+                <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-[0.2em]">Total Meta API</span>
+                <p className="text-xl font-black text-white dark:text-black tracking-tighter">Consumo de Mensajería</p>
               </div>
               <div className="text-right">
-                <span className="text-3xl font-black text-white dark:text-slate-900 tracking-tighter">${totalApiCost.toFixed(2)}</span>
-                <span className="text-primary-400 font-bold ml-2 text-sm">USD</span>
+                <span className="text-3xl font-black text-white dark:text-black tracking-tighter">{formatCurrency(totalApiCost)}</span>
+                <span className="text-accent-500 font-bold ml-2 text-sm">PEN</span>
               </div>
             </div>
           </div>
@@ -263,13 +288,13 @@ export const Billing = () => {
           <div className="space-y-3 flex flex-col">
             <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-5 shadow-lg border border-gray-100 dark:border-gray-800/50">
               <h3 className="text-sm font-black text-slate-900 dark:text-white mb-4 uppercase tracking-widest flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary-500" />
+                <div className="w-2 h-2 rounded-full bg-accent-500" />
                 Método de Pago
               </h3>
-              <div className="p-4 bg-primary-50/50 dark:bg-primary-500/5 rounded-2xl border border-primary-100 dark:border-primary-500/20 space-y-3">
+              <div className="p-4 bg-accent-500/5 dark:bg-accent-500/5 rounded-2xl border border-accent-500/20 dark:border-accent-500/20 space-y-3">
                 <div className="flex gap-3">
-                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl shadow-sm h-fit">
-                    <CreditCard className="w-5 h-5 text-primary-600" />
+                  <div className="p-2.5 bg-white dark:bg-black rounded-xl shadow-sm h-fit border border-gray-100 dark:border-white/5">
+                    <CreditCard className="w-5 h-5 text-accent-500" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Facturación Centralizada</p>
@@ -282,9 +307,9 @@ export const Billing = () => {
             </div>
 
             <div className="relative group overflow-hidden rounded-[2rem] flex-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary-700 via-primary-600 to-accent-800 transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-br from-black via-slate-900 to-black transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-500">
-                <CreditCard className="w-32 h-32 text-white rotate-12" />
+                <CreditCard className="w-32 h-32 text-accent-500 rotate-12" />
               </div>
 
               <div className="relative z-10 p-4 space-y-3 h-full flex flex-col">
@@ -296,22 +321,30 @@ export const Billing = () => {
                 </div>
 
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-black text-white tracking-tighter">${saasCost.toFixed(2)}</span>
-                  <span className="text-primary-200 font-bold uppercase tracking-widest text-xs">/ MES</span>
+                  <span className="text-4xl font-black text-white tracking-tighter">{formatCurrency(saasCost)}</span>
+                  <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">/ MES</span>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-white/10 flex-1 flex flex-col justify-end">
                   <div className="flex justify-between items-center">
-                    <span className="text-primary-200 font-bold text-xs">Mensajería Estimada</span>
-                    <span className="text-white font-black text-sm">${totalApiCost.toFixed(2)}</span>
+                    <span className="text-slate-400 font-bold text-xs">Tiempo de Uso</span>
+                    <span className="text-white font-black text-sm">{estimatedUsageHours} horas ({estimatedUsageDays} días)</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-bold text-xs">Duración Suscripción</span>
+                    <span className="text-white font-black text-sm">{subscriptionDuration}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-bold text-xs">Mensajería Estimada</span>
+                    <span className="text-white font-black text-sm">{formatCurrency(totalApiCost)}</span>
                   </div>
                   <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10">
                     <span className="text-white font-black text-sm">Total Proyectado</span>
-                    <span className="text-white text-lg font-black">${totalCost.toFixed(2)}</span>
+                    <span className="text-white text-lg font-black">{formatCurrency(totalCost)}</span>
                   </div>
                 </div>
 
-                <button className="w-full py-3 bg-white text-primary-900 rounded-[1.5rem] font-black uppercase tracking-widest text-[9px] shadow-lg hover:bg-slate-900 hover:text-white transition-all duration-300 active:scale-95">
+                <button className="w-full py-3 bg-accent-500 text-black rounded-[1.5rem] font-black uppercase tracking-widest text-[9px] shadow-lg hover:bg-white hover:text-black transition-all duration-300 active:scale-95">
                   Gestionar Plan Pro
                 </button>
               </div>

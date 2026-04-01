@@ -33,8 +33,6 @@ export const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const data = await getAnalytics();
-
-        // Verificar si WhatsApp está conectado
         const isConnected = data?.whatsapp?.connected || false;
         setWhatsappConnected(isConnected);
 
@@ -49,11 +47,10 @@ export const Dashboard = () => {
           });
         }
 
-        // Generar datos de mensajes según el rango seleccionado
         const generateMessagesData = (timeRange: string, customStart?: string, customEnd?: string) => {
           const data = [];
           const today = new Date();
-          today.setHours(23, 59, 59, 999); // Final de hoy
+          today.setHours(23, 59, 59, 999);
           
           let start: Date;
           let end: Date = today;
@@ -61,468 +58,265 @@ export const Dashboard = () => {
           if (timeRange === 'custom' && customStart && customEnd) {
             start = new Date(customStart);
             end = new Date(customEnd);
-            end.setHours(23, 59, 59, 999);
-            
-            // No permitir fechas futuras
-            if (end > today) {
-              end = today;
-            }
           } else {
             const days = timeRange === '7d' ? 7 : 30;
             start = new Date(today);
             start.setDate(start.getDate() - days + 1);
-            start.setHours(0, 0, 0, 0); // Inicio del primer día
           }
           
-          // Generar datos desde start hasta end
           const currentDate = new Date(start);
           while (currentDate <= end) {
-            // Simular datos con variación según conexión
-            const baseValue = whatsappConnected ? 80 + Math.random() * 120 : 150 + Math.random() * 100;
+            const baseValue = isConnected ? 80 + Math.random() * 120 : 150 + Math.random() * 100;
             const weekendMultiplier = (currentDate.getDay() === 0 || currentDate.getDay() === 6) ? 0.7 : 1;
             const value = Math.floor(baseValue * weekendMultiplier * (1 + Math.random() * 0.3));
-            
             data.push({
               date: currentDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
-              value: value,
-              fullDate: currentDate.toISOString().split('T')[0], // Para debugging
-              source: whatsappConnected ? 'WhatsApp' : 'Sistema'
+              value: value
             });
-            
             currentDate.setDate(currentDate.getDate() + 1);
           }
-          
           return data;
         };
 
-
         setMessagesData(generateMessagesData(selectedTimeRange, startDate, endDate));
-
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchDashboardData();
   }, [selectedTimeRange, startDate, endDate, whatsappConnected]);
 
-  if (loading) {
-    return <PageLoader sectionName="Panel de Control" />;
-  }
+  if (loading) return <PageLoader sectionName="Panel de Control" />;
 
   return (
     <PageContainer>
       <PageBody>
         <div className="space-y-4">
-        {/* Premium Header / Welcome Section */}
-        <div className="relative group overflow-hidden bg-white dark:bg-[#11141b]/50 backdrop-blur-xl p-8 lg:p-10 rounded-[3rem] border border-gray-200 dark:border-gray-800/50 shadow-sm transition-all hover:shadow-2xl duration-700">
-          <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-primary-500/10 to-accent-500/10 blur-[150px] rounded-full -mr-64 -mt-64 transition-transform group-hover:scale-110 duration-1000" />
-
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="px-5 py-2 bg-primary-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl shadow-primary-600/20">
-                  Centro de comandos V 2.1
-                </span>
-                <span className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  Monitorizacion en vivo
-                </span>
-              </div>
-              <h1 className="text-6xl lg:text-8xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
-                Bienvenido de <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-accent-600 to-secondary-600 dark:from-primary-400 dark:via-accent-400 dark:to-secondary-400 underline decoration-primary-500/20 underline-offset-8">Nuevo</span>
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 text-xl lg:text-2xl font-medium max-w-4xl leading-relaxed">
-                Tu ecosistema inteligente de comunicación está operando al <span className="text-slate-900 dark:text-white font-black">99.9% de eficiencia</span>. Has tenido <span className="text-primary-600 dark:text-primary-400 font-black">+{stats.newUsersToday} usuarios nuevos </span> el dìa de hoy.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-8">
-              <div className="bg-slate-100 dark:bg-slate-800/50 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-700/50 text-center min-w-[220px] shadow-inner hover:scale-105 transition-transform cursor-pointer" onClick={() => navigate('/analytics')}>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Status Global</p>
-                <p className="text-2xl font-black text-emerald-500 tracking-tight flex items-center justify-center gap-2">
-                  Activo
+          {/* Header Card */}
+          <div className="relative group overflow-hidden bg-white dark:bg-[#11141b]/50 backdrop-blur-xl p-6 lg:p-7 rounded-2xl border border-slate-200 dark:border-slate-800/50 shadow-sm transition-all hover:shadow-lg duration-700">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-500/5 blur-[100px] rounded-full -mr-32 -mt-32 transition-transform group-hover:scale-110 duration-1000" />
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="px-4 py-1.5 bg-black dark:bg-accent-500 text-accent-500 dark:text-black rounded-xl text-[9px] font-black uppercase tracking-[0.2em] shadow-lg">Dashboard</span>
+                  <span className="flex items-center gap-2 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse" /> Sistema Ready
+                  </span>
+                </div>
+                <h1 className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
+                  Bienvenido de <span className="text-accent-500">Nuevo</span>
+                </h1>
+                <p className="text-slate-500 dark:text-slate-400 text-base lg:text-lg font-medium max-w-2xl leading-relaxed">
+                  Tu ecosistema inteligente está operando al <span className="text-slate-900 dark:text-white font-black">99.9%</span>. Has tenido <span className="text-accent-500 font-black">+{stats.newUsersToday} ingresos</span> hoy.
                 </p>
-                <p className="text-[9px] text-slate-500 mt-2">Click para ver detalles</p>
               </div>
-              <div className="bg-slate-900 dark:bg-white p-8 rounded-[3rem] text-center min-w-[280px] shadow-2xl hover:scale-105 transition-transform cursor-pointer" onClick={() => navigate('/reports')}>
-                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Tiempo de Respuesta</p>
-                <p className="text-4xl font-black text-white dark:text-slate-900 tracking-tighter">1.32<small className="text-xl opacity-60">s</small></p>
-                <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-2">Ver reporte completo</p>
+              <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+                <div className="bg-white dark:bg-black px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-center min-w-[150px] transition-all cursor-pointer" onClick={() => navigate('/analytics')}>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Global</p>
+                  <p className="text-lg font-black text-accent-500 tracking-tight">Activo</p>
+                </div>
+                <div className="bg-black dark:bg-accent-500 px-6 py-4 rounded-2xl text-center min-w-[150px] shadow-lg transition-all cursor-pointer" onClick={() => navigate('/reports')}>
+                  <p className="text-[9px] font-black text-slate-400 dark:text-black uppercase tracking-widest mb-1">Latencia</p>
+                  <p className="text-2xl font-black text-white dark:text-black tracking-tighter">1.32<small className="text-sm opacity-60">s</small></p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Main Stats with Expressive Cards */}
-        <div className={`grid grid-cols-2 gap-3 transition-all duration-300 ${isSidebarCollapsed ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
-          {[
-            { 
-              icon: Users, 
-              label: 'Usuarios', 
-              value: stats.totalUsers, 
-              color: 'primary', 
-              desc: 'Total registrados',
-              action: () => navigate('/users')
-            },
-            { 
-              icon: MessageSquare, 
-              label: whatsappConnected ? 'WhatsApp' : 'Recibidos', 
-              value: stats.totalInteractions, 
-              color: whatsappConnected ? 'accent' : 'primary', 
-              desc: whatsappConnected ? 'Mensajes WhatsApp' : 'Mensajes usuarios',
-              action: () => navigate('/conversations')
-            },
-            { 
-              icon: Activity, 
-              label: 'Bot', 
-              value: stats.botResponses, 
-              color: 'accent', 
-              desc: whatsappConnected ? 'Respuestas WA' : 'Respuestas enviadas',
-              action: () => navigate('/analytics')
-            },
-            { 
-              icon: UserPlus, 
-              label: 'Nuevos', 
-              value: stats.newUsersToday, 
-              color: 'secondary', 
-              desc: 'Hoy',
-              action: () => navigate('/leads')
-            }
-          ].map((item, idx) => (
-            <div 
-              key={idx} 
-              className="group relative bg-white dark:bg-[#11141b] rounded-xl p-3 border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-500 overflow-hidden cursor-pointer"
-              onClick={item.action}
-            >
-              <div className={`absolute top-0 right-0 w-12 h-12 bg-${item.color}-500/5 blur-xl rounded-full -mr-6 -mt-6 group-hover:bg-${item.color}-500/10 transition-colors duration-500`} />
-
-              <div className="space-y-2 relative z-10">
-                <div className="flex items-center justify-between">
-                  <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em]">{item.label}</p>
-                  <div className={`w-6 h-6 rounded-lg bg-${item.color}-50 dark:bg-${item.color}-500/10 flex items-center justify-center text-${item.color}-600 dark:text-${item.color}-400 group-hover:scale-110 transition-transform duration-300`}>
-                    <item.icon className="w-3 h-3" strokeWidth={2.5} />
+          {/* Stats Grid */}
+          <div className={`grid grid-cols-2 gap-3 transition-all duration-300 ${isSidebarCollapsed ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+            {[
+              { icon: Users, label: 'Usuarios', value: stats.totalUsers, color: 'accent', desc: 'Total registrados', path: '/users' },
+              { icon: MessageSquare, label: whatsappConnected ? 'WhatsApp' : 'Mensajes', value: stats.totalInteractions, color: 'accent', desc: 'Mensajes totales', path: '/conversations' },
+              { icon: Activity, label: 'Bot Resp.', value: stats.botResponses, color: 'accent', desc: 'IA Activa', path: '/analytics' },
+              { icon: UserPlus, label: 'Nuevos', value: stats.newUsersToday, color: 'accent', desc: 'Ingresos hoy', path: '/leads' }
+            ].map((item, idx) => (
+              <div 
+                key={idx} 
+                className="group relative bg-white dark:bg-[#11141b] rounded-xl p-3.5 border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-lg transition-all duration-500 overflow-hidden cursor-pointer"
+                onClick={() => navigate(item.path)}
+              >
+                <div className="space-y-2 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.label}</p>
+                    <div className="w-7 h-7 rounded-lg bg-accent-500/10 flex items-center justify-center text-accent-500">
+                      <item.icon className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
-                    {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
+                  <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter leading-none">
+                    {item.value.toLocaleString()}
                   </h2>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{item.desc}</p>
                 </div>
-                
-                <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                  {item.desc}
-                </p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* WhatsApp Connection Status */}
-        <div className="bg-white dark:bg-[#11141b] rounded-xl p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm">
-          <div className="flex items-center justify-between">
+          {/* WhatsApp Status Area */}
+          <div className="bg-white dark:bg-[#11141b] rounded-xl p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${whatsappConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+              <div className={`w-2.5 h-2.5 rounded-full ${whatsappConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
               <div>
-                <p className="text-sm font-black text-slate-900 dark:text-white">
-                  {whatsappConnected ? 'WhatsApp Conectado' : 'WhatsApp No Conectado'}
+                <p className="text-[13px] font-black text-slate-900 dark:text-white leading-tight">
+                  {whatsappConnected ? 'Conexión WhatsApp Activa' : 'WhatsApp Desconectado'}
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {whatsappConnected 
-                    ? 'Recibiendo mensajes en tiempo real' 
-                    : 'Configura WhatsApp para empezar a recibir mensajes'
-                  }
-                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Canal de comunicación en tiempo real</p>
               </div>
             </div>
             {!whatsappConnected && (
               <button 
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
-                onClick={() => navigate('/settings')}
+                className="px-4 py-2 bg-accent-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all shadow-md"
+                onClick={() => navigate('/whatsapp-qr')}
               >
                 Conectar
               </button>
             )}
           </div>
-        </div>
 
-        {/* Advanced Charting System */}
-        <div className={`grid grid-cols-1 gap-4 transition-all duration-300 ${isSidebarCollapsed ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
-          <div className={`${isSidebarCollapsed ? 'xl:col-span-3' : 'xl:col-span-2'} space-y-4`}>
-            <div className="bg-white dark:bg-[#11141b] rounded-xl p-4 shadow-lg border border-gray-100 dark:border-gray-800/50 relative overflow-hidden group">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 relative z-10 gap-3">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                    {whatsappConnected ? 'Mensajes WhatsApp' : 'Mensajes Recibidos'}
-                  </h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">
-                    {whatsappConnected ? 'Mensajes entrantes de WhatsApp' : 'Mensajes de usuarios del sistema'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 rounded-lg p-1 border border-slate-200 dark:border-slate-700/50">
-                    <button 
-                      className={`px-3 py-1.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-colors ${
-                        selectedTimeRange === '7d' 
-                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white' 
-                          : 'text-slate-400 dark:text-slate-500 hover:text-primary-500'
-                      }`}
-                      onClick={() => {
-                        setSelectedTimeRange('7d');
-                        setShowCustomRange(false);
-                      }}
-                    >
-                      7 Días
-                    </button>
-                    <button 
-                      className={`px-3 py-1.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-colors ${
-                        selectedTimeRange === '30d' 
-                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white' 
-                          : 'text-slate-400 dark:text-slate-500 hover:text-primary-500'
-                      }`}
-                      onClick={() => {
-                        setSelectedTimeRange('30d');
-                        setShowCustomRange(false);
-                      }}
-                    >
-                      30 Días
-                    </button>
-                    <button 
-                      className={`px-3 py-1.5 rounded-md text-[8px] font-black uppercase tracking-widest transition-colors ${
-                        selectedTimeRange === 'custom' 
-                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white' 
-                          : 'text-slate-400 dark:text-slate-500 hover:text-primary-500'
-                      }`}
-                      onClick={() => {
-                        setSelectedTimeRange('custom');
-                        setShowCustomRange(true);
-                      }}
-                    >
-                      <Calendar className="w-3 h-3" />
-                    </button>
+          {/* Charts and Side Section */}
+          <div className={`grid grid-cols-1 gap-4 transition-all duration-300 ${isSidebarCollapsed ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+            <div className={`${isSidebarCollapsed ? 'xl:col-span-3' : 'xl:col-span-2'} space-y-4`}>
+              <div className="bg-white dark:bg-[#11141b] rounded-xl p-5 shadow-lg border border-gray-100 dark:border-gray-800/50">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Interacciones</h3>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Crecimiento de Mensajes</p>
+                  </div>
+                  <div className="flex items-center bg-slate-50 dark:bg-slate-800/30 rounded-xl p-1 border border-slate-100 dark:border-slate-700/50 h-10">
+                    {['7d', '30d', 'custom'].map((range) => (
+                      <button 
+                        key={range}
+                        className={`px-4 h-full rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${selectedTimeRange === range ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-accent-500'}`}
+                        onClick={() => {
+                          setSelectedTimeRange(range);
+                          setShowCustomRange(range === 'custom');
+                        }}
+                      >
+                        {range === '7d' ? 'Semana' : range === '30d' ? 'Mes' : 'Personalizado'}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              {showCustomRange && (
-                <div className="flex flex-col sm:flex-row gap-3 mb-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <div className="flex-1">
-                    <label className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Fecha Inicio</label>
-                    <input 
-                      type="date" 
-                      className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Fecha Fin</label>
-                    <input 
-                      type="date" 
-                      className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <button 
-                      className="px-4 py-2 bg-primary-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-primary-700 transition-colors"
-                      onClick={() => {
-                        if (startDate && endDate) {
-                          setSelectedTimeRange('custom');
-                        }
-                      }}
-                    >
-                      Aplicar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="h-[250px] sm:h-[300px] relative z-10 min-w-0 min-h-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={messagesData}>
-                    <defs>
-                      <linearGradient id="areaColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={whatsappConnected ? "#41f0a5" : "#3750f0"} stopOpacity={0.3} />
-                        <stop offset="100%" stopColor={whatsappConnected ? "#41f0a5" : "#3750f0"} stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="strokeColor" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor={whatsappConnected ? "#41f0a5" : "#3750f0"} />
-                        <stop offset="100%" stopColor={whatsappConnected ? "#41f0e0" : "#4190f0"} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.05} vertical={false} />
-                    <XAxis dataKey="date" stroke="#94a3b8" axisLine={false} tickLine={false} tickMargin={15} fontSize={10} fontWeight={600} />
-                    <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} tickMargin={10} fontSize={10} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        backdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        padding: '12px',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
-                      }}
-                      cursor={{ stroke: whatsappConnected ? 'rgba(65, 240, 165, 0.2)' : 'rgba(55, 80, 240, 0.2)', strokeWidth: 2 }}
-                      itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: '700' }}
-                      labelStyle={{ color: '#94a3b8', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700', marginBottom: '6px' }}
-                    />
-                    <Area type="monotone" dataKey="value" stroke="url(#strokeColor)" strokeWidth={2} fill="url(#areaColor)" dot={{ fill: whatsappConnected ? "#41f0a5" : "#3750f0", r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-black border border-black/20 rounded-xl p-4 text-white overflow-hidden relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                <div className="flex items-center gap-2 mb-4 relative z-10">
-                  <div className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center shadow-lg">
-                    <Activity className="w-4 h-4 text-white" />
-                  </div>
-                  <h4 className="text-sm font-black tracking-tight">Motor</h4>
-                </div>
-                <div className="space-y-3 relative z-10">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[8px] font-black uppercase text-white/60 tracking-[0.1em]">Flow Parser v2</span>
-                    <span className="text-accent-400 font-black text-[8px] uppercase">Optimizado</span>
-                  </div>
-                  <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                    <div className="h-full w-[94%] bg-gradient-to-r from-primary-500 to-accent-500 rounded-full animate-pulse" />
-                  </div>
-                  <p className="text-white/60 text-[10px] font-medium leading-relaxed">
-                    Latencia: <span className="text-white font-bold">14ms</span> - Estable
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-black rounded-xl p-4 border border-primary-100 dark:border-primary-500/20 flex flex-col justify-between group overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-125 transition-transform duration-700">
-                  <CheckCircle className="w-8 h-8 text-primary-500" />
-                </div>
-                <div className="relative z-10">
-                  <h4 className="text-lg font-black text-black dark:text-white tracking-tight mb-1">Plan Enterprise</h4>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">Acceso completo</p>
-                </div>
-                <button 
-                  className="relative z-10 mt-3 w-full py-2 bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 font-black rounded-lg uppercase tracking-[0.2em] text-[8px] border border-primary-100 dark:border-primary-500/20 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all duration-300 shadow-sm text-center"
-                  onClick={() => navigate('/billing')}
-                >
-                  Gestionar
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Daily Stats */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Estadísticas de Hoy</h4>
-              <div className="space-y-3">
-                {[
-                  { 
-                    icon: MessageSquare, 
-                    label: whatsappConnected ? 'WhatsApp Hoy' : 'Mensajes Hoy', 
-                    value: stats.messagesToday, 
-                    color: whatsappConnected ? 'accent' : 'blueaccent', 
-                    desc: whatsappConnected ? 'Recibidos WA' : 'Recibidos sistema',
-                    action: () => navigate('/conversations')
-                  },
-                  { 
-                    icon: Activity, 
-                    label: 'Bot Hoy', 
-                    value: stats.botResponsesToday, 
-                    color: 'secondary', 
-                    desc: whatsappConnected ? 'Respuestas WA' : 'Respuestas enviadas',
-                    action: () => navigate('/analytics')
-                  }
-                ].map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    className="group relative bg-white dark:bg-[#11141b] rounded-xl p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-500 overflow-hidden cursor-pointer"
-                    onClick={item.action}
-                  >
-                    <div className={`absolute top-0 right-0 w-16 h-16 bg-${item.color}-500/5 blur-xl rounded-full -mr-8 -mt-8 group-hover:bg-${item.color}-500/10 transition-colors duration-500`} />
-
-                    <div className="space-y-3 relative z-10">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">{item.label}</p>
-                        <div className={`w-8 h-8 rounded-lg bg-${item.color}-50 dark:bg-${item.color}-500/10 flex items-center justify-center text-${item.color}-600 dark:text-${item.color}-400 group-hover:scale-110 transition-transform duration-300`}>
-                          <item.icon className="w-4 h-4" strokeWidth={2.5} />
-                        </div>
+                {showCustomRange && (
+                  <div className="flex items-center gap-3 mb-6 p-4 bg-slate-50/50 dark:bg-slate-900/20 rounded-2xl border border-slate-100 dark:border-slate-800/50 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+                      <div className="flex-1 relative group">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
+                        <input 
+                          type="date" 
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all"
+                        />
                       </div>
-
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
-                          {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
-                        </h2>
+                      <span className="hidden sm:block text-[9px] font-black text-slate-300 tracking-tighter">AL</span>
+                      <div className="flex-1 relative group">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
+                        <input 
+                          type="date" 
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all"
+                        />
                       </div>
-                      
-                      <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
-                        {item.desc}
-                      </p>
                     </div>
                   </div>
-                ))}
+                )}
+                <div className="h-[220px] sm:h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={messagesData}>
+                      <defs>
+                        <linearGradient id="areaColor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f97316" stopOpacity={0.2} /><stop offset="100%" stopColor="#f97316" stopOpacity={0} /></linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.05} vertical={false} />
+                      <XAxis dataKey="date" stroke="#94a3b8" axisLine={false} tickLine={false} tickMargin={15} fontSize={9} fontWeight={700} />
+                      <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} tickMargin={10} fontSize={9} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(10px)', border: 'none', borderRadius: '10px', padding: '8px' }}
+                        itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: '800' }}
+                        labelStyle={{ color: '#94a3b8', fontSize: '8px', textTransform: 'uppercase', marginBottom: '4px', fontWeight: '800' }}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="#f97316" strokeWidth={2.5} fill="url(#areaColor)" activeDot={{ r: 5, strokeWidth: 0, fill: '#fff' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-black rounded-xl p-5 text-white overflow-hidden relative">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Activity className="w-3.5 h-3.5 text-accent-500" />
+                    <h4 className="text-[10px] font-black tracking-widest uppercase">Sparktree Engine</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-[9px] font-black uppercase text-white/50 tracking-widest">
+                      <span>Performance v2.4</span>
+                      <span className="text-emerald-500">Stable</span>
+                    </div>
+                    <div className="h-1 bg-white/10 rounded-full"><div className="h-full w-[94%] bg-accent-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" /></div>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-[#11141b] rounded-xl p-5 border border-gray-100 dark:border-gray-800/50 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-sm font-black text-black dark:text-white tracking-tight leading-none">Plan Enterprise Plus</h4>
+                    <p className="text-[9px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest mt-1.5">Suscripción Activa</p>
+                  </div>
+                  <button className="mt-4 w-full h-10 bg-slate-50 dark:bg-white/5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-100 dark:border-white/5 hover:bg-black hover:text-white" onClick={() => navigate('/billing')}>
+                    Gestionar Cuenta
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="bg-gradient-to-br from-primary-500 to-blueaccent-500 dark:from-primary-400 dark:to-blueaccent-400 rounded-xl p-4 text-white shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 blur-xl rounded-full -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-1000" />
-                <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                      <CheckCircle className="w-4 h-4 text-white" />
+              <div className="space-y-3">
+                <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Resumen de Actividad</h4>
+                <div className="space-y-3">
+                  {[
+                    { icon: MessageSquare, label: 'Mensajes Hoy', value: stats.messagesToday },
+                    { icon: Activity, label: 'Respuesta Bot', value: stats.botResponsesToday }
+                  ].map((item, idx) => (
+                    <div key={idx} className="bg-white dark:bg-[#11141b] rounded-xl p-5 border border-gray-100 dark:border-gray-800/50 shadow-sm relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.label}</p>
+                        <div className="p-1.5 bg-accent-500/10 rounded-lg text-accent-500">
+                          <item.icon className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                      <h2 className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter leading-none">
+                        {item.value.toLocaleString()}
+                      </h2>
                     </div>
-                    <h4 className="text-lg font-black tracking-tight">Plan Actual</h4>
-                  </div>
-                  <p className="text-2xl font-black mb-2">Enterprise</p>
-                  <p className="text-sm font-medium opacity-90 mb-4">Acceso ilimitado a todas las funcionalidades</p>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-accent-400 animate-pulse" />
-                      <span className="text-xs font-medium">Usuarios ilimitados</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-accent-400 animate-pulse" />
-                      <span className="text-xs font-medium">Mensajes ilimitados</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-accent-400 animate-pulse" />
-                      <span className="text-xs font-medium">Soporte prioritario</span>
-                    </div>
-                  </div>
-                  <button 
-                    className="w-full mt-4 py-2 bg-white/20 backdrop-blur-sm text-white font-black rounded-lg uppercase tracking-[0.2em] text-[8px] border border-white/30 hover:bg-white hover:text-primary-600 transition-all duration-300 flex items-center justify-center gap-2"
-                    onClick={() => navigate('/billing')}
-                  >
-                    Ver Detalles
-                  </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-black to-gray-900 dark:from-white dark:to-gray-100 rounded-xl p-4 text-white dark:text-black shadow-xl relative overflow-hidden group">
-                <div className="absolute -right-8 -bottom-8 w-16 h-16 bg-white/5 dark:bg-black/5 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-1000" />
-                <h4 className="text-lg font-black mb-2 tracking-tighter">Reporte Diario</h4>
-                <p className="text-white/60 dark:text-black/60 font-medium mb-4 leading-relaxed text-xs">Generado automáticamente cada 24 horas</p>
-                <button 
-                  className="w-full py-2 bg-white dark:bg-black text-black dark:text-white font-black rounded-lg shadow-lg hover:scale-105 active:scale-95 transition-all text-[8px] uppercase tracking-[0.3em] flex items-center justify-center gap-2"
-                  onClick={() => navigate('/reports')}
-                >
-                  Descargar PDF <small className="opacity-40 text-xs">2.4MB</small>
+              <div className="bg-[#0a0c10] rounded-xl p-6 text-white shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-accent-500/5 blur-2xl rounded-full -mr-12 -mt-12" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-accent-500 rounded-lg text-black">
+                    <CheckCircle className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-sm font-black tracking-tight leading-tight uppercase">Soporte VIP</h4>
+                </div>
+                <div className="space-y-2 mb-6">
+                  {['Prioridad Máxima', 'Soporte 24/7'].map((text, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent-500" />
+                      <span className="text-[10px] font-black uppercase tracking-wide opacity-80">{text}</span>
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full h-10 bg-white/10 hover:bg-white hover:text-black text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border border-white/5" onClick={() => navigate('/billing')}>
+                  Ver Detalles
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
       </PageBody>
     </PageContainer>
   );

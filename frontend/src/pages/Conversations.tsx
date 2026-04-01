@@ -1,120 +1,97 @@
 import { useState, useEffect, useRef } from 'react';
-import { getConversations, getConversationMessages, deleteConversation } from '../services/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getConversations, getConversationMessages, deleteConversation, deleteUser } from '../services/api';
 import api from '../services/api';
-import { Check, TrendingUp, Trash2, Send, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
+import { 
+  Check, Send, Search, Filter, Users, MoreVertical, 
+  Smile, Paperclip, Mic, Star, Volume2, MessageCircle, 
+  Trash2, ChevronLeft, ChevronRight, MoreHorizontal 
+} from 'lucide-react';
 
-import { PageBody } from '../components/layout/PageBody';
 import { PageLoader } from '../components/layout/PageLoader';
 
 export const Conversations = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConv, setSelectedConv] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   
-  const ITEMS_PER_PAGE = 15;
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const lastMessagesLength = useRef(0);
 
-  // Function to generate avatar based on contact name
-  const generateAvatar = (contact: any) => {
-    const name = contact?.name || '';
-    const phoneNumber = contact?.phoneNumber || '';
-    
-    // If we have a name, use first letter
-    if (name) {
-      const firstLetter = name.charAt(0).toUpperCase();
-      const colors = [
-        'bg-primary-500', 'bg-accent-500', 'bg-secondary-500', 'bg-blueaccent-500',
-        'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-indigo-500'
-      ];
-      const colorIndex = name.charCodeAt(0) % colors.length;
-      return {
-        type: 'letter',
-        content: firstLetter,
-        bgColor: colors[colorIndex]
-      };
+  useEffect(() => {
+    if (messagesContainerRef.current && messages.length > 0) {
+      if (messages.length > lastMessagesLength.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+      lastMessagesLength.current = messages.length;
     }
-    
-    // If we have phone number, use last 2 digits as fallback
-    if (phoneNumber && phoneNumber.length >= 2) {
-      const lastTwo = phoneNumber.slice(-2);
-      return {
-        type: 'number',
-        content: lastTwo,
-        bgColor: 'bg-slate-600'
-      };
-    }
-    
-    // Default fallback
-    return {
-      type: 'default',
-      content: '??',
-      bgColor: 'bg-slate-400'
-    };
-  };
+  }, [messages]);
+
+  useEffect(() => {
+    lastMessagesLength.current = 0;
+  }, [selectedConv]);
 
   useEffect(() => {
     const loadConversations = async () => {
       try {
         const data = await getConversations();
-        // Ensure we always have an array
         const conversationsArray = Array.isArray(data) ? data : [];
-        
-        // Apply filters
-        let filteredConversations = conversationsArray;
+
+        let filtered = conversationsArray;
         if (searchTerm) {
-          filteredConversations = filteredConversations.filter(conv => 
+          filtered = filtered.filter(conv =>
             (conv.contactId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (conv.contactId?.phoneNumber || '').includes(searchTerm)
           );
         }
-        
+
         if (filterStatus !== 'all') {
-          filteredConversations = filteredConversations.filter(conv => {
+          filtered = filtered.filter(conv => {
             if (filterStatus === 'unread') return conv.unreadCount > 0;
-            if (filterStatus === 'read') return conv.unreadCount === 0;
+            if (filterStatus === 'groups') return conv.contactId?.isGroup === true;
             return true;
           });
         }
-        
-        // Calculate pagination
-        const total = filteredConversations.length;
-        const pages = Math.ceil(total / ITEMS_PER_PAGE);
-        setTotalPages(pages);
-        
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        const endIndex = startIndex + ITEMS_PER_PAGE;
-        const paginatedConversations = filteredConversations.slice(startIndex, endIndex);
-        
-        setConversations(paginatedConversations);
-        
-        if (paginatedConversations.length > 0 && !selectedConv) {
-          setSelectedConv(paginatedConversations[0]);
-        }
+
+        setConversations(filtered);
       } catch (err) {
         console.error('Failed to load conversations', err);
-        setConversations([]); // Set empty array on error
+        setConversations([]);
       } finally {
         setLoading(false);
       }
     };
 
-    // Initial load
     loadConversations();
-
-    // Set up polling for real-time updates (every 5 seconds)
     const interval = setInterval(loadConversations, 5000);
-
     return () => clearInterval(interval);
-  }, [selectedConv, currentPage, searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus]);
+
+  useEffect(() => {
+    if (id && conversations.length > 0 && (!selectedConv || selectedConv._id !== id)) {
+      const conv = conversations.find(c => c._id === id);
+      if (conv) {
+        setSelectedConv(conv);
+      }
+    }
+  }, [id, conversations]);
+
+  const totalPages = Math.ceil(conversations.length / itemsPerPage);
+  const paginatedConversations = conversations.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   useEffect(() => {
     if (selectedConv) {
@@ -126,50 +103,18 @@ export const Conversations = () => {
           console.error('Failed to load messages', err);
         }
       };
-
-      // Initial load
       loadMessages();
-
-      // Set up polling for real-time message updates (every 3 seconds)
       const interval = setInterval(loadMessages, 3000);
-
       return () => clearInterval(interval);
     }
   }, [selectedConv]);
 
-  const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (window.confirm('¿Estás seguro de que deseas eliminar esta conversación?')) {
-      try {
-        await deleteConversation(id);
-        setConversations(prev => prev.filter(c => c._id !== id));
-        if (selectedConv?._id === id) {
-          setSelectedConv(null);
-          setMessages([]);
-        }
-      } catch (err) {
-        console.error('Error deleting conversation', err);
-        alert('No se pudo eliminar la conversación');
-      }
-    }
-  };
-
-  // Auto-scroll on new messages — scroll only within the messages container, NOT the page
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-    }
-  }, [messages]);
-
   const handleSendMessage = async () => {
     if (!messageText.trim() || !selectedConv || sending) return;
-    setSendError(null);
-    setSending(true);
     const text = messageText.trim();
     setMessageText('');
+    setSending(true);
 
-    // Optimistic update — show message immediately
     const optimistic = {
       _id: `tmp-${Date.now()}`,
       direction: 'outbound',
@@ -182,443 +127,424 @@ export const Conversations = () => {
 
     try {
       const response = await api.post(`/conversations/${selectedConv._id}/send`, { text });
-      // Replace optimistic message with the real saved one
-      setMessages(prev => prev.map(m => m._id === optimistic._id ? { ...response.data, _id: response.data._id || optimistic._id } : m));
+      setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
     } catch (err: any) {
-      setSendError(err?.response?.data?.error || 'Error al enviar el mensaje');
-      // Remove optimistic message on failure
       setMessages(prev => prev.filter(m => m._id !== optimistic._id));
     } finally {
       setSending(false);
     }
   };
 
-  const formatPhoneNumber = (phone: string) => {
-    if (!phone) return '';
-    
-    // Remove all non-digit characters
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    // Format for common international lengths
-    // 11 digits (like Peru +51 + 9 digits)
-    if (cleanPhone.length === 11) {
-      if (cleanPhone.startsWith('51')) {
-        return `+51 ${cleanPhone.substring(2, 5)} ${cleanPhone.substring(5, 8)} ${cleanPhone.substring(8)}`;
+  const handleDeleteConversation = async (e: React.MouseEvent, conversationId: string, contactId?: string) => {
+    e.stopPropagation();
+    if (window.confirm('¿Eliminar conversación y el cliente asociado?')) {
+      try {
+        await deleteConversation(conversationId);
+        if (contactId) {
+          await deleteUser(contactId);
+        }
+        setConversations(prev => prev.filter(c => c._id !== conversationId));
+        if (selectedConv?._id === conversationId) setSelectedConv(null);
+      } catch (err) {
+        console.error('Failed to delete', err);
+        alert('Error al eliminar. Inténtelo de nuevo.');
       }
-      return `+${cleanPhone.substring(0, 2)} ${cleanPhone.substring(2, 5)} ${cleanPhone.substring(5, 8)} ${cleanPhone.substring(8)}`;
     }
-    
-    // 12 digits (variants with longer country codes)
-    if (cleanPhone.length === 12) {
-      return `+${cleanPhone.substring(0, 3)} ${cleanPhone.substring(3, 6)} ${cleanPhone.substring(6, 9)} ${cleanPhone.substring(9)}`;
-    }
+  };
 
-    // 9 digits (assumed Peruvian without country code)
-    if (cleanPhone.length === 9) {
-      return `+51 ${cleanPhone.substring(0, 3)} ${cleanPhone.substring(3, 6)} ${cleanPhone.substring(6)}`;
+  const parseMessage = (content: any): string => {
+    if (!content) return '';
+    try {
+      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      const body = parsed.body || 
+                   parsed.text?.body || 
+                   parsed.text ||
+                   parsed.conversation ||
+                   parsed.extendedTextMessage?.text ||
+                   parsed.interactive?.button_reply?.title ||
+                   parsed.interactive?.list_reply?.title ||
+                   parsed.message?.conversation ||
+                   parsed.message?.extendedTextMessage?.text;
+
+      if (body) return body;
+      if (parsed.type === 'media' || parsed.media || parsed.imageMessage || parsed.videoMessage) {
+        return '📷 Archivo multimedia';
+      }
+      return typeof content === 'string' ? content : 'Mensaje';
+    } catch {
+      return typeof content === 'string' ? content : 'Mensaje';
     }
-    
-    // Generic fallback for any other length
-    if (cleanPhone.length > 5) {
-      return `+${cleanPhone}`;
-    }
-    
-    return phone;
   };
 
   const formatTime = (dateString: string) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const date = new Date(dateString);
+    const now = new Date();
+    const timeStr = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const diff = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0 && date.getDate() === now.getDate()) {
+      return timeStr;
+    } else if (diffDays === 1 || (diffDays === 0 && date.getDate() !== now.getDate())) {
+      return `Ayer ${timeStr}`;
+    } else if (diffDays < 7) {
+      const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      return `${days[date.getDay()]} ${timeStr}`;
+    } else {
+      return `${date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${timeStr}`;
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      month: 'short',
-      day: 'numeric'
-    });
+  const generateAvatar = (contact: any) => {
+    const isGroup = contact?.isGroup;
+    const name = contact?.name || 'U';
+    const firstLetter = name.charAt(0).toUpperCase();
+    const colors = isGroup ? 'bg-indigo-600' : 'bg-slate-500';
+    return { content: firstLetter, bgColor: colors, isGroup };
   };
 
-  if (loading) {
-    return <PageLoader sectionName="Conversaciones" />;
-  }
+  if (loading) return <PageLoader sectionName="Conversaciones" />;
 
   return (
-    <div className="h-full flex flex-col animate-in fade-in duration-500">
-      <PageBody scrollable={false} className="h-full py-0">
-        <div className="flex-1 flex h-full overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-full md:w-80 lg:w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-slate-50/50 dark:bg-transparent">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent sticky top-0 z-10">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Chats</h2>
-                  <span className="px-3 py-1 bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 text-xs font-black rounded-full border border-primary-100 dark:border-primary-500/20">
-                    {conversations.length} total
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  <Filter className="w-4 h-4 text-slate-500" />
-                </button>
-              </div>
+    <div className="flex-1 flex bg-[#f7f9fc] dark:bg-[#0b0c10] overflow-hidden antialiased h-full">
+
+      {/* --- SIDEBAR: Chat List --- */}
+      <div className="w-[340px] lg:w-[380px] h-full flex flex-col bg-white dark:bg-[#11141b] border-r border-gray-100 dark:border-white/5 z-20 shadow-2xl relative transition-all duration-500">
+        
+        {/* Sidebar Header */}
+        <div className="pt-6 px-5 pb-3">
+          <div className="flex items-center justify-between mb-5">
+            <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Conversaciones</h1>
+            <div className="flex items-center gap-1">
+              <button className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-accent-500 hover:bg-accent-500/10 rounded-xl transition-all">
+                <Users className="w-4 h-4" />
+              </button>
               
-              {/* Search Bar */}
-              <div className="relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar contactos..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1); // Reset to first page on search
-                  }}
-                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
-                />
+              <div className="relative">
+                <button 
+                  onClick={() => { setIsFilterOpen(!isFilterOpen); setIsMenuOpen(false); }}
+                  className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isFilterOpen ? 'text-accent-500 bg-accent-500/10' : 'text-gray-400 hover:text-accent-500 hover:bg-accent-500/10'}`}
+                >
+                  <Filter className="w-4 h-4" />
+                </button>
+                {isFilterOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-[#1c212b] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                     {[
+                      { id: 'all', label: 'Todos', icon: MessageCircle },
+                      { id: 'unread', label: 'No leídos', icon: Star },
+                      { id: 'groups', label: 'Grupos', icon: Users }
+                    ].map(f => (
+                      <button 
+                        key={f.id}
+                        onClick={() => { setFilterStatus(f.id); setIsFilterOpen(false); setCurrentPage(1); }}
+                        className={`w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                      >
+                        <f.icon className="w-3.5 h-3.5" />
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Filters */}
-              {showFilters && (
-                <div className="flex justify-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                  <button
-                    onClick={() => setFilterStatus('all')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                      filterStatus === 'all'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  <button
-                    onClick={() => setFilterStatus('unread')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                      filterStatus === 'unread'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    No leídos
-                  </button>
-                  <button
-                    onClick={() => setFilterStatus('read')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                      filterStatus === 'read'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    Leídos
-                  </button>
-                </div>
-              )}
-
+              <div className="relative">
+                <button 
+                  onClick={() => { setIsMenuOpen(!isMenuOpen); setIsFilterOpen(false); }}
+                  className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isMenuOpen ? 'text-accent-500 bg-accent-500/10' : 'text-gray-400 hover:text-accent-500 hover:bg-accent-500/10'}`}
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {isMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-[#1c212b] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <button className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">Nueva difusión</button>
+                    <button className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">Configuración</button>
+                    <div className="h-px bg-gray-100 dark:bg-white/5 my-1 mx-2" />
+                    <button onClick={() => window.location.reload()} className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">Recargar</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 dark:divide-slate-800/50">
-            {loading ? (
-              <div className="p-10 flex flex-col items-center gap-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Cargando...</p>
+          {/* Search Bar */}
+          <div className="relative group mb-5">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-accent-500 transition-colors">
+              <Search className="w-3.5 h-3.5" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="w-full h-11 pl-11 pr-4 bg-gray-50 dark:bg-white/5 border border-transparent focus:border-accent-500/20 rounded-xl outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 transition-all font-bold"
+              value={searchTerm}
+              onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
+            />
+          </div>
+        </div>
+
+        {/* Chat Items List */}
+        <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2 custom-scrollbar">
+          {paginatedConversations.map((conv) => {
+            const isSelected = selectedConv?._id === conv._id;
+            const contact = conv.contactId || {};
+            const avatar = generateAvatar(contact);
+
+            return (
+              <div
+                key={conv._id}
+                onClick={() => {
+                  if (selectedConv?._id !== conv._id) {
+                    setMessages([]);
+                    setMessageText('');
+                    navigate(`/conversations/${conv._id}`);
+                  }
+                }}
+                className={`flex items-start gap-3 p-3.5 cursor-pointer rounded-2xl transition-all duration-300 relative group border ${
+                  isSelected 
+                    ? 'bg-white dark:bg-[#1c212b] border-accent-500/10 shadow-lg scale-[1.01] z-10' 
+                    : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5'
+                }`}
+              >
+                {/* Active Indicator */}
+                {isSelected && (
+                  <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent-500 rounded-r-full shadow-[0_0_8px_rgba(249,115,22,0.4)]" />
+                )}
+
+                {/* Avatar */}
+                <div className="relative flex-shrink-0">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-sm ${avatar.bgColor}`}>
+                    {avatar.isGroup ? <Users className="w-5 h-5" /> : avatar.content}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-[#11141b] rounded-full" />
+                </div>
+
+                {/* Info Container */}
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-gray-900 dark:text-gray-100 truncate text-[13px] tracking-tight">
+                      {contact.name || contact.phoneNumber}
+                    </span>
+                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase">
+                      {formatTime(conv.lastMessageAt)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <p className={`text-[12px] truncate w-full pr-4 ${isSelected ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                      {parseMessage(conv.lastMessageContent) || 'Sin mensajes'}
+                    </p>
+                    
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {conv.unreadCount > 0 && (
+                        <span className="bg-accent-500 text-black text-[9px] font-black h-4 min-w-[16px] flex items-center justify-center rounded-full px-1 shadow-sm">
+                          {conv.unreadCount}
+                        </span>
+                      )}
+                      
+                      <button 
+                        onClick={(e) => handleDeleteConversation(e, conv._id, conv.contactId?._id)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-10 text-center animate-pulse">
-                <p className="text-slate-400 text-sm font-medium">No hay conversaciones activas</p>
+            );
+          })}
+        </div>
+
+        {/* Pagination Control */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between">
+             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                Pág {currentPage} / {totalPages}
+             </div>
+             <div className="flex items-center gap-1.5">
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 hover:text-accent-500 disabled:opacity-10 transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 hover:text-accent-500 disabled:opacity-10 transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+             </div>
+          </div>
+        )}
+      </div>
+
+      {/* --- MAIN PANE --- */}
+      <div className="flex-1 flex flex-col min-h-0 bg-[#f7f9fc] dark:bg-[#0b0c10] overflow-hidden h-full relative">
+        
+        {/* Modern Top Info Bar */}
+        <div className="pt-5 px-8 pb-3 flex items-center justify-between z-20">
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-500/10 px-4 py-1.5 rounded-full flex items-center gap-2 border border-emerald-500/5">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse focus:ring-4 focus:ring-emerald-500/20" />
+              <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Conectado</span>
+            </div>
+            <p className="text-gray-400 dark:text-gray-600 text-[10px] font-black uppercase tracking-widest">Sparktree Engine</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="p-2.5 bg-white dark:bg-white/5 rounded-xl text-gray-400 hover:text-accent-500 shadow-sm border border-gray-100 dark:border-white/5 transition-all">
+              <Volume2 className="w-4 h-4" />
+            </button>
+            <div className="w-9 h-9 rounded-xl bg-black dark:bg-accent-500 text-white dark:text-black flex items-center justify-center font-black text-xs shadow-md">
+               SA
+            </div>
+          </div>
+        </div>
+
+        {selectedConv ? (
+          <>
+            {/* Conversation Header Card */}
+            <div className="px-8 py-4">
+              <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-lg flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md ${generateAvatar(selectedConv.contactId).bgColor}`}>
+                    {selectedConv.contactId?.isGroup ? <Users className="w-7 h-7" /> : generateAvatar(selectedConv.contactId).content}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 mb-0.5">
+                      <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                        {selectedConv.contactId?.name || selectedConv.contactId?.phoneNumber}
+                      </h3>
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    </div>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedConv.contactId?.phoneNumber}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button className="p-3 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
+                    <Search className="w-5 h-5" />
+                  </button>
+                  <button className="p-3 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-            ) : (
-              conversations.map((conv, idx) => {
-                const contact = conv.contactId || {};
-                const isSelected = selectedConv?._id === conv._id;
-                const avatar = generateAvatar(contact);
+            </div>
+
+            {/* Chat Body */}
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto px-8 pb-4 space-y-4 custom-scrollbar relative z-10"
+            >
+              {messages.map((m) => {
+                const isMe = m.direction === 'outbound';
+                const body = parseMessage(m.content);
+                if (!body && m.direction === 'inbound') return null;
+
                 return (
-                  <div
-                    key={conv._id || conv.id || `conv-${idx}`}
-                    onClick={() => setSelectedConv(conv)}
-                    role="button"
-                    tabIndex={0}
-                    className={`w-full p-5 text-left transition-all duration-300 relative group cursor-pointer outline-none ${isSelected
-                      ? 'bg-white dark:bg-slate-800/40'
-                      : 'hover:bg-white/50 dark:hover:bg-slate-800/20'
-                      }`}
-                  >
-                    {isSelected && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-primary-600 dark:bg-primary-500 rounded-r-full shadow-lg shadow-primary-600/20" />
-                    )}
-                    <div className="flex items-center gap-4">
-                      <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg transition-all duration-500 ${isSelected
-                        ? 'bg-primary-600 dark:bg-primary-500 text-white shadow-xl shadow-primary-600/20 ring-2 ring-primary-600/30'
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:scale-105 group-hover:-rotate-3'
-                        }`}>
-                        {avatar.type === 'letter' ? (
-                          <span className="text-white">{avatar.content}</span>
-                        ) : (
-                          <span className="text-white font-mono">{avatar.content}</span>
-                        )}
-                        {isSelected && (
-                          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800 shadow-sm animate-pulse" />
-                        )}
+                  <div key={m._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+                    {!isMe && (
+                      <div className="flex items-center gap-2 mb-1.5 ml-4">
+                        <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center">
+                          <Users className="w-3 h-3 text-gray-400" />
+                        </div>
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Contacto</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className={`text-sm font-bold truncate ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'
-                            }`}>
-                            {contact.name || 'Usuario Anon'}
-                          </p>
-                          <span className="text-[10px] font-black text-slate-400 uppercase">
-                            {formatDate(conv.lastMessageAt)}
-                          </span>
-                        </div>
-                        {contact.phoneNumber && (
-                          <p className={`text-xs text-slate-500 dark:text-slate-400 truncate font-medium mb-2`}>
-                            {formatPhoneNumber(contact.phoneNumber)}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <p className={`text-xs text-slate-400 dark:text-slate-500 truncate font-medium`}>
-                            {formatTime(conv.lastMessageAt)}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            {conv.unreadCount > 0 && (
-                              <span className="px-2 py-0.5 bg-secondary-500 text-white text-[10px] font-black rounded-full">
-                                {conv.unreadCount}
-                              </span>
-                            )}
-                            <button
-                              onClick={(e) => handleDeleteConversation(e, conv._id)}
-                              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-secondary-50 dark:hover:bg-secondary-500/10 text-secondary-500 rounded-lg transition-all"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
+                    )}
+                    <div className={`relative max-w-[80%] lg:max-w-[60%] px-5 py-3 rounded-2xl shadow-sm transition-all ${
+                      isMe
+                        ? 'bg-gradient-to-br from-accent-400 to-accent-600 text-white dark:text-black rounded-tr-none'
+                        : 'bg-white dark:bg-[#1c212b] text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-white/5'
+                      }`}>
+                      <p className="text-[13px] font-medium leading-relaxed whitespace-pre-wrap tracking-wide">{body}</p>
+                      <div className={`flex justify-end items-center gap-1.5 mt-2 ${isMe ? 'text-white/70 dark:text-black/60' : 'text-gray-400 dark:text-gray-500'}`}>
+                        <span className="text-[9px] font-black uppercase tracking-widest">
+                          {formatTime(m.createdAt)}
+                        </span>
+                        {isMe && <Check className="w-3.5 h-3.5" />}
                       </div>
                     </div>
                   </div>
                 );
-              })
-            )}
-            
-            {/* Pagination */}
-            <div className="sticky bottom-0 p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-transparent">
-              {totalPages > 1 ? (
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-black transition-all hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Anterior
-                  </button>
-                  
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
-                          currentPage === page
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-black transition-all hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Siguiente
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Página {currentPage} de {totalPages}
-                  </span>
-                </div>
-              )}
+              })}
             </div>
-          </div>
-        </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-transparent relative overflow-hidden">
-          {selectedConv ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-transparent backdrop-blur-md flex items-center justify-between sticky top-0 z-20">
-                <div className="flex items-center gap-4">
-                  <div className="relative group">
-                    <div className="absolute inset-0 bg-primary-600 blur opacity-20 group-hover:opacity-40 transition-opacity rounded-full" />
-                    <div className="relative w-14 h-14 rounded-full bg-slate-900 dark:bg-white flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-xl overflow-hidden">
-                      {(() => {
-                        const avatar = generateAvatar(selectedConv.contactId || {});
-                        if (avatar.type === 'letter') {
-                          return <span className="text-white font-bold text-xl">{avatar.content}</span>;
-                        } else {
-                          return <span className="text-white font-mono text-xl">{avatar.content}</span>;
-                        }
-                      })()}
-                    </div>
-                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 shadow-sm" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-xl text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                      {selectedConv.contactId?.name || 'Usuario'} {selectedConv.contactId?.phoneNumber && `(${formatPhoneNumber(selectedConv.contactId.phoneNumber)})`}
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    </h3>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      Conectado • WhatsApp Business
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Messages Area */}
-              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar relative">
-                {/* Background Decor */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-slate-500/5 blur-[120px] rounded-full pointer-events-none" />
-
-                {messages.length > 0 ? (
-                  messages.map((message, idx) => {
-                    const isUser = message.direction === 'inbound';
-                    
-                    // Helper to extract clean text from message content
-                    const getMessageText = (msg: any) => {
-                      const content = msg.content;
-                      if (!content) return '';
-                      
-                      if (typeof content === 'object') {
-                        return content.body || content.text?.body || content.interactive?.button_reply?.title || JSON.stringify(content);
-                      }
-                      
-                      if (typeof content === 'string' && content.trim().startsWith('{')) {
-                        try {
-                          const parsed = JSON.parse(content);
-                          return parsed.body || parsed.text?.body || parsed.interactive?.button_reply?.title || content;
-                        } catch (e) {
-                          return content;
-                        }
-                      }
-                      
-                      return content;
-                    };
-
-                    const text = getMessageText(message);
-
-                    return (
-                      <div
-                        key={message._id || message.id || `msg-${idx}`}
-                        className={`flex ${isUser ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10`}
-                      >
-                        <div className={`flex flex-col max-w-[95%] gap-2`}>
-                          <div
-                            className={`px-4 md:px-6 py-3 md:py-4 rounded-[1.5rem] md:rounded-[2rem] shadow-lg transition-all duration-300 ${!isUser
-                              ? 'bg-[#3750f0] text-white rounded-br-none shadow-blue-500/20 hover:scale-[1.02]'
-                              : 'bg-[#41f0a5] text-black rounded-bl-none shadow-green-500/20 hover:scale-[1.02]'
-                              }`}
-                          >
-                            <p className="text-sm md:text-base whitespace-pre-wrap leading-relaxed font-medium">
-                              {text}
-                            </p>
-                          </div>
-                          <div className={`flex items-center gap-2 px-2 ${!isUser ? 'justify-end' : 'justify-start'}`}>
-                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
-                              {formatTime(message.createdAt)}
-                            </span>
-                            {!isUser && <Check className="w-3 h-3 text-primary-500" />}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4 animate-in zoom-in-95 duration-700">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-slate-100 dark:bg-slate-800 blur-3xl rounded-full" />
-                      <div className="relative w-32 h-32 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-2xl border-4 border-slate-50 dark:border-slate-700 overflow-hidden group">
-                        <span className="text-5xl group-hover:scale-125 transition-transform duration-500">💬</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Inicio del Historial</h3>
-                      <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto font-medium">
-                        Esta conversación está segura y encriptada. Todo lo que digas aquí quedará registrado en el historial.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-transparent backdrop-blur-md">
-                {sendError && (
-                  <p className="text-secondary-500 text-xs font-bold mb-2 px-2">{sendError}</p>
-                )}
-                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-700/50 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-white transition-all">
-                  <input
-                    type="text"
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                    placeholder="Escribe un mensaje..."
-                    className="flex-1 bg-transparent border-none outline-none py-3 px-2 text-sm font-medium text-slate-700 dark:text-white placeholder:text-slate-400"
-                    disabled={sending}
-                  />
+            {/* Input Footer Area */}
+            <div className="px-8 pb-8 pt-2 z-20">
+              <div className="bg-white dark:bg-[#1c212b] rounded-[1.5rem] p-2 pl-6 shadow-xl border border-gray-100 dark:border-white/5 flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-accent-500/5 group border-b-2 border-accent-500/10">
+                <input
+                  type="text"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Responder..."
+                  className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-400 font-bold text-base"
+                />
+                <div className="flex items-center gap-1">
+                   <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
+                    <Paperclip className="w-5 h-5" />
+                  </button>
+                   <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
+                    <Smile className="w-5 h-5" />
+                  </button>
                   <button
                     onClick={handleSendMessage}
-                    disabled={!messageText.trim() || sending}
-                    className="p-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 font-bold px-5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
+                    disabled={sending || !messageText.trim()}
+                    className={`p-3 rounded-2xl transition-all flex items-center justify-center ${
+                      messageText.trim() 
+                        ? 'bg-black dark:bg-accent-500 text-white dark:text-black shadow-lg shadow-accent-500/20 scale-105' 
+                        : 'bg-gray-50 dark:bg-white/5 text-gray-300 dark:text-gray-600'
+                    }`}
                   >
-                    {sending ? (
-                      <div className="w-4 h-4 border-2 border-white dark:border-slate-900 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                    <span>{sending ? 'Enviando...' : 'Enviar'}</span>
+                    <Send className={messageText.trim() ? "w-5 h-5" : "w-4 h-4"} />
+                  </button>
+                  <div className="w-[1px] h-6 bg-gray-100 dark:bg-white/5 mx-1" />
+                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-colors">
+                    <Mic className="w-5 h-5" />
                   </button>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center px-10 animate-in fade-in zoom-in-95 duration-700">
-              <div className="relative mb-10 group">
-                <div className="absolute inset-0 bg-primary-500 blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity" />
-                <div className="relative w-48 h-48 bg-white dark:bg-slate-800 rounded-[3rem] flex items-center justify-center shadow-2xl border-8 border-slate-50 dark:border-slate-900 group-hover:rotate-12 transition-transform duration-700">
-                  <span className="text-8xl group-hover:scale-110 transition-transform duration-500">👋</span>
-                </div>
-              </div>
-              <div className="max-w-md space-y-4">
-                <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">Bienvenido al Centro de Mensajes</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-lg font-medium leading-relaxed">
-                  Selecciona una conversación del panel izquierdo para comenzar a gestionar tus interacciones de negocio.
-                </p>
-                <div className="pt-6">
-                  <div className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full font-black shadow-xl hover:scale-105 transition-transform cursor-pointer">
-                    <span>Ver Analíticas</span>
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
-                </div>
-              </div>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-10 select-none animate-in fade-in zoom-in-95 duration-1000">
+            <div className="w-60 h-60 bg-white dark:bg-white/5 rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl relative transform -rotate-2 hover:rotate-0 transition-transform duration-700">
+               <div className="absolute inset-0 bg-accent-500/10 blur-[60px] rounded-full" />
+               <MessageCircle className="w-24 h-24 text-accent-500 z-10 animate-pulse-slow" />
+            </div>
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter">Sparktree Messaging</h2>
+            <p className="max-w-sm text-gray-500 dark:text-gray-400 text-sm font-medium leading-relaxed mb-10 px-6">
+              Gestiona todas tus interacciones de WhatsApp desde una interfaz centralizada y moderna.
+            </p>
+            <div className="flex items-center gap-3 bg-black dark:bg-accent-500 px-6 py-2.5 rounded-2xl text-white dark:text-black shadow-lg transition-all active:scale-95 cursor-pointer">
+              <Check className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Cifrado Activo</span>
+            </div>
+          </div>
+        )}
       </div>
-      </PageBody>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0,0,0,0.05);
+          border-radius: 10px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.05);
+        }
+        .animate-pulse-slow {
+          animation: pulse 4s infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(0.95); }
+        }
+      `}</style>
     </div>
   );
 };

@@ -21,7 +21,7 @@ export async function handleIncomingMessage(
 
   const saveOutgoingMessage = async (type: string, content: any, waResponse: any) => {
     if (organizationConfig.conversationId && organizationConfig.contactId) {
-      await supabase.from('messages').insert({
+      const { error } = await supabase.from('messages').insert({
         organization_id: organizationConfig.organizationId,
         conversation_id: organizationConfig.conversationId,
         contact_id: organizationConfig.contactId,
@@ -31,6 +31,7 @@ export async function handleIncomingMessage(
         status: 'sent',
         whatsapp_message_id: waResponse?.key?.id
       });
+      if (error) console.error('[Flow Engine] Error saving outbound message:', error);
 
       await supabase
         .from('conversations')
@@ -101,6 +102,23 @@ export async function handleIncomingMessage(
         break;
       }
       console.log(`[Flow Engine] Node type: ${node.type}`);
+      
+      // Check for conversion node / potential lead
+      if (node.data?.isConversionNode) {
+        console.log(`[Flow Engine] Conversion node hit! Marking contact ${organizationConfig.contactId} as potential lead.`);
+        try {
+          const currentAttributes = (contactData as any)?.custom_attributes || {};
+          await supabase
+            .from('contacts')
+            .update({ 
+               custom_attributes: { ...currentAttributes, is_potential_lead: true },
+               // We could also add a dedicated column if it existed, but custom_attributes is safe
+            })
+            .eq('id', organizationConfig.contactId);
+        } catch (error) {
+          console.error('[Flow Engine] Error marking potential lead:', error);
+        }
+      }
 
       if (node.type === 'trigger') {
         console.log(`[Flow Engine] Trigger node detected. Proceeding to connected block.`);
@@ -114,14 +132,24 @@ export async function handleIncomingMessage(
           console.error(`[Flow Engine] ERROR sending text message:`, error);
         }
       } else if (node.type === 'interactive') {
-        const res = await waService.sendButtonMessage(
-          senderPhone,
-          node.data?.bodyText || '',
-          node.data?.buttons || [],
-          { jid: contactJid }
-        );
-        // Guardar el response completo que incluye buttonMapping
-        await saveOutgoingMessage('interactive', res, res);
+        try {
+          console.log(`[Flow Engine] Sending interactive message to ${senderPhone}`);
+          const res = await waService.sendButtonMessage(
+            senderPhone,
+            node.data?.bodyText || '',
+            node.data?.buttons || [],
+            { jid: contactJid }
+          );
+          console.log(`[Flow Engine] Interactive message sent. Button mapping:`, res.buttonMapping);
+          
+          await saveOutgoingMessage('text', { 
+            buttonMapping: res?.buttonMapping,
+            bodyText: node.data?.bodyText 
+          }, res);
+          console.log(`[Flow Engine] Interactive message database save completed.`);
+        } catch (error) {
+          console.error(`[Flow Engine] ERROR sending or saving interactive message:`, error);
+        }
         break; // Wait for user button click
       } else if (node.type === 'media') {
         const url = node.data?.mediaUrl;
@@ -313,7 +341,68 @@ export async function handleIncomingMessage(
     const strategy = triggerNode?.data?.matchingStrategy || 'flexible';
     const waitTimeMin = triggerNode?.data?.reactivationTime || 30;
 
-    // REACTIVATION TIMER CHECK
+    // PRIORITY 1: Handle Numeric Button replies (Interactive flow continuation)
+    if (message.isNumericButtonResponse) {
+      const buttonNumber = message.buttonNumber;
+      console.log(`[Bot Engine] Processing numeric button response: ${buttonNumber}`);
+
+      // Get the last outbound text messages to find the one with button mapping payload
+      const { data: lastMessages } = await supabase
+        .from('messages')
+        .select('content')
+        .eq('conversation_id', organizationConfig.conversationId)
+        .eq('direction', 'outbound')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      let interactiveData = null;
+      if (lastMessages) {
+        for (const msg of lastMessages) {
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed && parsed.buttonMapping) {
+              interactiveData = parsed;
+              break;
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (interactiveData) {
+        try {
+          console.log(`[Flow Engine] Found interactive data:`, interactiveData);
+          
+          if (interactiveData.buttonMapping && interactiveData.buttonMapping[buttonNumber]) {
+            const buttonId = interactiveData.buttonMapping[buttonNumber];
+            console.log(`[Flow Engine] Mapped numeric ${buttonNumber} to button ID: ${buttonId}`);
+
+            if (flow && flow.edges) {
+              const edge = flow.edges.find((e: any) => e.sourceHandle === buttonId || e.source === buttonId);
+              if (edge && edge.target) {
+                console.log(`[Flow Engine] Found edge: ${edge.id}, moving to node: ${edge.target}`);
+                await executeNode(flow, edge.target);
+                // Mark as completed when flow finishes naturally (or update state)
+                await updateFlowExecution(flow.id, 'completed');
+                return;
+              } else {
+                console.log(`[Flow Engine] No edge found for button ID: ${buttonId}`);
+              }
+            }
+          } else {
+            console.log(`[Flow Engine] No button mapping found for number: ${buttonNumber}`);
+            console.log(`[Flow Engine] Available mappings:`, interactiveData.buttonMapping);
+          }
+        } catch (parseError) {
+          console.log(`[Flow Engine] Error processing button mapping:`, parseError);
+        }
+      } else {
+        console.log(`[Flow Engine] No recent interactive message found for conversation ${organizationConfig.conversationId}`);
+      }
+
+      console.log(`[Flow Engine] Could not process numeric response as button, continuing to fallback`);
+    }
+
+    // REACTIVATION TIMER CHECK (Applies only to new flow triggers)
     const { data: lastExec } = await supabase
       .from('flow_executions')
       .select('executed_at')
@@ -335,7 +424,7 @@ export async function handleIncomingMessage(
       }
     }
 
-    // PRIORITY 1: Check if this is a trigger for starting the flow
+    // PRIORITY 2: Check if this is a trigger for starting the flow
     let matchedTrigger: string | null = null;
     
     if (flow.triggers && Array.isArray(flow.triggers) && flow.triggers.length > 0) {
@@ -365,58 +454,6 @@ export async function handleIncomingMessage(
         await updateFlowExecution(flow.id, 'completed');
         return;
       }
-    }
-
-    // PRIORITY 2: Handle Numeric Button replies (only if not a trigger)
-    if (message.isNumericButtonResponse) {
-      const buttonNumber = message.buttonNumber;
-      console.log(`[Bot Engine] Processing numeric button response: ${buttonNumber}`);
-
-      // Get the last interactive message sent to this conversation to find button mapping
-      const { data: lastInteractive } = await supabase
-        .from('messages')
-        .select('content')
-        .eq('conversation_id', organizationConfig.conversationId)
-        .eq('direction', 'outbound')
-        .eq('type', 'interactive')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (lastInteractive && lastInteractive.content) {
-        try {
-          const interactiveData = JSON.parse(lastInteractive.content);
-          console.log(`[Flow Engine] Found interactive data:`, interactiveData);
-          
-          if (interactiveData.buttonMapping && interactiveData.buttonMapping[buttonNumber]) {
-            const buttonId = interactiveData.buttonMapping[buttonNumber];
-            console.log(`[Flow Engine] Mapped numeric ${buttonNumber} to button ID: ${buttonId}`);
-
-            if (flow && flow.edges) {
-              const edge = flow.edges.find((e: any) => e.sourceHandle === buttonId || e.source === buttonId);
-              if (edge && edge.target) {
-                console.log(`[Flow Engine] Found edge: ${edge.id}, moving to node: ${edge.target}`);
-                await executeNode(flow, edge.target);
-                // Mark as completed when flow finishes naturally
-                await updateFlowExecution(flow.id, 'completed');
-                return;
-              } else {
-                console.log(`[Flow Engine] No edge found for button ID: ${buttonId}`);
-              }
-            }
-          } else {
-            console.log(`[Flow Engine] No button mapping found for number: ${buttonNumber}`);
-            console.log(`[Flow Engine] Available mappings:`, interactiveData.buttonMapping);
-          }
-        } catch (parseError) {
-          console.log(`[Flow Engine] Could not parse message content for button mapping:`, parseError);
-        }
-      } else {
-        console.log(`[Flow Engine] No last interactive message found for conversation ${organizationConfig.conversationId}`);
-      }
-
-      // Si no se pudo procesar como respuesta de botón, dejar que el flujo normal lo procese
-      console.log(`[Flow Engine] Could not process numeric response as button, continuing to fallback`);
     }
 
     // PRIORITY 3: Fallback if no trigger matched and not a valid button response

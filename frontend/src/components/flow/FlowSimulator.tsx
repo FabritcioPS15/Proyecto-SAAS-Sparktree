@@ -1,9 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Phone, Video, MoreVertical, Paperclip, Smile, Mic, Camera, CheckCheck, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Send, CheckCheck, Smile, Mic,
+  Image, Globe, UserCheck, Clock,
+  X, RotateCcw, Maximize2, Minimize2
+} from 'lucide-react';
+
 
 interface FlowSimulatorProps {
   nodes: any[];
   edges: any[];
+  matchingStrategy?: 'strict' | 'flexible';
   onClose: () => void;
 }
 
@@ -12,278 +18,564 @@ interface Message {
   text: string;
   sender: 'user' | 'bot' | 'system';
   timestamp: string;
+  type?: 'text' | 'media' | 'interactive' | 'webhook' | 'handoff' | 'delay' | 'capture' | 'error';
   buttons?: { id: string; title: string; text?: string }[];
+  mediaUrl?: string;
+  mediaCaption?: string;
+  variableName?: string;
+  delaySeconds?: number;
+  webhookUrl?: string;
 }
 
-export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, onClose }) => {
+const NODE_LABELS: Record<string, string> = {
+  trigger:     'Disparador',
+  text:        'Mensaje',
+  interactive: 'Botones',
+  media:       'Media',
+  capture:     'Captura',
+  delay:       'Espera',
+  webhook:     'Webhook',
+  handoff:     'Agente',
+};
+
+export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matchingStrategy = 'strict', onClose }) => {
   const [messages, setMessages] = useState<Message[]>([
-    { 
-      id: 'welcome', 
-      text: '¡Hola! Soy el asistente virtual. Escribe una de las palabras clave configuradas para probar el flujo.', 
+    {
+      id: 'welcome',
+      text: '¡Hola! Escribe una palabra clave configurada para iniciar el flujo.',
       sender: 'bot',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      type: 'text',
+      timestamp: now(),
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [waitingForCaptureNodeId, setWaitingForCaptureNodeId] = useState<string | null>(null);
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [capturedVars, setCapturedVars] = useState<Record<string, string>>({});
+  const [flowStarted, setFlowStarted] = useState(false);
+  const [delayCountdown, setDelayCountdown] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isTyping]);
 
-  const executeNode = (nodeId: string) => {
+  function now() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  const addMessage = (msg: Omit<Message, 'id'>) => {
+    setMessages(prev => [...prev, { id: `msg_${Date.now()}_${Math.random()}`, ...msg }]);
+  };
+
+  const executeNode = useCallback((nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
 
+    setActiveNodeId(nodeId);
     setIsTyping(true);
-    
+
+    const delayForTyping = node.type === 'delay' ? 600 : 1100;
+
     setTimeout(() => {
       setIsTyping(false);
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const ts = now();
 
       if (node.type === 'text') {
-        setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: node.data.text || '', sender: 'bot', timestamp }]);
-        
-        const nextEdge = edges.find(e => e.source === nodeId);
-        if (nextEdge && nextEdge.target) {
-          setTimeout(() => executeNode(nextEdge.target), 1500);
-        }
+        addMessage({ text: node.data.text || '(sin texto)', sender: 'bot', type: 'text', timestamp: ts });
+        const next = edges.find(e => e.source === nodeId);
+        if (next?.target) setTimeout(() => executeNode(next.target), 1200);
+        else setActiveNodeId(null);
+
       } else if (node.type === 'interactive') {
-        setMessages(prev => [
-          ...prev, 
-          { 
-            id: `msg_${Date.now()}`, 
-            text: node.data.bodyText || '', 
-            sender: 'bot', 
-            timestamp,
-            buttons: node.data.buttons || [] 
-          }
-        ]);
+        addMessage({
+          text: node.data.bodyText || '',
+          sender: 'bot',
+          type: 'interactive',
+          timestamp: ts,
+          buttons: node.data.buttons || [],
+        });
+
       } else if (node.type === 'media') {
-        setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: `📎 [Media]: ${node.data.mediaUrl || 'Archivo multimedia'}`, sender: 'bot', timestamp }]);
-        const nextEdge = edges.find(e => e.source === nodeId);
-        if (nextEdge && nextEdge.target) {
-          setTimeout(() => executeNode(nextEdge.target), 1500);
-        }
+        addMessage({
+          text: node.data.caption || '',
+          sender: 'bot',
+          type: 'media',
+          timestamp: ts,
+          mediaUrl: node.data.mediaUrl || '',
+          mediaCaption: node.data.caption || '',
+        });
+        const next = edges.find(e => e.source === nodeId);
+        if (next?.target) setTimeout(() => executeNode(next.target), 1200);
+        else setActiveNodeId(null);
+
       } else if (node.type === 'capture') {
-        setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: node.data.question || 'Por favor ingresa un dato:', sender: 'bot', timestamp }]);
+        addMessage({
+          text: node.data.question || 'Por favor ingresa un dato:',
+          sender: 'bot',
+          type: 'capture',
+          timestamp: ts,
+          variableName: node.data.variableName,
+        });
         setWaitingForCaptureNodeId(nodeId);
+
       } else if (node.type === 'delay') {
-        const waitTime = node.data.delaySeconds || 3;
-        const nextEdge = edges.find(e => e.source === nodeId);
-        if (nextEdge && nextEdge.target) {
-          setTimeout(() => executeNode(nextEdge.target), waitTime * 1000);
-        }
-      } else if (node.type === 'handoff') {
-        const handoffMsg = node.data.message || 'Te pondré en contacto con un agente humano. Por favor, espera un momento.';
-        setMessages(prev => [...prev, { id: `msg_${Date.now()}`, text: handoffMsg, sender: 'bot', timestamp }]);
-        
+        const secs = Math.min(node.data.delaySeconds || 3, 10); // cap at 10s in simulator
+        addMessage({
+          text: `Espera ${node.data.delaySeconds >= 60
+            ? `${(node.data.delaySeconds / 60).toFixed(1)} min`
+            : `${node.data.delaySeconds || 3} seg`} (simulado en ${secs}s)`,
+          sender: 'system',
+          type: 'delay',
+          timestamp: ts,
+          delaySeconds: secs,
+        });
+        setDelayCountdown(secs);
+
+        let remaining = secs;
+        const intervalId = setInterval(() => {
+          remaining--;
+          setDelayCountdown(remaining);
+          if (remaining <= 0) {
+            clearInterval(intervalId);
+            setDelayCountdown(null);
+            const next = edges.find(e => e.source === nodeId);
+            if (next?.target) executeNode(next.target);
+            else setActiveNodeId(null);
+          }
+        }, 1000);
+
+      } else if (node.type === 'webhook') {
+        addMessage({
+          text: `Llamando a ${node.data.url || 'tu API'}...`,
+          sender: 'system',
+          type: 'webhook',
+          timestamp: ts,
+          webhookUrl: node.data.url,
+        });
         setTimeout(() => {
-          setMessages(prev => [...prev, { 
-            id: `sys_${Date.now()}`, 
-            text: '🔔 NOTIFICACIÓN: Un agente humano ha sido alertado. La automatización se ha pausado.', 
+          addMessage({
+            text: `✅ Webhook (${node.data.method || 'POST'}) ejecutado correctamente. Respuesta simulada: { "status": "ok" }`,
             sender: 'system',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-          }]);
-        }, 800);
+            type: 'webhook',
+            timestamp: now(),
+          });
+          const next = edges.find(e => e.source === nodeId);
+          if (next?.target) setTimeout(() => executeNode(next.target), 800);
+          else setActiveNodeId(null);
+        }, 1500);
+
+      } else if (node.type === 'handoff') {
+        const msg = node.data.message || 'Un agente humano atenderá tu caso pronto.';
+        addMessage({ text: msg, sender: 'bot', type: 'handoff', timestamp: ts });
+        setTimeout(() => {
+          addMessage({
+            text: '🔔 Agente humano notificado. La automatización se ha pausado.',
+            sender: 'system',
+            type: 'handoff',
+            timestamp: now(),
+          });
+          setActiveNodeId(null);
+        }, 900);
       }
-    }, 1200);
+    }, delayForTyping);
+  }, [nodes, edges]);
+
+  const handleReset = () => {
+    setMessages([{
+      id: 'welcome',
+      text: '¡Hola! Escribe una palabra clave configurada para iniciar el flujo.',
+      sender: 'bot',
+      type: 'text',
+      timestamp: now(),
+    }]);
+    setInputValue('');
+    setIsTyping(false);
+    setWaitingForCaptureNodeId(null);
+    setActiveNodeId(null);
+    setCapturedVars({});
+    setFlowStarted(false);
+    setDelayCountdown(null);
+    inputRef.current?.focus();
   };
 
   const handleSendText = (text: string) => {
     if (!text.trim()) return;
-    
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMessages(prev => [...prev, { id: `usr_${Date.now()}`, text, sender: 'user', timestamp }]);
+    const ts = now();
+    addMessage({ id: `usr_${Date.now()}`, text, sender: 'user', type: 'text', timestamp: ts } as any);
     setInputValue('');
 
     if (waitingForCaptureNodeId) {
+      const captureNode = nodes.find(n => n.id === waitingForCaptureNodeId);
+      const varName = captureNode?.data?.variableName;
+      if (varName) setCapturedVars(prev => ({ ...prev, [varName]: text }));
+
       setTimeout(() => {
-        const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setMessages(prev => [...prev, { id: `sys_${Date.now()}`, text: `✅ Dato recibido.`, sender: 'bot', timestamp: ts }]);
-        
-        const captureNode = nodes.find(n => n.id === waitingForCaptureNodeId);
+        addMessage({
+          text: `✅ Dato guardado${varName ? ` en @${varName}` : ''}: "${text}"`,
+          sender: 'system',
+          type: 'capture',
+          timestamp: now(),
+        });
         setWaitingForCaptureNodeId(null);
-        
         if (captureNode) {
-          const nextEdge = edges.find((e: any) => e.source === captureNode.id);
-          if (nextEdge && nextEdge.target) {
-            setTimeout(() => executeNode(nextEdge.target), 800);
-          }
+          const next = edges.find((e: any) => e.source === captureNode.id);
+          if (next?.target) setTimeout(() => executeNode(next.target), 600);
+          else setActiveNodeId(null);
         }
-      }, 500);
+      }, 400);
       return;
     }
 
     const textLower = text.toLowerCase().trim();
-    const triggerNode = nodes.find((n: any) => 
-      n.type === 'trigger' && 
-      n.data?.keywords?.some((k: string) => textLower.includes(k.toLowerCase()))
+    const triggerNode = nodes.find((n: any) =>
+      n.type === 'trigger' &&
+      n.data?.keywords?.some((k: string) => {
+        const kLower = k.toLowerCase();
+        if (matchingStrategy === 'strict') {
+          return textLower === kLower;
+        }
+        // flexible: keyword anywhere in the message
+        return textLower.includes(kLower);
+      })
     );
 
     if (triggerNode) {
+      setFlowStarted(true);
       const firstEdge = edges.find((e: any) => e.source === triggerNode.id);
-      if (firstEdge && firstEdge.target) {
-        setTimeout(() => executeNode(firstEdge.target), 800);
-      }
+      if (firstEdge?.target) setTimeout(() => executeNode(firstEdge.target), 700);
     } else {
-       setTimeout(() => {
-          const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          setMessages(prev => [...prev, { id: `err_${Date.now()}`, text: 'No reconozco esa palabra clave. Intenta con las configuradas en el flujo.', sender: 'bot', timestamp: ts }]);
-       }, 800);
+      setTimeout(() => {
+        addMessage({
+          text: '🤖 Mensaje ignorado por el bot',
+          sender: 'system',
+          type: 'text',
+          timestamp: now(),
+        });
+      }, 400);
     }
   };
 
   const handleButtonClick = (button: any) => {
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMessages(prev => [...prev, { id: `usr_${Date.now()}`, text: button.title || button.text, sender: 'user', timestamp }]);
-
-    const buttonId = button.id;
-    const edge = edges.find(e => e.sourceHandle === buttonId || e.source === buttonId);
-    
-    if (edge && edge.target) {
-      setTimeout(() => executeNode(edge.target), 800);
-    }
+    const ts = now();
+    addMessage({ text: button.title || button.text, sender: 'user', type: 'text', timestamp: ts } as any);
+    const edge = edges.find(e => e.sourceHandle === button.id);
+    if (edge?.target) setTimeout(() => executeNode(edge.target), 700);
   };
 
+  // Get all configured keywords
+  const allKeywords = nodes
+    .filter(n => n.type === 'trigger')
+    .flatMap(n => n.data?.keywords || []);
+
+  // Get node path for breadcrumb
+  const activeNode = nodes.find(n => n.id === activeNodeId);
+
+  // ── Drag-to-reposition ──────────────────────────────────────────────
+  const [pos, setPos] = useState({ x: 0, y: 0 });      // offset from default anchor
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
+  const [minimized, setMinimized] = useState(false);
+
+  const onDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragStart.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
+    setDragging(true);
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      if (!dragStart.current) return;
+      setPos({
+        x: dragStart.current.px + (e.clientX - dragStart.current.mx),
+        y: dragStart.current.py + (e.clientY - dragStart.current.my),
+      });
+    };
+    const onUp = () => { setDragging(false); dragStart.current = null; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [dragging]);
+
   return (
-    <div className="fixed inset-0 z-[100001] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="relative w-full max-w-[400px] h-[85vh] min-h-[600px] bg-white dark:bg-[#111b21] rounded-[3.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] border-[12px] border-[#202c33] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-        
-        {/* Notch Area */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-[#202c33] rounded-b-3xl z-[60] flex items-center justify-center gap-4">
-          <div className="w-2.5 h-2.5 bg-slate-800 rounded-full border border-white/5" />
-          <div className="w-16 h-1.5 bg-slate-800 rounded-full border border-white/5" />
-        </div>
-
-        {/* WhatsApp Header */}
-        <div className="bg-[#202c33] text-white pt-12 pb-5 px-6 flex items-center justify-between shadow-lg z-50">
-          <div className="flex items-center gap-3">
-            <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition-colors flex items-center gap-1 group">
-              <ChevronRight className="w-5 h-5 rotate-180 text-white/70 group-hover:text-white" />
-              <div className="w-9 h-9 bg-slate-400 rounded-full overflow-hidden border border-slate-600">
-                 <img src="https://ui-avatars.com/api/?name=IA&background=00a884&color=fff" alt="Avatar" className="w-full h-full object-cover" />
-              </div>
+    <div
+      className="fixed z-[9999] flex flex-col"
+      style={{
+        bottom: `${24 - pos.y}px`,
+        right: `${24 - pos.x}px`,
+        width:  minimized ? '290px' : '360px',
+        transition: dragging ? 'none' : 'width 0.2s ease',
+        userSelect: 'none',
+      }}
+    >
+      {/* ── Drag Handle / Title Bar ── */}
+      <div
+        onMouseDown={onDragStart}
+        className={`flex items-center justify-between px-3.5 py-2.5 bg-[#202c33] rounded-t-3xl border-b border-white/5 cursor-grab active:cursor-grabbing select-none shadow-2xl ${minimized ? 'rounded-3xl' : ''}`}
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+          <div className="flex items-center gap-1.5">
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleReset(); }}
+              className="p-1 text-white/40 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-all"
+              title="Reiniciar"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
-            <div>
-              <h3 className="font-bold text-[15px] tracking-tight leading-none mb-1">Simulador AI</h3>
-              <p className="text-[10px] text-[#00a884] font-black uppercase tracking-wider">
-                {isTyping ? 'escribiendo...' : 'en línea'}
-              </p>
-            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setMinimized(v => !v); }}
+              className="p-1 text-white/40 hover:text-amber-400 hover:bg-amber-400/10 rounded-md transition-all"
+              title={minimized ? "Expandir" : "Minimizar"}
+            >
+              {minimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              className="p-1 text-white/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-md transition-all"
+              title="Cerrar"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div className="flex items-center gap-4 text-white/70">
-            <Video className="w-5 h-5 cursor-not-allowed hidden sm:block" />
-            <Phone className="w-4.5 h-4.5 cursor-not-allowed hidden sm:block" />
-            <MoreVertical className="w-5 h-5 cursor-not-allowed" />
+          <div className="w-px h-3 bg-white/10" />
+          <div className="w-6 h-6 rounded-full overflow-hidden shrink-0">
+            <img src="https://ui-avatars.com/api/?name=IA&background=00a884&color=fff&bold=true" alt="Bot" className="w-full h-full" />
           </div>
-        </div>
-
-        {/* Chat Area with Wallpaper */}
-        <div 
-          className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-[#0b141a] relative"
-          style={{ 
-            backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
-            backgroundBlendMode: 'overlay',
-            backgroundSize: '400px',
-            backgroundColor: '#0b141a'
-          }}
-        >
-          {/* Day Label */}
-          <div className="self-center px-4 py-1.5 bg-[#182229] rounded-xl shadow-sm mb-6 mt-2 border border-white/5">
-            <span className="text-[10px] text-white/60 font-black uppercase tracking-[0.15em]">Hoy</span>
-          </div>
-
-          <div className="flex flex-col gap-2 relative z-10">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex flex-col max-w-[85%] ${msg.sender === 'user' ? 'self-end' : (msg.sender === 'system' ? 'self-center w-full max-w-none' : 'self-start')}`}>
-                
-                {msg.sender === 'system' ? (
-                  <div className="px-5 py-2.5 bg-[#182229] rounded-2xl border border-indigo-500/30 text-[10px] text-indigo-400 font-bold uppercase tracking-widest text-center my-4 animate-in fade-in slide-in-from-top-2 duration-500 shadow-lg shadow-indigo-500/10">
-                    {msg.text}
-                  </div>
-                ) : (
-                  <div 
-                    className={`px-4 py-2.5 rounded-2xl shadow-sm relative text-[14px] ${
-                      msg.sender === 'user' 
-                        ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
-                        : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
-                    }`}
-                  >
-                    <div className={`absolute top-0 w-3 h-3 ${
-                      msg.sender === 'user' 
-                        ? 'right-[-8px] border-l-[10px] border-l-[#005c4b] border-b-[10px] border-b-transparent' 
-                        : 'left-[-8px] border-r-[10px] border-r-[#202c33] border-b-[10px] border-b-transparent'
-                    }`} />
-                    
-                    <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                    
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <span className="text-[10px] text-white/40 leading-none">{msg.timestamp}</span>
-                      {msg.sender === 'user' && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
-                    </div>
-                  </div>
-                )}
-                
-                {msg.buttons && msg.buttons.length > 0 && (
-                  <div className="flex flex-col gap-2 mt-2 w-full">
-                    {msg.buttons.map((btn, bIdx) => (
-                      <button
-                        key={bIdx}
-                        onClick={() => handleButtonClick(btn)}
-                        className="bg-[#202c33] border border-white/10 hover:bg-[#2a3942] text-[#53bdeb] text-[13px] font-bold py-3 px-6 rounded-full shadow-lg transition-all active:scale-95 text-center"
-                      >
-                        {btn.title || btn.text}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {isTyping && (
-                <div className="self-start bg-[#202c33] px-5 py-4 rounded-2xl rounded-tl-none shadow-sm flex gap-1.5 items-center">
-                    <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                    <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce"></div>
-                </div>
-            )}
-            <div ref={messagesEndRef} />
+          <div className="min-w-0 flex-1">
+            <p className="text-white text-[11px] font-black leading-none truncate">Simulador</p>
+            <p className={`text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5 transition-colors truncate ${
+              isTyping ? 'text-[#00a884]' : delayCountdown !== null ? 'text-sky-400' : 'text-white/35'
+            }`}>
+              {isTyping
+                ? 'escribiendo...'
+                : delayCountdown !== null
+                  ? `esperando ${delayCountdown}s...`
+                  : flowStarted
+                    ? `▶ ${NODE_LABELS[activeNode?.type || ''] || 'completado'}`
+                    : 'en línea'}
+            </p>
           </div>
         </div>
 
-        {/* Input Bar */}
-        <div className="bg-[#0b141a] p-3 flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-3 bg-[#2a3942] rounded-full px-4 py-2.5 border border-white/5">
-            <Smile className="w-6 h-6 text-white/40 cursor-pointer hover:text-white/70 transition-colors" />
-            <input 
-              type="text"
-              className="flex-1 bg-transparent border-none outline-none text-[#e9edef] text-[15px] placeholder-white/20"
-              placeholder="Mensaje"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSendText(inputValue);
-              }}
-            />
-            <Paperclip className="w-5 h-5 text-white/40 -rotate-45 cursor-pointer hover:text-white/70 transition-colors" />
-            {!inputValue && <Camera className="w-5 h-5 text-white/40 cursor-pointer hover:text-white/70 transition-colors shadow-none" />}
-          </div>
-          
-          <button 
-            onClick={() => handleSendText(inputValue)}
-            className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-white shadow-lg active:scale-90 transition-all hover:brightness-110 shrink-0"
-          >
-            {inputValue ? <Send className="w-5 h-5 ml-1" /> : <Mic className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {/* Home Indicator Overlay */}
-        <div className="bg-[#0b141a] pb-3 flex justify-center">
-          <div className="w-32 h-1.5 bg-white/20 rounded-full" />
+        {/* Right controls */}
+        <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+          {/* Mode badge */}
+          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase border ${
+            matchingStrategy === 'strict'
+              ? 'bg-primary-500/20 border-primary-500/30 text-primary-400'
+              : 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+          }`}>
+            {matchingStrategy === 'strict' ? 'estricto' : 'inteligente'}
+          </span>
         </div>
       </div>
+
+      {/* ── Phone body (hidden when minimized) ── */}
+      {!minimized && (
+        <div className="flex flex-col bg-[#111b21] rounded-b-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden border border-t-0 border-[#202c33]"
+          style={{ height: '520px' }}>
+
+          {/* Mode + Keywords bar */}
+          <div className="bg-[#182229] border-b border-white/5 px-3 py-1.5 flex items-center gap-2 overflow-x-auto shrink-0 custom-scrollbar">
+            {allKeywords.length > 0 ? (
+              <>
+                <span className="text-[8px] font-black uppercase text-white/25 shrink-0">activar:</span>
+                {allKeywords.slice(0, 6).map((kw: string, i: number) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSendText(kw)}
+                    className="shrink-0 px-2 py-0.5 bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[8px] font-black rounded-full uppercase tracking-wider hover:bg-emerald-500/25 transition-all active:scale-95 whitespace-nowrap"
+                  >
+                    {kw}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <span className="text-[8px] text-white/25 font-bold italic">Sin palabras clave configuradas</span>
+            )}
+          </div>
+
+          {/* Chat Area */}
+          <div
+            className="flex-1 overflow-y-auto p-2.5 flex flex-col gap-1.5 relative custom-scrollbar"
+            style={{
+              backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
+              backgroundBlendMode: 'overlay',
+              backgroundSize: '400px',
+              backgroundColor: '#0b141a'
+            }}
+          >
+            <div className="self-center px-2.5 py-0.5 bg-[#182229] rounded-lg mb-1 mt-0.5 border border-white/5 z-10 relative">
+              <span className="text-[8px] text-white/40 font-bold uppercase tracking-widest">
+                {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1.5 relative z-10">
+              {messages.map((msg) => (
+                <MessageBubble key={msg.id} msg={msg} onButtonClick={handleButtonClick} />
+              ))}
+              {isTyping && (
+                <div className="self-start bg-[#202c33] px-3.5 py-2.5 rounded-2xl rounded-tl-none shadow-sm flex gap-1.5 items-center">
+                  <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce" />
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Capture / Mode hint strip */}
+          {(waitingForCaptureNodeId || !flowStarted) && (
+            <div className={`px-3 py-1 shrink-0 border-t ${
+              waitingForCaptureNodeId
+                ? 'bg-amber-500/10 border-amber-500/20'
+                : 'bg-[#182229]/80 border-white/5'
+            }`}>
+              <p className={`text-[8px] font-black uppercase tracking-wider ${
+                waitingForCaptureNodeId ? 'text-amber-400' : 'text-white/25'
+              } flex items-center gap-1.5`}>
+                {waitingForCaptureNodeId
+                  ? <><span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" /> Esperando respuesta...</>
+                  : matchingStrategy === 'strict'
+                    ? '⚡ Modo estricto: escribe la palabra clave exacta'
+                    : '🧠 Modo inteligente: la clave puede estar en la oración'}
+              </p>
+            </div>
+          )}
+
+          {/* Input Bar */}
+          <div className="bg-[#0b141a] px-2.5 py-2 flex items-center gap-2 shrink-0">
+            <div className="flex-1 flex items-center gap-1.5 bg-[#2a3942] rounded-full px-3 py-1.5 border border-white/5">
+              <Smile className="w-4 h-4 text-white/25 shrink-0" />
+              <input
+                ref={inputRef}
+                type="text"
+                className="flex-1 bg-transparent border-none outline-none text-[#e9edef] text-[13px] placeholder-white/20 min-w-0"
+                placeholder={waitingForCaptureNodeId ? 'Tu respuesta...' : 'Mensaje...'}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSendText(inputValue); }}
+                autoFocus
+              />
+            </div>
+            <button
+              onClick={() => handleSendText(inputValue)}
+              className="w-9 h-9 rounded-full bg-[#00a884] flex items-center justify-center text-white shadow-lg active:scale-90 transition-all hover:brightness-110 shrink-0"
+            >
+              {inputValue ? <Send className="w-3.5 h-3.5 ml-0.5" /> : <Mic className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─────────────────── Message Bubble Sub-component ─────────────────── */
+
+const MessageBubble: React.FC<{ msg: Message; onButtonClick: (btn: any) => void }> = ({ msg, onButtonClick }) => {
+  const [imgError, setImgError] = useState(false);
+
+  if (msg.sender === 'system') {
+    const isDelay   = msg.type === 'delay';
+    const isWebhook = msg.type === 'webhook';
+    const isHandoff = msg.type === 'handoff';
+    const isCapture = msg.type === 'capture' && msg.sender === 'system';
+
+    return (
+      <div className={`self-center max-w-[85%] animate-in fade-in slide-in-from-top-2 duration-400 my-1`}>
+        <div className={`px-4 py-2 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-center border flex items-center gap-2 justify-center ${
+          isDelay   ? 'bg-sky-500/10 border-sky-500/20 text-sky-300' :
+          isWebhook ? 'bg-orange-500/10 border-orange-500/20 text-orange-300' :
+          isHandoff ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' :
+          isCapture ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' :
+                      'bg-[#182229] border-white/10 text-white/50'
+        }`}>
+          {isDelay   && <Clock className="w-3 h-3 shrink-0" />}
+          {isWebhook && <Globe className="w-3 h-3 shrink-0" />}
+          {isHandoff && <UserCheck className="w-3 h-3 shrink-0" />}
+          <span>{msg.text}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const isUser = msg.sender === 'user';
+
+  return (
+    <div className={`flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300 ${isUser ? 'items-end' : 'items-start'}`}>
+      <div className={`relative max-w-[82%] px-3.5 py-2.5 rounded-2xl shadow-sm ${
+        msg.type === 'error'
+          ? 'bg-rose-500/20 border border-rose-500/30 text-rose-300 rounded-tl-none'
+          : isUser
+            ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none'
+            : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
+      }`}>
+
+        {/* Tail */}
+        <div className={`absolute top-0 w-3 h-3 ${
+          isUser
+            ? 'right-[-7px] border-l-[10px] border-l-[#005c4b] border-b-[10px] border-b-transparent'
+            : msg.type === 'error'
+              ? 'left-[-7px] border-r-[10px] border-r-[#380c0c] border-b-[10px] border-b-transparent'
+              : 'left-[-7px] border-r-[10px] border-r-[#202c33] border-b-[10px] border-b-transparent'
+        }`} />
+
+        {/* Media Preview */}
+        {msg.type === 'media' && msg.mediaUrl && (
+          <div className="mb-2 rounded-xl overflow-hidden bg-black/30 border border-white/10 max-w-[240px]">
+            {!imgError ? (
+              <img
+                src={msg.mediaUrl}
+                alt="Media"
+                className="w-full max-h-40 object-cover"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="h-24 flex flex-col items-center justify-center gap-2 p-3">
+                <Image className="w-8 h-8 text-white/20" />
+                <span className="text-[9px] text-white/40 font-bold uppercase tracking-wider text-center break-all">{msg.mediaUrl}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Capture indicator */}
+        {msg.type === 'capture' && msg.variableName && (
+          <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-amber-500/15 rounded-lg border border-amber-500/20">
+            <span className="text-[9px] font-black uppercase text-amber-400">Guardará en @{msg.variableName}</span>
+          </div>
+        )}
+
+        {msg.text && (
+          <p className="leading-relaxed whitespace-pre-wrap text-[14px] break-words">{msg.text}</p>
+        )}
+
+        <div className="flex items-center justify-end gap-1 mt-1">
+          <span className="text-[10px] text-white/35 leading-none">{msg.timestamp}</span>
+          {isUser && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
+        </div>
+      </div>
+
+      {/* Interactive Buttons */}
+      {msg.buttons && msg.buttons.length > 0 && (
+        <div className="flex flex-col gap-1.5 mt-1.5 w-full max-w-[82%]">
+          {msg.buttons.map((btn, bIdx) => (
+            <button
+              key={bIdx}
+              onClick={() => onButtonClick(btn)}
+              className="bg-[#182229] border border-[#53bdeb]/20 hover:bg-[#2a3942] hover:border-[#53bdeb]/50 text-[#53bdeb] text-[13px] font-bold py-2.5 px-5 rounded-full shadow transition-all active:scale-95 text-center"
+            >
+              {btn.title || btn.text}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

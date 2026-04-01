@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
     
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select('*, contacts(phone_number, profile_name, profile_picture)')
+      .select('*, contacts(phone_number, profile_name, profile_picture), messages(content, created_at)')
       .eq('organization_id', orgId)
       .order('last_message_at', { ascending: false });
 
@@ -26,21 +26,39 @@ router.get('/', async (req, res) => {
       console.log('  - First conversation:', conversations[0]);
     }
 
-    const formattedConversations = (conversations || []).map((conv: any) => ({
-      _id: conv.id,
-      id: conv.id,
-      contactId: {
-        phoneNumber: conv.contacts?.phone_number || 'Desconocido',
-        name: (conv.contacts?.profile_name && conv.contacts.profile_name !== 'Sin nombre') 
-          ? conv.contacts.profile_name 
-          : (conv.contacts?.phone_number || 'Sin nombre'),
-        profilePicture: conv.contacts?.profile_picture || null
-      },
-      lastMessageAt: conv.last_message_at,
-      unreadCount: 0,
-      status: conv.status,
-      createdAt: conv.created_at
-    }));
+    const formattedConversations = (conversations || []).map((conv: any) => {
+      // Pick the latest message content
+      let lastMessageContent = 'Sin mensajes';
+      if (conv.messages && conv.messages.length > 0) {
+        // Find the one with the latest created_at
+        const latestMsg = conv.messages.reduce((prev: any, current: any) => 
+          (new Date(current.created_at) > new Date(prev.created_at)) ? current : prev
+        );
+        lastMessageContent = latestMsg.content;
+      }
+
+      return {
+        _id: conv.id,
+        id: conv.id,
+        contactId: {
+          id: conv.contact_id,
+          _id: conv.contact_id,
+          phoneNumber: conv.contacts?.phone_number || 'Desconocido',
+          name: (conv.contacts?.profile_name && conv.contacts.profile_name !== 'Sin nombre') 
+            ? conv.contacts.profile_name 
+            : (conv.contacts?.phone_number || 'Sin nombre'),
+          profilePicture: conv.contacts?.profile_picture || null,
+          isGroup: conv.contacts?.custom_attributes?.is_group || 
+                   conv.contacts?.phone_number?.includes('-') || 
+                   (conv.contacts?.phone_number && conv.contacts.phone_number.length > 15)
+        },
+        lastMessageAt: conv.last_message_at,
+        lastMessageContent: lastMessageContent,
+        unreadCount: 0,
+        status: conv.status,
+        createdAt: conv.created_at
+      };
+    });
 
     console.log('[Conversations API] Formatted conversations:', formattedConversations.length);
     res.json(formattedConversations);
@@ -82,10 +100,10 @@ router.get('/:id/messages', async (req, res) => {
 router.post('/:id/send', async (req, res) => {
   try {
     const { id } = req.params;
-    const { text } = req.body;
+    const { text, mediaUrl, mediaType, caption } = req.body;
 
-    if (!text || !text.trim()) {
-      return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
+    if (!text && !mediaUrl) {
+      return res.status(400).json({ error: 'El mensaje o el archivo no pueden estar vacíos' });
     }
 
     const orgId = (req as any).organizationId;
@@ -138,7 +156,18 @@ router.post('/:id/send', async (req, res) => {
 
     const contactJid = (conversation.contacts as any)?.custom_attributes?.whatsapp_jid;
     const adapter = (multiWhatsAppService as any).createWaServiceAdapter(activeConn);
-    await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
+    
+    if (mediaUrl) {
+      // Send Media
+      await adapter.sendMediaMessage(correctedPhone, mediaUrl, { 
+        jid: contactJid, 
+        type: mediaType || 'image',
+        caption: text || caption || ''
+      });
+    } else {
+      // Send Text
+      await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
+    }
 
     // Save message to DB
     const { data: savedMessage } = await supabase
@@ -148,8 +177,8 @@ router.post('/:id/send', async (req, res) => {
         conversation_id: id,
         contact_id: conversation.contact_id,
         direction: 'outbound',
-        type: 'text',
-        content: text.trim(),
+        type: mediaUrl ? (mediaType || 'image') : 'text',
+        content: mediaUrl ? JSON.stringify({ url: mediaUrl, caption: text }) : (text || '').trim(),
         status: 'sent'
       })
       .select()
@@ -165,9 +194,9 @@ router.post('/:id/send', async (req, res) => {
     res.json({
       _id: savedMessage?.id,
       direction: 'outbound',
-      content: text.trim(),
+      content: mediaUrl ? { url: mediaUrl, caption: text } : (text || '').trim(),
       createdAt: savedMessage?.created_at,
-      type: 'text',
+      type: mediaUrl ? (mediaType || 'image') : 'text',
       status: 'sent'
     });
   } catch (error: any) {

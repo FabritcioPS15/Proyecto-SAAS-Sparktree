@@ -12,16 +12,15 @@ router.get('/', async (req, res) => {
     // Fetch contacts
     const { data: contacts, error: contactsError } = await supabase
       .from('contacts')
-      .select('id, phone_number, profile_name, last_active_at, created_at')
+      .select('id, phone_number, profile_name, last_active_at, created_at, bot_state')
       .eq('organization_id', orgId)
       .order('last_active_at', { ascending: false });
 
     if (contactsError) throw contactsError;
 
-    // Fetch message counts for all contacts in this org (ideally we should filter by org but let's assume we have a way to know the context)
-    // For now, let's just get counts for these specific contacts
     const contactIds = contacts.map(c => c.id);
     
+    // Fetch message counts
     const { data: counts, error: countsError } = await supabase
       .from('messages')
       .select('contact_id')
@@ -30,9 +29,29 @@ router.get('/', async (req, res) => {
 
     if (countsError) throw countsError;
 
-    // Count messages per contact
     const messageCounts = counts.reduce((acc: any, msg: any) => {
       acc[msg.contact_id] = (acc[msg.contact_id] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Fetch latest conversation for each contact to see which bot/connection they are using
+    const { data: conversations, error: convError } = await supabase
+      .from('conversations')
+      .select('contact_id, whatsapp_connection_id, whatsapp_connections(display_name, phone_number)')
+      .eq('organization_id', orgId)
+      .in('contact_id', contactIds)
+      .order('last_message_at', { ascending: false });
+
+    if (convError) throw convError;
+
+    // Map latest conversation to contact
+    const contactBotMap = (conversations || []).reduce((acc: any, conv: any) => {
+      if (!acc[conv.contact_id]) {
+        acc[conv.contact_id] = {
+          attendedBy: conv.whatsapp_connections?.display_name || 'Bot Sparktree',
+          serviceNumber: conv.whatsapp_connections?.phone_number || 'N/A'
+        };
+      }
       return acc;
     }, {});
 
@@ -43,13 +62,59 @@ router.get('/', async (req, res) => {
       name: c.profile_name || 'Usuario Anon',
       firstInteraction: c.created_at,
       lastInteraction: c.last_active_at,
-      totalMessages: messageCounts[c.id] || 0
+      totalMessages: messageCounts[c.id] || 0,
+      botState: c.bot_state,
+      attendedBy: contactBotMap[c.id]?.attendedBy || 'Bot Sparktree',
+      serviceNumber: contactBotMap[c.id]?.serviceNumber || 'N/A'
     }));
 
     res.json(transformed);
   } catch (error) {
     console.error('Error in /api/users:', error);
     res.status(500).json({ error: 'Failed to fetch contacts' });
+  }
+});
+
+// DELETE /api/users/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    const orgId = (req as any).organizationId;
+    const { id } = req.params;
+    if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { error } = await supabase
+      .from('contacts')
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', orgId);
+
+    if (error) throw error;
+    res.json({ success: true, message: 'Contact deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting contact:', error);
+    res.status(500).json({ error: 'Failed to delete contact' });
+  }
+});
+
+// POST /api/users/delete-bulk
+router.post('/delete-bulk', async (req, res) => {
+  try {
+    const orgId = (req as any).organizationId;
+    const { ids } = req.body;
+    if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Invalid IDs' });
+
+    const { error } = await supabase
+      .from('contacts')
+      .delete()
+      .in('id', ids)
+      .eq('organization_id', orgId);
+
+    if (error) throw error;
+    res.json({ success: true, message: `${ids.length} contacts deleted successfully` });
+  } catch (error) {
+    console.error('Error in bulk delete:', error);
+    res.status(500).json({ error: 'Failed to perform bulk deletion' });
   }
 });
 

@@ -17,11 +17,21 @@ router.get('/organizations', isSuperAdmin, async (req, res) => {
   try {
     const { data: orgs, error } = await supabase
       .from('organizations')
-      .select('*')
+      .select(`
+        *,
+        user_count:users(count)
+      `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    res.json(orgs);
+    
+    // Transform user_count from [{count: n}] to n
+    const transformedOrgs = (orgs || []).map(org => ({
+      ...org,
+      userCount: org.user_count?.[0]?.count || 0
+    }));
+
+    res.json(transformedOrgs);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

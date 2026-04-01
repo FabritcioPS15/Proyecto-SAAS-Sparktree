@@ -12,15 +12,25 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false, // Cleaner production build
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-utils': ['axios', '@supabase/supabase-js'],
+          'vendor-ui': ['lucide-react', 'react-icons'],
+          'vendor-charts': ['recharts'],
+          'vendor-flow': ['@xyflow/react'],
+        }
+      }
+    }
   },
   server: {
     port: 5173,
+    host: true, // Allow external access on local network
   },
   preview: {
     port: 4173,
-  },
-  optimizeDeps: {
-    exclude: ['lucide-react'],
   },
 });

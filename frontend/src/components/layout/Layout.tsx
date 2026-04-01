@@ -43,7 +43,7 @@ export const Layout = ({ children, fullWidth = false, noPadding = false, noHeade
         {!noHeader && <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />}
 
         <main className={`flex-1 overflow-hidden ${noPadding ? '' : 'px-4 sm:px-8 py-8'} relative z-10 min-h-0 transition-all duration-300 flex flex-col ${fullWidth ? 'max-w-none' : (isSidebarCollapsed ? 'max-w-[1800px]' : 'max-w-[1600px]')}`}>
-          <div className={`${noPadding ? '' : 'w-full h-full mx-auto'} flex flex-col flex-1`}>
+          <div className="w-full h-full mx-auto flex flex-col flex-1 min-h-0">
             {children}
           </div>
         </main>

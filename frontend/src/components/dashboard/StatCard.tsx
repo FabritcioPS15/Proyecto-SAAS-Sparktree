@@ -14,7 +14,7 @@ export const StatCard = ({ title, value, icon: Icon, trend }: StatCardProps) => 
   return (
     <div className="bg-white/80 dark:bg-gray-900/50 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-800/50 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
       {/* Decorative gradient blob */}
-      <div className="absolute -right-8 -top-8 w-24 h-24 bg-blue-500/10 dark:bg-blue-500/20 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-300"></div>
+      <div className="absolute -right-8 -top-8 w-24 h-24 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-300"></div>
       
       <div className="flex items-center justify-between relative z-10">
         <div>
@@ -29,8 +29,8 @@ export const StatCard = ({ title, value, icon: Icon, trend }: StatCardProps) => 
             </div>
           )}
         </div>
-        <div className="p-4 bg-gradient-to-br from-blue-50 to-primary-50 dark:from-blue-900/40 dark:to-primary-900/20 rounded-2xl shadow-inner border border-white/50 dark:border-white/5">
-          <Icon className="w-7 h-7 text-primary-600 dark:text-primary-400" />
+        <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/40 dark:to-green-900/20 rounded-2xl shadow-inner border border-white/50 dark:border-white/5">
+          <Icon className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
         </div>
       </div>
     </div>

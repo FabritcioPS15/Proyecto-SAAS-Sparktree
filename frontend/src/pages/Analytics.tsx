@@ -153,14 +153,14 @@ export const Analytics = () => {
             { icon: MessageCircle, label: 'Finalización', value: `${stats.completionRate}%`, color: 'slate' },
             { icon: Activity, label: 'Usuarios Activos', value: stats.totalUsers.toLocaleString(), color: 'slate' }
           ].map((item, idx) => (
-            <div key={idx} className="bg-white/40 dark:bg-slate-800/20 rounded-3xl p-5 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 group overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-slate-500/5 blur-2xl rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
+            <div key={idx} className="bg-white/40 dark:bg-black/20 rounded-3xl p-5 border border-slate-100 dark:border-white/5 hover:shadow-xl transition-all duration-500 group overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-20 h-20 bg-accent-500/5 blur-2xl rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
 
               <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl text-slate-600 dark:text-slate-400 group-hover:bg-slate-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-slate-900 transition-all duration-300 shadow-sm border border-slate-50 dark:border-slate-800">
+                <div className="p-2.5 bg-white dark:bg-black rounded-xl text-slate-600 dark:text-slate-400 group-hover:bg-black group-hover:text-accent-500 dark:group-hover:bg-accent-500 dark:group-hover:text-black transition-all duration-300 shadow-sm border border-slate-50 dark:border-white/10">
                   <item.icon className="w-5 h-5" />
                 </div>
-                <Activity className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+                <Activity className="w-3 h-3 text-accent-500/30" />
               </div>
               <div className="space-y-1 relative z-10">
                 <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.label}</p>
@@ -183,8 +183,8 @@ export const Analytics = () => {
                 <LineChart data={interactionsPerDay.length > 0 ? interactionsPerDay : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="interactionColor" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#6366f1" />
-                      <stop offset="100%" stopColor="#a855f7" />
+                      <stop offset="0%" stopColor="#41f0a5" />
+                      <stop offset="100%" stopColor="#25d366" />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.05} vertical={false} />
@@ -215,47 +215,8 @@ export const Analytics = () => {
                     }}
                     labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
                   />
-                  <Line type="monotone" dataKey="value" stroke="url(#interactionColor)" strokeWidth={4} dot={{ fill: '#6366f1', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="value" stroke="url(#interactionColor)" strokeWidth={4} dot={{ fill: '#41f0a5', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
                 </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-white/40 dark:bg-slate-800/20 rounded-3xl p-6 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 flex flex-col min-h-[400px]">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white">Flujos más Utilizados</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">Ejecuciones por flujo</p>
-            </div>
-            <div className="flex-1 min-w-0 min-h-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topFlows.length > 0 ? topFlows : generateEmptyFlowsData()} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="flowColor" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#6366f1" />
-                      <stop offset="100%" stopColor="#818cf8" />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.05} horizontal={false} />
-                  <XAxis 
-                    type="number" 
-                    stroke="#94a3b8" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    fontSize={10}
-                  />
-                  <YAxis dataKey="option" type="category" stroke="#94a3b8" axisLine={false} tickLine={false} width={80} fontSize={10} fontWeight={600} />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(99, 102, 241, 0.05)', radius: 8 }}
-                    contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                      backdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '16px',
-                      color: '#fff'
-                    }}
-                  />
-                  <Bar dataKey="count" fill="url(#flowColor)" radius={[0, 8, 8, 0]} maxBarSize={30} />
-                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -304,7 +265,7 @@ export const Analytics = () => {
                     }}
                     labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}
                   />
-                  <Line type="monotone" dataKey="value" stroke="url(#activeColor)" strokeWidth={4} dot={{ fill: '#10b981', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="value" stroke="url(#activeColor)" strokeWidth={4} dot={{ fill: '#41f0a5', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -357,7 +318,7 @@ export const Analytics = () => {
                       return [value, name?.toString() || ''];
                     }}
                   />
-                  <Bar dataKey="ejecuciones" fill="#6366f1" radius={[8, 8, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="ejecuciones" fill="#41f0a5" radius={[8, 8, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -377,8 +338,8 @@ export const Analytics = () => {
                 })) : []} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="hourlyColor" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#f59e0b" />
-                      <stop offset="100%" stopColor="#ef4444" />
+                      <stop offset="0%" stopColor="#41f0a5" />
+                      <stop offset="100%" stopColor="#222" />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.05} vertical={false} />
@@ -412,8 +373,8 @@ export const Analytics = () => {
                       return [value, name?.toString() || ''];
                     }}
                   />
-                  <Line type="monotone" dataKey="ejecuciones" stroke="url(#hourlyColor)" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
-                  <Line type="monotone" dataKey="dias_activos" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981', r: 3, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="ejecuciones" stroke="url(#hourlyColor)" strokeWidth={3} dot={{ fill: '#41f0a5', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="dias_activos" stroke="#222" strokeWidth={2} dot={{ fill: '#222', r: 3, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, strokeWidth: 0 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -471,9 +432,9 @@ export const Analytics = () => {
                         return [value, name?.toString() || ''];
                       }}
                     />
-                    <Line type="monotone" dataKey="total_ejecuciones" stroke="url(#dailyColor)" strokeWidth={3} dot={{ fill: '#10b981', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
-                    <Line type="monotone" dataKey="flujos_unicos" stroke="#6366f1" strokeWidth={2} dot={{ fill: '#6366f1', r: 3, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, strokeWidth: 0 }} />
-                    <Line type="monotone" dataKey="completados" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b', r: 3, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                    <Line type="monotone" dataKey="total_ejecuciones" stroke="url(#dailyColor)" strokeWidth={3} dot={{ fill: '#41f0a5', r: 4, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                    <Line type="monotone" dataKey="flujos_unicos" stroke="#222" strokeWidth={2} dot={{ fill: '#222', r: 3, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                    <Line type="monotone" dataKey="completados" stroke="#888" strokeWidth={2} dot={{ fill: '#888', r: 3, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5, strokeWidth: 0 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

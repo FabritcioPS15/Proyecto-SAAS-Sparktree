@@ -3,6 +3,34 @@ import { supabase } from '../config/supabase';
 
 const router = express.Router();
 
+// GET /api/flows/:id/active-connections
+router.get('/:id/active-connections', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
+    const { data: assignments, error } = await supabase
+      .from('flow_assignments')
+      .select(`
+        whatsapp_connections(id, display_name, phone_number, status)
+      `)
+      .eq('flow_id', id)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching flow assignments:', error);
+      return res.status(500).json({ error: 'Failed to fetch active connections' });
+    }
+
+    const connections = assignments?.map((a: any) => a.whatsapp_connections).filter(Boolean) || [];
+    res.json(connections);
+  } catch (error) {
+    console.error('Error in GET /flows/:id/active-connections:', error);
+    res.status(500).json({ error: 'Failed to fetch active connections' });
+  }
+});
+
 // GET /api/flows
 router.get('/', async (req, res) => {
   try {
@@ -23,17 +51,41 @@ router.get('/', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch flows' });
     }
 
+    const flowIds = (flows || []).map(f => f.id);
+    const { data: assignments } = await supabase
+      .from('flow_assignments')
+      .select('flow_id, whatsapp_connections(id, display_name, phone_number)')
+      .in('flow_id', flowIds)
+      .eq('is_active', true);
+
+    const assignmentMap = (assignments || []).reduce((acc: any, curr: any) => {
+      if (!acc[curr.flow_id]) acc[curr.flow_id] = [];
+      if (curr.whatsapp_connections) acc[curr.flow_id].push(curr.whatsapp_connections);
+      return acc;
+    }, {});
+
     // Transform the data to match frontend interface
     const transformedFlows = flows?.map(flow => {
-      // Fallback: Read from trigger node if columns are missing
       const triggerNode = flow.nodes?.find((n: any) => n.type === 'trigger');
       
+      // Get values with deep fallback
+      const matchingStrategy = flow.matching_strategy || 
+                               flow.matchingStrategy || 
+                               triggerNode?.data?.matchingStrategy || 
+                               'strict';
+                               
+      const reactivationTime = flow.reactivation_time || 
+                               flow.reactivationTime || 
+                               triggerNode?.data?.reactivationTime || 
+                               30;
+
       return {
         ...flow,
         lastModified: flow.updated_at,
         assignedTo: flow.assigned_to?.name || 'Sin asignar',
-        matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
-        reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
+        matchingStrategy,
+        reactivationTime,
+        activeConnections: assignmentMap[flow.id] || []
       };
     }) || [];
 
@@ -71,8 +123,8 @@ router.get('/:id', async (req, res) => {
       ...flow,
       lastModified: flow.updated_at,
       assignedTo: flow.assigned_to?.name || 'Sin asignar',
-      matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
-      reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
+      matchingStrategy: flow.matching_strategy || flow.matchingStrategy || triggerNode?.data?.matchingStrategy || triggerNode?.data?.matching_strategy || 'strict',
+      reactivationTime: flow.reactivation_time || flow.reactivationTime || triggerNode?.data?.reactivationTime || triggerNode?.data?.reactivation_time || 30
     };
 
     res.json(transformedFlow);
@@ -135,8 +187,8 @@ router.post('/', async (req, res) => {
       ...flow,
       lastModified: flow.updated_at,
       assignedTo: flow.assigned_to?.name || 'Sin asignar',
-      matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
-      reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
+      matchingStrategy: flow.matching_strategy || flow.matchingStrategy || triggerNode?.data?.matchingStrategy || triggerNode?.data?.matching_strategy || 'strict',
+      reactivationTime: flow.reactivation_time || flow.reactivationTime || triggerNode?.data?.reactivationTime || triggerNode?.data?.reactivation_time || 30
     };
 
     res.status(201).json(transformedFlow);
@@ -164,28 +216,30 @@ router.put('/:id', async (req, res) => {
       edges 
     } = req.body;
 
-    const organization_id = (req as any).organizationId;
-    if (!organization_id) return res.status(400).json({ error: 'Organization ID missing' });
+    const orgId = (req as any).organizationId || (req as any).organization_id;
+    if (!orgId) return res.status(400).json({ error: 'Organization ID missing' });
 
-    // Prepare update object - only include fields that are present in req.body
+    const organization_id = orgId; // consistent local name
+
+    // Map and sanitize update data
     const updateData: any = {
       updated_at: new Date().toISOString()
     };
 
-    const fields = [
+    const allowedFields = [
       'name', 'description', 'status', 'version', 'category', 
       'triggers', 'assigned_to', 'is_default', 'metrics', 'nodes', 'edges'
     ];
 
-    fields.forEach(field => {
+    allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
         updateData[field] = req.body[field];
       }
     });
 
-    console.log(`[Flows API] Updating flow ${id} for org ${organization_id}`);
+    console.log(`[Flows API] Updating flow ${id} (using nodes for strategy persistence)`);
 
-    const { data: flow, error } = await supabase
+    const { data: updatedFlow, error: updateError } = await supabase
       .from('flows')
       .update(updateData)
       .eq('id', id)
@@ -193,36 +247,42 @@ router.put('/:id', async (req, res) => {
       .select(`
         *,
         assigned_to:users(name, email)
-      `)
-      .single();
+      `);
 
-    if (error) {
-      console.error('Error updating flow:', error);
-      return res.status(500).json({ 
-        error: 'Failed to update flow', 
-        details: error.message,
-        code: error.code
+    if (updateError) {
+      console.error('CRITICAL: Supabase Update Failed:', {
+        code: updateError.code,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+        sentData: updateData
+      });
+      return res.status(400).json({ 
+        error: updateError.message,
+        details: updateError.details,
+        hint: "Check if columns matching_strategy or reactivation_time exist in your flows table",
+        supabaseError: updateError
       });
     }
 
-    if (!flow) {
-      return res.status(404).json({ error: 'Flow not found' });
+    if (!updatedFlow || updatedFlow.length === 0) {
+      return res.status(404).json({ error: 'Flow not found or unauthorized' });
     }
 
-    // Transform the data to match frontend interface
+    const flow = updatedFlow[0];
     const triggerNode = flow.nodes?.find((n: any) => n.type === 'trigger');
     const transformedFlow = {
       ...flow,
       lastModified: flow.updated_at,
       assignedTo: flow.assigned_to?.name || 'Sin asignar',
-      matchingStrategy: flow.matching_strategy || triggerNode?.data?.matchingStrategy || 'strict',
-      reactivationTime: flow.reactivation_time || triggerNode?.data?.reactivationTime || 30
+      matchingStrategy: flow.matching_strategy || flow.matchingStrategy || triggerNode?.data?.matchingStrategy || triggerNode?.data?.matching_strategy || 'strict',
+      reactivationTime: flow.reactivation_time || flow.reactivationTime || triggerNode?.data?.reactivationTime || triggerNode?.data?.reactivation_time || 30
     };
 
     res.json(transformedFlow);
-  } catch (error) {
-    console.error('Error in PUT /flows/:id:', error);
-    res.status(500).json({ error: 'Failed to update flow' });
+  } catch (error: any) {
+    console.error('FATAL BACKEND CRASH:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 

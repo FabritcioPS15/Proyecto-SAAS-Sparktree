@@ -82,6 +82,20 @@ class WhatsAppQRService {
           console.log(`[QR Service] Remote JID: ${msg.key?.remoteJid}`);
           
           if (msg.key && !msg.key.fromMe && msg.message) {
+            const jid = msg.key.remoteJid;
+            
+            // Ignore WhatsApp status updates and other broadcast JIDs
+            if (jid === 'status@broadcast' || jid?.includes('@broadcast')) {
+              console.log(`[QR Service] ❌ Ignorando actualización de estado de: ${jid}`);
+              continue;
+            }
+
+            // Group processing (log and continue)
+            const isGroup = jid?.includes('@g.us');
+            if (isGroup) {
+               console.log(`[QR Service] 👥 Mensaje de grupo detectado: ${jid}`);
+            }
+
             console.log(`[QR Service] ✅ Mensaje entrante detectado!`);
             await this.processIncomingMessage(msg);
           } else {
@@ -203,6 +217,7 @@ class WhatsAppQRService {
 
       const existingContact = contacts && contacts.length > 0 ? contacts[0] : null;
 
+      const isGroup = remoteJid.includes('@g.us');
       let contact;
       if (existingContact) {
         console.log(`[QR Service] Reusando contacto existente: ${existingContact.id}`);
@@ -214,7 +229,8 @@ class WhatsAppQRService {
             last_active_at: new Date().toISOString(),
             custom_attributes: {
               ...existingContact.custom_attributes,
-              whatsapp_jid: msg.key.remoteJid
+              whatsapp_jid: msg.key.remoteJid,
+              is_group: isGroup
             }
           })
           .eq('id', existingContact.id)
@@ -232,7 +248,8 @@ class WhatsAppQRService {
             profile_name: msg.pushName || '',
             last_active_at: new Date().toISOString(),
             custom_attributes: {
-              whatsapp_jid: msg.key.remoteJid
+              whatsapp_jid: msg.key.remoteJid,
+              is_group: isGroup
             }
           })
           .select()
@@ -328,7 +345,7 @@ class WhatsAppQRService {
     // Formato numerado claro y fácil de usar
     const numberedOptions = buttons.map((btn, index) => {
       const number = index + 1;
-      return `${number}. ${btn.title}`;
+      return `${number}. ${btn.text || btn.title || 'Opción'}`;
     }).join('\n');
     
     const fullMessage = `${bodyText}\n\n${numberedOptions}\n\n💡 *Responde con el número de tu opción*`;
@@ -344,7 +361,7 @@ class WhatsAppQRService {
       // Guardar mapeo de números a IDs para procesar respuestas
       const buttonMapping: { [key: string]: string } = {};
       buttons.forEach((btn, index) => {
-        buttonMapping[(index + 1).toString()] = btn.id;
+        buttonMapping[(index + 1).toString()] = btn.id || `btn-${index}`;
       });
       
       console.log(`[QR Service] Button mapping:`, buttonMapping);

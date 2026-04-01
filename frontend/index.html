@@ -12,8 +12,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="bg-[#0a0c10]">
+    <div id="root">
+      <div style="height: 100vh; width: 100vw; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #0a0c10; font-family: 'Inter', sans-serif;">
+        <div style="position: relative; margin-bottom: 2rem;">
+          <div style="width: 3.5rem; height: 3.5rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); animation: bounce 1s infinite alternate;"></div>
+          <style>@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }</style>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+          <p style="color: white; font-weight: 900; font-size: 1.125rem; text-transform: uppercase; letter-spacing: -0.025em; margin: 0;">SPARKTREE</p>
+          <div style="height: 2px; width: 40px; background-color: #3b82f6; border-radius: 9999px; overflow: hidden; position: relative;">
+            <div style="position: absolute; height: 100%; width: 50%; background-color: white; animation: slide 1s infinite linear;"></div>
+            <style>@keyframes slide { from { left: -50%; } to { left: 100%; } }</style>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
