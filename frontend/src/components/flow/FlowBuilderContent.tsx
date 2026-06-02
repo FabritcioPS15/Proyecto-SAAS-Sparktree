@@ -456,7 +456,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
         </div>
 
         {/* Right Toolbar */}
-        <div className="w-80 bg-white/70 dark:bg-[#11141b]/70 backdrop-blur-xl border-l border-gray-100 dark:border-gray-800 flex flex-col z-10 shadow-lg">
+        <div className="w-96 bg-white/70 dark:bg-[#11141b]/70 backdrop-blur-xl border-l border-gray-100 dark:border-gray-800 flex flex-col z-10 shadow-lg shrink-0">
           <div className="p-4 flex gap-1 bg-slate-50 dark:bg-white/5 mx-4 mt-6 rounded-2xl border border-gray-100 dark:border-gray-800">
             <button
               onClick={() => setActiveTab('nodos')}
@@ -648,9 +648,9 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                         Botones de Respuesta
                         <span className="text-accent-500">{(selectedNode.data.buttons || []).length}/10</span>
                       </label>
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {selectedNode.data.buttons?.map((btn: any, idx: number) => (
-                          <div key={btn.id || `sidebar-btn-${idx}`} className="group/btn relative space-y-2">
+                          <div key={btn.id || `sidebar-btn-${idx}`} className="group/btn relative flex items-center gap-2 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-accent-500 rounded-2xl transition-all shadow-sm">
                             <div className="flex-1 relative">
                               <input 
                                 value={btn.text || ''} 
@@ -661,7 +661,8 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                                   });
                                   updateNodeData({ buttons: newBtns });
                                 }} 
-                                className="w-full pl-5 pr-10 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[11px] font-bold text-slate-900 dark:text-white focus:border-accent-500 outline-none transition-all" 
+                                placeholder={`Opción ${idx + 1}`}
+                                className="w-full px-4 py-2.5 bg-transparent text-xs font-bold text-slate-900 dark:text-white outline-none" 
                               />
                             </div>
                             <button 
@@ -669,7 +670,8 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                                 const newBtns = selectedNode.data.buttons.filter((_: any, i: number) => i !== idx);
                                 updateNodeData({ buttons: newBtns });
                               }} 
-                              className="p-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all"
+                              className="p-2.5 text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all shrink-0"
+                              title="Eliminar botón"
                             >
                               <HiMiniTrash className="w-4 h-4" />
                             </button>
@@ -678,7 +680,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                         {(selectedNode.data.buttons || []).length < 10 && (
                           <button 
                             onClick={() => updateNodeData({ buttons: [...(selectedNode.data.buttons || []), { id: `btn_${Date.now()}`, text: 'Nuevo Botón' }] })} 
-                            className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-primary-400 hover:text-accent-500 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-4 mt-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-primary-400 hover:text-accent-500 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center justify-center gap-2"
                           >
                             <Plus className="w-4 h-4" /> Añadir Opción
                           </button>

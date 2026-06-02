@@ -8,13 +8,13 @@ async function checkUsers() {
   );
 
   console.log('👥 Checking users in the database...');
-  const { data: users, error } = await supabase.from('users').select('id, email, full_name, role');
+  const { data: users, error } = await supabase.from('users').select('id, email, full_name, role, password_hash');
   
   if (error) {
     console.error('Error fetching users:', error.message);
   } else {
     console.log(`Found ${users.length} users:`);
-    console.table(users);
+    console.log(JSON.stringify(users, null, 2));
   }
 }
 

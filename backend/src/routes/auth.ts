@@ -1,6 +1,14 @@
 import express from 'express';
 import { supabase } from '../config/supabase';
 
+import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+
+function logToDebug(msg: string) {
+  fs.appendFileSync(path.join(__dirname, '../../debug_requests.log'), `[AUTH DEBUG] ${new Date().toISOString()} ${msg}\n`);
+}
+
 const router = express.Router();
 
 // POST /api/auth/login
@@ -21,13 +29,26 @@ router.post('/login', async (req, res) => {
       .single();
 
     if (error || !user) {
+      logToDebug(`User lookup failed for ${email}: ${error?.message || 'NOT_FOUND'}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify password (placeholder: in production use bcrypt)
-    // Note: If the user hasn't run the migration yet, password_hash might not exist
-    if (user.password_hash !== password) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    logToDebug(`User found: ${user.email}. Hash: ${user.password_hash}`);
+
+    // Verify password with bcrypt
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      logToDebug(`Bcrypt check FAILED for ${email}. Comparing with raw password...`);
+      // Fallback for simple dev passwords if not a hash
+      if (user.password_hash === password) {
+        logToDebug(`Literal match found for ${email}. Proceeding...`);
+        // Allow it for now if they didn't run the migration correctly with hashes
+      } else {
+        logToDebug(`Literal match also FAILED for ${email}. Access denied.`);
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+    } else {
+      logToDebug(`Bcrypt check SUCCESS for ${email}.`);
     }
 
     // Return user data (excluding password)

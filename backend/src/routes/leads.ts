@@ -12,6 +12,8 @@ router.get('/', async (req, res) => {
             .from('contacts')
             .select('*')
             .eq('organization_id', orgId)
+            // Filtramos solo los contactos que han sido marcados como 'cliente potencial' por el bot
+            .contains('custom_attributes', { is_potential_lead: true })
             .order('last_active_at', { ascending: false });
 
         if (error) {

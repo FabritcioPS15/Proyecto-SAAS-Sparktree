@@ -39,20 +39,40 @@ export const Leads = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  // Mock data - en producción vendría de la API
   useEffect(() => {
+    let intervalId: any;
+    
     const fetchLeads = async () => {
       try {
         const data = await getLeads();
-        setLeads(Array.isArray(data) ? data : []);
+        const rawLeads = Array.isArray(data) ? data : [];
+        const mappedLeads = rawLeads.map((contact: any) => ({
+          ...contact,
+          id: contact.id || contact._id,
+          name: contact.profile_name || contact.name || 'Sin nombre',
+          phone: contact.phone_number || contact.phone || 'Sin número',
+          company: contact.company || contact.custom_attributes?.company,
+          email: contact.email || contact.custom_attributes?.email,
+          status: contact.status || contact.custom_attributes?.status || 'new',
+          priority: contact.priority || contact.custom_attributes?.priority || 'medium',
+          score: contact.custom_attributes?.score || 85,
+          currentStage: contact.custom_attributes?.currentStage || 'Interesado',
+          isHappyPath: true, 
+          tags: contact.custom_attributes?.tags || ['HOT LEAD'],
+          conversationsCount: contact.conversations_count || 1,
+        }));
+        setLeads(mappedLeads);
       } catch (error) {
         console.error("Error fetching leads:", error);
-        setLeads([]);
       } finally {
         setLoading(false);
       }
     };
+    
     fetchLeads();
+    // Auto-refresh leads every 15 seconds so new ones pop up automatically
+    intervalId = setInterval(fetchLeads, 15000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const filteredLeads = leads.filter(lead => {

@@ -7,6 +7,7 @@ import {
   Smile, Paperclip, Mic, Star, Volume2, MessageCircle, 
   Trash2, ChevronLeft, ChevronRight, MoreHorizontal 
 } from 'lucide-react';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 
 import { PageLoader } from '../components/layout/PageLoader';
 
@@ -21,6 +22,7 @@ export const Conversations = () => {
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterChannel, setFilterChannel] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,6 +66,10 @@ export const Conversations = () => {
           });
         }
 
+        if (filterChannel !== 'all') {
+          filtered = filtered.filter(conv => conv.channel === filterChannel);
+        }
+
         setConversations(filtered);
       } catch (err) {
         console.error('Failed to load conversations', err);
@@ -76,7 +82,7 @@ export const Conversations = () => {
     loadConversations();
     const interval = setInterval(loadConversations, 5000);
     return () => clearInterval(interval);
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, filterChannel]);
 
   useEffect(() => {
     if (id && conversations.length > 0 && (!selectedConv || selectedConv._id !== id)) {
@@ -204,6 +210,17 @@ export const Conversations = () => {
     return { content: firstLetter, bgColor: colors, isGroup };
   };
 
+  const getChannelBadge = (channel: string) => {
+    const channelMap: Record<string, { icon: any; color: string; label: string }> = {
+      whatsapp: { icon: FaWhatsapp, color: 'bg-green-500', label: 'WhatsApp' },
+      instagram: { icon: FaInstagram, color: 'bg-gradient-to-br from-pink-500 to-purple-600', label: 'Instagram' },
+      tiktok: { icon: null, color: 'bg-black', label: 'TikTok' },
+      telegram: { icon: FaTelegram, color: 'bg-blue-500', label: 'Telegram' },
+      messenger: { icon: FaFacebookMessenger, color: 'bg-blue-600', label: 'Messenger' }
+    };
+    return channelMap[channel] || { icon: null, color: 'bg-gray-500', label: channel };
+  };
+
   if (loading) return <PageLoader sectionName="Conversaciones" />;
 
   return (
@@ -229,18 +246,41 @@ export const Conversations = () => {
                   <Filter className="w-4 h-4" />
                 </button>
                 {isFilterOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-[#1c212b] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                     {[
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-[#1c212b] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-white/5 mb-2">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Estado</p>
+                    </div>
+                    {[
                       { id: 'all', label: 'Todos', icon: MessageCircle },
                       { id: 'unread', label: 'No leídos', icon: Star },
                       { id: 'groups', label: 'Grupos', icon: Users }
                     ].map(f => (
                       <button 
                         key={f.id}
-                        onClick={() => { setFilterStatus(f.id); setIsFilterOpen(false); setCurrentPage(1); }}
-                        className={`w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                        onClick={() => { setFilterStatus(f.id); setCurrentPage(1); }}
+                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
                       >
                         <f.icon className="w-3.5 h-3.5" />
+                        {f.label}
+                      </button>
+                    ))}
+                    <div className="px-4 py-2 border-t border-gray-100 dark:border-white/5 mt-2 mb-2">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Canal</p>
+                    </div>
+                    {[
+                      { id: 'all', label: 'Todos', icon: MessageCircle },
+                      { id: 'whatsapp', label: 'WhatsApp', icon: FaWhatsapp },
+                      { id: 'instagram', label: 'Instagram', icon: FaInstagram },
+                      { id: 'tiktok', label: 'TikTok', icon: null },
+                      { id: 'telegram', label: 'Telegram', icon: FaTelegram },
+                      { id: 'messenger', label: 'Messenger', icon: FaFacebookMessenger }
+                    ].map(f => (
+                      <button 
+                        key={f.id}
+                        onClick={() => { setFilterChannel(f.id); setIsFilterOpen(false); setCurrentPage(1); }}
+                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${filterChannel === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                      >
+                        {f.icon ? <f.icon className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 flex items-center justify-center text-[10px] font-bold">T</span>}
                         {f.label}
                       </button>
                     ))}
@@ -288,6 +328,8 @@ export const Conversations = () => {
             const isSelected = selectedConv?._id === conv._id;
             const contact = conv.contactId || {};
             const avatar = generateAvatar(contact);
+            const channelBadge = getChannelBadge(conv.channel || 'whatsapp');
+            const ChannelIcon = channelBadge.icon;
 
             return (
               <div
@@ -321,9 +363,15 @@ export const Conversations = () => {
                 {/* Info Container */}
                 <div className="flex-1 min-w-0 pt-0.5">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-gray-900 dark:text-gray-100 truncate text-[13px] tracking-tight">
-                      {contact.name || contact.phoneNumber}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900 dark:text-gray-100 truncate text-[13px] tracking-tight">
+                        {contact.name || contact.phoneNumber}
+                      </span>
+                      <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider text-white flex items-center gap-1 ${channelBadge.color}`}>
+                        {ChannelIcon ? <ChannelIcon className="w-3 h-3" /> : <span className="w-3 h-3 flex items-center justify-center text-[8px] font-bold">T</span>}
+                        {channelBadge.label}
+                      </div>
+                    </div>
                     <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase">
                       {formatTime(conv.lastMessageAt)}
                     </span>

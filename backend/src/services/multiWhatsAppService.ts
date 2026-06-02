@@ -10,6 +10,9 @@ import path from 'path';
 import fs from 'fs';
 import { supabase } from '../config/supabase';
 import { handleIncomingMessage } from '../flows';
+import { sessionPersistenceService } from './sessionPersistenceService';
+import { messageQueueService } from './messageQueueService';
+import { io } from '../api';
 
 interface WhatsAppConnection {
   id: string;
@@ -63,6 +66,9 @@ export class MultiWhatsAppService {
 
   // Initialize a single connection
   async initializeConnection(connectionData: any) {
+    // Use ephemeral directory for auth state (RNF-05)
+    const authStatePath = path.join(process.env.AUTH_STATE_PATH || '/tmp/auth_state', `auth_info_${connectionData.id}`);
+    
     const connection: WhatsAppConnection = {
       id: connectionData.id,
       userId: connectionData.user_id,
@@ -70,14 +76,22 @@ export class MultiWhatsAppService {
       displayName: connectionData.display_name,
       phoneNumber: connectionData.phone_number,
       status: 'disconnected',
-      authStatePath: `auth_info_${connectionData.id}`
+      authStatePath
     };
 
     this.connections.set(connectionData.id, connection);
 
-    // Initial load: only connect if auth state exists (to avoid headless QR generation on startup)
-    if (connection.authStatePath && fs.existsSync(connection.authStatePath)) {
+    // Try to restore session from database first (RF-04)
+    const sessionRestored = await sessionPersistenceService.restoreSessionToLocal(
+      connection.id,
+      authStatePath
+    );
+
+    if (sessionRestored) {
+      console.log(`[MultiWhatsApp] Session restored from database for ${connection.id}, connecting...`);
       await this.connectSocket(connection);
+    } else {
+      console.log(`[MultiWhatsApp] No session in database for ${connection.id}, waiting for manual connection`);
     }
   }
 
@@ -164,6 +178,19 @@ export class MultiWhatsAppService {
       }
 
       console.log(`[MultiWhatsApp] Connecting socket for ${connection.id}...`);
+      
+      // Try to restore session from database first
+      const sessionRestored = await sessionPersistenceService.restoreSessionToLocal(
+        connection.id,
+        connection.authStatePath
+      );
+      
+      if (sessionRestored) {
+        console.log(`[MultiWhatsApp] Session restored from database for ${connection.id}`);
+      } else {
+        console.log(`[MultiWhatsApp] No session found in database, starting fresh for ${connection.id}`);
+      }
+      
       const { state, saveCreds } = await useMultiFileAuthState(connection.authStatePath);
       
       let version: any = [2, 3000, 1015901307]; // Fallback version
@@ -195,6 +222,23 @@ export class MultiWhatsAppService {
       connection.socket.ev.on('creds.update', async () => {
         console.log(`[MultiWhatsApp] Creds updated for ${connection.id}`);
         await saveCreds();
+        
+        // Save session to database after credential update
+        try {
+          if (connection.authStatePath) {
+            const authState = this.readAuthState(connection.authStatePath);
+            await sessionPersistenceService.saveSession(
+              connection.id,
+              connection.organizationId,
+              authState,
+              {
+                phoneNumber: connection.phoneNumber,
+              }
+            );
+          }
+        } catch (error) {
+          console.error(`[MultiWhatsApp] Error saving session to database:`, error);
+        }
       });
 
       connection.socket.ev.on('connection.update', (update: any) => {
@@ -280,20 +324,35 @@ export class MultiWhatsAppService {
         return;
       }
 
-      // 3. ALWAYS save to history
+      // Save to history
       const profileName = msg.pushName || '';
       const { contact, conversation } = await this.saveMessageData(formattedMessage, senderPhone, connection, null, profileName);
 
-      // 4. Delegate to flow engine (it will smartly resolve the correct bot assignment or fallback)
-      const organizationConfig = {
-        organizationId: connection.organizationId,
-        conversationId: conversation?.id || undefined,
-        contactId: contact?.id || undefined,
-        whatsappConnectionId: connection.id,
-        senderJid: msg.key?.remoteJid || undefined
-      };
-
-      await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this.createWaServiceAdapter(connection));
+      // Route to message queue for async processing (RF-05)
+      try {
+        await messageQueueService.addMessageToQueue({
+          messageId: msg.key?.id || '',
+          connectionId: connection.id,
+          organizationId: connection.organizationId,
+          conversationId: conversation?.id || '',
+          contactId: contact?.id || '',
+          senderPhone,
+          message: formattedMessage,
+          timestamp: new Date().toISOString(),
+        });
+        console.log(`[MultiWhatsApp] Message routed to queue for async processing`);
+      } catch (queueError) {
+        console.error(`[MultiWhatsApp] Error routing to queue, processing synchronously:`, queueError);
+        // Fallback to synchronous processing if queue fails
+        const organizationConfig = {
+          organizationId: connection.organizationId,
+          conversationId: conversation?.id || undefined,
+          contactId: contact?.id || undefined,
+          whatsappConnectionId: connection.id,
+          senderJid: msg.key?.remoteJid || undefined
+        };
+        await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this.createWaServiceAdapter(connection));
+      }
 
     } catch (error) {
       console.error(`Error processing message for connection ${connection.id}:`, error);
@@ -316,6 +375,25 @@ export class MultiWhatsAppService {
       return remoteJid.split('@')[0].split(':')[0];
     }
     return remoteJid ? remoteJid.split('@')[0] : '';
+  }
+
+  private readAuthState(authPath: string): any {
+    const credsPath = path.join(authPath, 'creds.json');
+    if (!fs.existsSync(credsPath)) {
+      throw new Error('creds.json not found');
+    }
+
+    const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
+    const keys: any = {};
+
+    const keyFiles = fs.readdirSync(authPath).filter(f => f.endsWith('.json') && f !== 'creds.json');
+    for (const keyFile of keyFiles) {
+      const keyPath = path.join(authPath, keyFile);
+      const keyContent = fs.readFileSync(keyPath, 'utf-8');
+      keys[keyFile.replace('.json', '')] = JSON.parse(keyContent);
+    }
+
+    return { creds, keys };
   }
 
   private formatMessage(msg: proto.IWebMessageInfo, senderPhone: string): any {
@@ -504,6 +582,15 @@ export class MultiWhatsAppService {
       .from('whatsapp_connections')
       .update(updateData)
       .eq('id', connectionId);
+
+    // Broadcast status update via WebSocket (RF-02)
+    io.to(`org:${connection.organizationId}`).emit('connection-status-update', {
+      connectionId,
+      status,
+      qr,
+      phoneNumber,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   // Public methods
@@ -545,7 +632,7 @@ export class MultiWhatsAppService {
         }
       }
 
-      // Clean up auth state
+      // Clean up ephemeral auth state (RNF-05)
       if (connection.authStatePath && fs.existsSync(connection.authStatePath)) {
         try {
           fs.rmSync(connection.authStatePath, { recursive: true, force: true });
@@ -553,6 +640,9 @@ export class MultiWhatsAppService {
           console.error('Error removing auth state:', err);
         }
       }
+      
+      // Delete session from database
+      await sessionPersistenceService.deleteSession(connectionId);
       
       this.connections.delete(connectionId);
     }

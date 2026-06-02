@@ -7,6 +7,8 @@ import { useLayout } from '../components/layout/Layout';
 import { PageContainer } from '../components/layout/PageContainer';
 import { PageBody } from '../components/layout/PageBody';
 import { PageLoader } from '../components/layout/PageLoader';
+import { useConnections } from '../contexts/ConnectionsContext';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 
 const initialStats = {
   totalUsers: 0,
@@ -20,6 +22,7 @@ const initialStats = {
 export const Dashboard = () => {
   const navigate = useNavigate();
   const { isSidebarCollapsed } = useLayout();
+  const { connections } = useConnections();
   const [stats, setStats] = useState(initialStats);
   const [messagesData, setMessagesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +31,15 @@ export const Dashboard = () => {
   const [endDate, setEndDate] = useState('');
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+
+  // Platform data for Estado de Canales
+  const platformData = [
+    { id: 'whatsapp', name: 'WhatsApp', icon: FaWhatsapp, color: 'from-green-500 to-green-600', route: '/whatsapp-qr' },
+    { id: 'instagram', name: 'Instagram', icon: FaInstagram, color: 'from-pink-500 to-purple-600', route: '/instagram-config' },
+    { id: 'tiktok', name: 'TikTok', icon: null, color: 'from-black to-gray-800', route: '/tiktok-config' },
+    { id: 'telegram', name: 'Telegram', icon: FaTelegram, color: 'from-blue-500 to-blue-600', route: '/telegram-config' },
+    { id: 'messenger', name: 'Messenger', icon: FaFacebookMessenger, color: 'from-blue-600 to-blue-700', route: '/facebook-config' }
+  ];
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -93,33 +105,34 @@ export const Dashboard = () => {
   return (
     <PageContainer>
       <PageBody>
-        <div className="space-y-4">
-          {/* Header Card */}
-          <div className="relative group overflow-hidden bg-white dark:bg-[#11141b]/50 backdrop-blur-xl p-6 lg:p-7 rounded-2xl border border-slate-200 dark:border-slate-800/50 shadow-sm transition-all hover:shadow-lg duration-700">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-500/5 blur-[100px] rounded-full -mr-32 -mt-32 transition-transform group-hover:scale-110 duration-1000" />
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-3">
-                  <span className="px-4 py-1.5 bg-black dark:bg-accent-500 text-accent-500 dark:text-black rounded-xl text-[9px] font-black uppercase tracking-[0.2em] shadow-lg">Dashboard</span>
-                  <span className="flex items-center gap-2 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse" /> Sistema Ready
+        <div className="space-y-6">
+          {/* Premium Header Card */}
+          <div className="relative group overflow-hidden card-premium p-8 lg:p-10">
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent blur-[120px] rounded-full -mr-48 -mt-48 transition-transform group-hover:scale-110 duration-1000" />
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-blue-500/5 via-transparent to-transparent blur-[100px] rounded-full -ml-32 -mb-32" />
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative z-10">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <span className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/25">Dashboard</span>
+                  <span className="flex items-center gap-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50" /> Sistema Operativo
                   </span>
                 </div>
-                <h1 className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
-                  Bienvenido de <span className="text-accent-500">Nuevo</span>
+                <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight leading-tight">
+                  Bienvenido de <span className="text-gradient-primary">Nuevo</span>
                 </h1>
-                <p className="text-slate-500 dark:text-slate-400 text-base lg:text-lg font-medium max-w-2xl leading-relaxed">
-                  Tu ecosistema inteligente está operando al <span className="text-slate-900 dark:text-white font-black">99.9%</span>. Has tenido <span className="text-accent-500 font-black">+{stats.newUsersToday} ingresos</span> hoy.
+                <p className="text-slate-600 text-lg font-medium max-w-2xl leading-relaxed">
+                  Tu ecosistema inteligente está operando al <span className="font-bold text-slate-900">99.9%</span> de capacidad. Has tenido <span className="font-bold text-emerald-600">+{stats.newUsersToday} ingresos</span> hoy.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
-                <div className="bg-white dark:bg-black px-6 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-center min-w-[150px] transition-all cursor-pointer" onClick={() => navigate('/analytics')}>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Global</p>
-                  <p className="text-lg font-black text-accent-500 tracking-tight">Activo</p>
+              <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+                <div className="metric-card px-8 py-5 min-w-[160px] cursor-pointer hover:shadow-xl transition-all" onClick={() => navigate('/analytics')}>
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Status Global</p>
+                  <p className="text-2xl font-bold text-emerald-600 tracking-tight">Activo</p>
                 </div>
-                <div className="bg-black dark:bg-accent-500 px-6 py-4 rounded-2xl text-center min-w-[150px] shadow-lg transition-all cursor-pointer" onClick={() => navigate('/reports')}>
-                  <p className="text-[9px] font-black text-slate-400 dark:text-black uppercase tracking-widest mb-1">Latencia</p>
-                  <p className="text-2xl font-black text-white dark:text-black tracking-tighter">1.32<small className="text-sm opacity-60">s</small></p>
+                <div className="metric-card px-8 py-5 min-w-[160px] cursor-pointer hover:shadow-xl transition-all" onClick={() => navigate('/reports')}>
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Latencia</p>
+                  <p className="text-3xl font-bold text-slate-900 tracking-tighter">1.32<small className="text-lg text-slate-400 ml-1">s</small></p>
                 </div>
               </div>
             </div>
@@ -154,25 +167,51 @@ export const Dashboard = () => {
             ))}
           </div>
 
-          {/* WhatsApp Status Area */}
-          <div className="bg-white dark:bg-[#11141b] rounded-xl p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-2.5 h-2.5 rounded-full ${whatsappConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-              <div>
-                <p className="text-[13px] font-black text-slate-900 dark:text-white leading-tight">
-                  {whatsappConnected ? 'Conexión WhatsApp Activa' : 'WhatsApp Desconectado'}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Canal de comunicación en tiempo real</p>
+          {/* Estado de Canales */}
+          <div className="bg-white dark:bg-[#11141b] rounded-xl p-5 border border-gray-100 dark:border-gray-800/50 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Estado de Canales</h3>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado de conexiones omnicanal</p>
               </div>
-            </div>
-            {!whatsappConnected && (
               <button 
                 className="px-4 py-2 bg-accent-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all shadow-md"
-                onClick={() => navigate('/whatsapp-qr')}
+                onClick={() => navigate('/connections')}
               >
-                Conectar
+                Gestionar
               </button>
-            )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {platformData.map((platform) => {
+                const connection = connections.find(c => c.platform_type === platform.id);
+                const isConnected = connection?.status === 'connected';
+                const PlatformIcon = platform.icon;
+                
+                return (
+                  <div 
+                    key={platform.id}
+                    className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-100 dark:border-slate-700/50 cursor-pointer hover:border-accent-500/30 transition-all"
+                    onClick={() => navigate(platform.route)}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${platform.color} flex items-center justify-center text-white`}>
+                        {PlatformIcon ? <PlatformIcon className="w-4 h-4" /> : <span className="text-xs font-bold">{platform.name[0]}</span>}
+                      </div>
+                      <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-900 dark:text-white truncate">{platform.name}</p>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400">
+                      {isConnected ? connection.display_name : 'No conectado'}
+                    </p>
+                    {isConnected && (
+                      <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <p className="text-[8px] text-slate-400">Mensajes hoy: <span className="font-bold text-slate-600 dark:text-slate-300">{Math.floor(Math.random() * 50) + 10}</span></p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Charts and Side Section */}

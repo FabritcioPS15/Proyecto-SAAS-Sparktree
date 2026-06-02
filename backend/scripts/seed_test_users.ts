@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 import 'dotenv/config';
 
 async function createTestUsers() {
@@ -6,6 +7,9 @@ async function createTestUsers() {
     process.env.SUPABASE_URL || '',
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   );
+
+  const testPassword = 'admin123';
+  const hashedPassword = await bcrypt.hash(testPassword, 10);
 
   console.log('🚀 Creating test organization and user...');
 
@@ -49,7 +53,7 @@ async function createTestUsers() {
         full_name: 'Super Admin',
         role: 'superadmin',
         organization_id: org.id,
-        password_hash: 'hashed_password_placeholder' // In a real app, use bcrypt
+        password_hash: hashedPassword
       });
 
     if (userError) {
@@ -77,7 +81,7 @@ async function createTestUsers() {
         full_name: 'Staff Member',
         role: 'admin',
         organization_id: org.id,
-        password_hash: 'hashed_password_placeholder'
+        password_hash: hashedPassword
       });
     console.log(`✅ Created Admin User: ${staffEmail}`);
   }

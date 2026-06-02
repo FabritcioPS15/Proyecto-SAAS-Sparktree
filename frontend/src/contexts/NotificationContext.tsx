@@ -161,7 +161,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         // Obtener leads para filtrado
         const responseLeads = await getLeads().catch(() => []);
         const leads = Array.isArray(responseLeads) ? responseLeads : [];
-        const leadPhones = new Set(leads.map((l: any) => l.phone));
+        const leadPhones = new Set(leads.map((l: any) => l.phone_number || l.phone));
 
         // Obtener conversaciones
         const convs = await getConversations();

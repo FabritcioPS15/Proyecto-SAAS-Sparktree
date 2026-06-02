@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { QrCode, RefreshCw, LogOut, CheckCircle, Smartphone, Activity } from 'lucide-react';
 import { getQRStatus, initializeQR, logoutQR, getSettings } from '../services/api';
 import { useWhatsApp } from '../contexts/WhatsAppContext';
+import { useConnections } from '../contexts/ConnectionsContext';
 import { PageHeader } from '../components/layout/PageHeader';
 import { PageLoader } from '../components/layout/PageLoader';
 
@@ -16,6 +17,7 @@ export const WhatsAppQR = () => {
     const hasLoadedOnce = useRef(false);
 
     const { } = useWhatsApp();
+    const { connections, addConnection, removeConnection } = useConnections();
 
     const fetchStatus = async () => {
         if (connectionMethod !== 'qr') return;
@@ -25,6 +27,15 @@ export const WhatsAppQR = () => {
             setLoading(false);
             // Mark that we have real server data — safe to auto-init if needed
             hasLoadedOnce.current = true;
+            
+            // Update ConnectionsContext when WhatsApp connects
+            if (res.status === 'connected' && res.phoneNumber) {
+                await addConnection('whatsapp', {
+                    displayName: 'WhatsApp Business',
+                    phoneNumber: res.phoneNumber
+                });
+            }
+            
             return res;
         } catch (error) {
             console.error('Error fetching QR status:', error);
@@ -96,6 +107,13 @@ export const WhatsAppQR = () => {
         try {
             await logoutQR();
             setData({ status: 'disconnected' });
+            
+            // Remove connection from ConnectionsContext
+            const existingConnection = connections.find(c => c.platform_type === 'whatsapp');
+            if (existingConnection) {
+                await removeConnection(existingConnection.id);
+            }
+            
             await fetchStatus();
         } catch (error) {
             console.error('Error logging out:', error);

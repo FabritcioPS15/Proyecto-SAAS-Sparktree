@@ -12,12 +12,17 @@ async function getOrgConnection(orgId: string) {
   
   if (connections.length === 0) {
     // Check DB in case it wasn't initialized in memory
-    const { data: dbConns } = await supabase
+    const { data: dbConns, error } = await supabase
       .from('whatsapp_connections')
       .select('*')
       .eq('organization_id', orgId)
       .limit(1);
     
+    if (error) {
+      console.error('[QR Route] Error searching for connection in DB:', error.message);
+      return null;
+    }
+
     if (dbConns && dbConns.length > 0) {
       await multiWhatsAppService.initializeConnection(dbConns[0]);
       return multiWhatsAppService.getConnection(dbConns[0].id);
@@ -32,7 +37,7 @@ async function getOrgConnection(orgId: string) {
 router.get('/status', tenantMiddleware, async (req: TenantRequest, res: Response) => {
   try {
     const orgId = req.organizationId;
-    if (!orgId) return res.status(401).json({ error: 'No organization context' });
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
 
     const connection = await getOrgConnection(orgId);
     
@@ -69,9 +74,9 @@ router.post('/init', tenantMiddleware, async (req: TenantRequest, res: Response)
     const orgId = req.organizationId;
     const userId = req.headers['x-user-id'] as string;
     
-    if (!orgId) return res.status(401).json({ error: 'No organization context' });
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
 
-    let connection = await getOrgConnection(orgId);
+    let connection = await getOrgConnection(req.organizationId!);
     
     if (!connection) {
       if (!userId) {
@@ -108,7 +113,7 @@ router.post('/init', tenantMiddleware, async (req: TenantRequest, res: Response)
 router.post('/logout', tenantMiddleware, async (req: TenantRequest, res: Response) => {
   try {
     const orgId = req.organizationId;
-    if (!orgId) return res.status(401).json({ error: 'No organization context' });
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
 
     const connection = await getOrgConnection(orgId);
     
@@ -129,7 +134,7 @@ router.post('/logout', tenantMiddleware, async (req: TenantRequest, res: Respons
       }
       res.status(400).json({ error: 'Could not find user associated with connection' });
     } else {
-      res.status(404).json({ error: 'No connection found' });
+      res.json({ message: 'No connection to logout', status: 'disconnected' });
     }
   } catch (error: any) {
     console.error('Error in /qr/logout:', error);

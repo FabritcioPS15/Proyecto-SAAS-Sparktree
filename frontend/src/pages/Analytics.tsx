@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, Users, MessageCircle, Activity, CheckCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, MessageCircle, Activity, CheckCircle, BarChart3, Filter } from 'lucide-react';
 import { getAnalytics } from '../services/api';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 
 interface HourlyActivity {
   hora: number;
@@ -92,6 +93,7 @@ export const Analytics = () => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState('all');
 
   useEffect(() => {
     const fetchRealData = async () => {
@@ -143,6 +145,25 @@ export const Analytics = () => {
         highlight="Avanzadas"
         description="Descubre patrones y optimiza flujos en tiempo real."
         icon={BarChart3}
+        action={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <select
+                value={selectedChannel}
+                onChange={(e) => setSelectedChannel(e.target.value)}
+                className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 pr-10 text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 cursor-pointer"
+              >
+                <option value="all">Todos los Canales</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+                <option value="telegram">Telegram</option>
+                <option value="messenger">Messenger</option>
+              </select>
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        }
       />
 
       <PageBody scrollable={true}>

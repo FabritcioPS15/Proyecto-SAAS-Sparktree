@@ -25,6 +25,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { NotificationBell } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useConnections } from '../../contexts/ConnectionsContext';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
 import { useState } from 'react';
 
 interface HeaderProps {
@@ -35,11 +37,30 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   // Hooks y contextos
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { connections } = useConnections();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const navigate = useNavigate();
   
   // Constantes de configuración
   const isSidebarCollapsed = false; // TODO: Implementar contexto para sidebar state
+
+  // Platform icon mapping
+  const platformIcons: Record<string, any> = {
+    whatsapp: FaWhatsapp,
+    telegram: FaTelegram,
+    instagram: FaInstagram,
+    facebook_messenger: FaFacebookMessenger,
+    tiktok: FaTiktok
+  };
+
+  // Platform routes
+  const platformRoutes: Record<string, string> = {
+    whatsapp: '/whatsapp-qr',
+    telegram: '/telegram-config',
+    instagram: '/instagram-config',
+    facebook_messenger: '/facebook-config',
+    tiktok: '/tiktok-config'
+  };
 
   return (
     <header className="sticky top-0 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 transition-all duration-300 relative z-[55]">
@@ -78,8 +99,28 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           </div>
         </div>
 
-        {/* Sección derecha: Notificaciones, tema y perfil */}
+        {/* Sección derecha: Conexiones, notificaciones, tema y perfil */}
         <div className="flex items-center gap-3">
+          {/* Indicadores de conexión activa */}
+          {connections.filter(c => c.status === 'connected').length > 0 && (
+            <div className="hidden lg:flex items-center gap-2 px-3 py-2 bg-white/5 dark:bg-gray-800/50 rounded-xl border border-gray-200/50 dark:border-gray-700/50">
+              {connections.filter(c => c.status === 'connected').map((conn) => {
+                const Icon = platformIcons[conn.platform_type];
+                return (
+                  <button
+                    key={conn.id}
+                    onClick={() => navigate(platformRoutes[conn.platform_type])}
+                    className="relative group p-2 rounded-lg hover:bg-white/10 dark:hover:bg-gray-700/50 transition-all duration-200"
+                    title={`${conn.display_name} - Conectado`}
+                  >
+                    <Icon className="w-5 h-5 text-emerald-500" />
+                    <div className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Sistema de notificaciones */}
           <div className="relative group">
             <NotificationBell />

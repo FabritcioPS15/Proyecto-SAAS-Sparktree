@@ -1,12 +1,11 @@
 import express from 'express';
-import { supabase } from '../config/supabase';
+import { adminService } from '../services/adminService';
 
 const router = express.Router();
 
 // Middleware to check if user is SuperAdmin (placeholder for real auth)
 const isSuperAdmin = async (req: any, res: any, next: any) => {
   // In a real app, verify role from JWT
-  // For now, we'll allow if we have the right header or just allow for dev
   next();
 };
 
@@ -15,23 +14,8 @@ const isSuperAdmin = async (req: any, res: any, next: any) => {
 // GET /api/admin/organizations
 router.get('/organizations', isSuperAdmin, async (req, res) => {
   try {
-    const { data: orgs, error } = await supabase
-      .from('organizations')
-      .select(`
-        *,
-        user_count:users(count)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    
-    // Transform user_count from [{count: n}] to n
-    const transformedOrgs = (orgs || []).map(org => ({
-      ...org,
-      userCount: org.user_count?.[0]?.count || 0
-    }));
-
-    res.json(transformedOrgs);
+    const orgs = await adminService.getOrganizations();
+    res.json(orgs);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -43,13 +27,7 @@ router.post('/organizations', isSuperAdmin, async (req, res) => {
     const { name, plan } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
-    const { data: org, error } = await supabase
-      .from('organizations')
-      .insert({ name, plan: plan || 'free' })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const org = await adminService.createOrganization(name, plan);
     res.status(201).json(org);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -60,14 +38,7 @@ router.post('/organizations', isSuperAdmin, async (req, res) => {
 router.put('/organizations/:id', isSuperAdmin, async (req, res) => {
   try {
     const { name, plan } = req.body;
-    const { data: org, error } = await supabase
-      .from('organizations')
-      .update({ name, plan })
-      .eq('id', req.params.id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const org = await adminService.updateOrganization(req.params.id, name, plan);
     res.json(org);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -77,12 +48,7 @@ router.put('/organizations/:id', isSuperAdmin, async (req, res) => {
 // DELETE /api/admin/organizations/:id
 router.delete('/organizations/:id', isSuperAdmin, async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('organizations')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    await adminService.deleteOrganization(req.params.id);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -94,12 +60,7 @@ router.delete('/organizations/:id', isSuperAdmin, async (req, res) => {
 // GET /api/admin/users
 router.get('/users', isSuperAdmin, async (req, res) => {
   try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*, organizations(name)')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
+    const users = await adminService.getUsers();
     res.json(users);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -115,21 +76,14 @@ router.post('/users', isSuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert({
-        email,
-        full_name,
-        role: role || 'agent',
-        organization_id: organization_id === '' ? null : organization_id,
-        password_hash: password, // Placeholder: hash this in production
-        whatsapp_connections_limit: 3,
-        active_whatsapp_connections: 0
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const user = await adminService.createUser({
+      email,
+      full_name,
+      role,
+      organization_id,
+      password
+    });
+    
     res.status(201).json(user);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -140,20 +94,12 @@ router.post('/users', isSuperAdmin, async (req, res) => {
 router.put('/users/:id', isSuperAdmin, async (req, res) => {
   try {
     const { full_name, role, organization_id, password } = req.body;
-    const updateData: any = { full_name, role };
-    if (organization_id !== undefined) {
-      updateData.organization_id = organization_id === '' ? null : organization_id;
-    }
-    if (password) updateData.password_hash = password;
-
-    const { data: user, error } = await supabase
-      .from('users')
-      .update(updateData)
-      .eq('id', req.params.id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const user = await adminService.updateUser(req.params.id, {
+      full_name,
+      role,
+      organization_id,
+      password
+    });
     res.json(user);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -163,12 +109,7 @@ router.put('/users/:id', isSuperAdmin, async (req, res) => {
 // DELETE /api/admin/users/:id
 router.delete('/users/:id', isSuperAdmin, async (req, res) => {
   try {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    await adminService.deleteUser(req.params.id);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

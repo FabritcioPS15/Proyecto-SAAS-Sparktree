@@ -1,23 +1,21 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Mail, Building, Crown, Clock, User, Lock, Info, Trash2 } from 'lucide-react';
-import axios from 'axios';
+import { UserPlus, Mail, Building, Crown, Clock, User, Lock, Info, Trash2, Settings as SettingsIcon, LayoutGrid, List } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { PageContainer } from '../components/layout/PageContainer';
 import { PageBody } from '../components/layout/PageBody';
 import { PageLoader } from '../components/layout/PageLoader';
-import { Settings as SettingsIcon, LayoutGrid, List } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { adminService } from '../services/adminService';
+import { SystemUser, Organization, CreateUserDTO, UserRole } from '../types/admin';
 
 export const StaffManagement = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [orgs, setOrgs] = useState<any[]>([]);
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
   const [showRolesInfo, setShowRolesInfo] = useState(false);
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<CreateUserDTO>({
     email: '',
     full_name: '',
     role: 'admin',
@@ -26,9 +24,9 @@ export const StaffManagement = () => {
   });
 
   // Funciones para datos de usuarios (similar a Clients)
-  const getUserRole = (user: any) => {
+  const getUserRole = (user: SystemUser) => {
     // Mapeo real de roles basado en el rol del usuario
-    const roleMapping: { [key: string]: string } = {
+    const roleMapping: { [key in UserRole]?: string } = {
       'super_admin': 'Super Admin',
       'admin': 'Administrador',
       'empresa': 'Empresa',
@@ -60,7 +58,7 @@ export const StaffManagement = () => {
     return colors[role] || 'bg-slate-500 text-white';
   };
 
-  const getUserUsageTime = (user: any) => {
+  const getUserUsageTime = (user: SystemUser) => {
     if (!user.created_at) return { hours: 0, days: 0 };
     const createdDate = new Date(user.created_at);
     const now = new Date();
@@ -79,7 +77,8 @@ export const StaffManagement = () => {
     }
   };
 
-  const getOrganizationName = (orgId: string) => {
+  const getOrganizationName = (orgId: string | null) => {
+    if (!orgId) return 'Global';
     const org = orgs.find(o => o.id === orgId);
     return org?.name || 'Sin organización';
   };
@@ -91,13 +90,13 @@ export const StaffManagement = () => {
   const fetchData = async () => {
     try {
       const [uRes, oRes] = await Promise.all([
-        axios.get(`${API_URL}/admin/users`),
-        axios.get(`${API_URL}/admin/organizations`)
+        adminService.getUsers(),
+        adminService.getOrganizations()
       ]);
-      setUsers(uRes.data);
-      setOrgs(oRes.data);
-      if (oRes.data.length > 0 && !newUser.organization_id) {
-        setNewUser(prev => ({ ...prev, organization_id: oRes.data[0].id }));
+      setUsers(uRes);
+      setOrgs(oRes);
+      if (oRes.length > 0 && !newUser.organization_id) {
+        setNewUser(prev => ({ ...prev, organization_id: oRes[0].id }));
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -109,7 +108,7 @@ export const StaffManagement = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/admin/users`, newUser);
+      await adminService.createUser(newUser);
       setIsModalOpen(false);
       setNewUser({ ...newUser, email: '', full_name: '' });
       fetchData();
@@ -120,8 +119,14 @@ export const StaffManagement = () => {
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editingUser) return;
     try {
-      await axios.put(`${API_URL}/admin/users/${editingUser.id}`, editingUser);
+      await adminService.updateUser(editingUser.id, {
+        full_name: editingUser.full_name || undefined,
+        role: editingUser.role,
+        organization_id: editingUser.organization_id,
+        password: editingUser.password_hash // Note: In production you would handle this differently
+      });
       setEditingUser(null);
       fetchData();
     } catch (err) {
@@ -132,7 +137,7 @@ export const StaffManagement = () => {
   const handleDeleteUser = async (id: string) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
     try {
-      await axios.delete(`${API_URL}/admin/users/${id}`);
+      await adminService.deleteUser(id);
       fetchData();
     } catch (err) {
       console.error('Error deleting user:', err);
@@ -375,7 +380,7 @@ export const StaffManagement = () => {
                     <input
                       type="text"
                       required
-                      value={editingUser ? editingUser.full_name : newUser.full_name}
+                      value={editingUser ? (editingUser.full_name ?? '') : newUser.full_name}
                       onChange={e => editingUser
                         ? setEditingUser({ ...editingUser, full_name: e.target.value })
                         : setNewUser({ ...newUser, full_name: e.target.value })
@@ -413,8 +418,8 @@ export const StaffManagement = () => {
                     <select
                       value={editingUser ? editingUser.role : newUser.role}
                       onChange={e => editingUser
-                        ? setEditingUser({ ...editingUser, role: e.target.value })
-                        : setNewUser({ ...newUser, role: e.target.value })
+                        ? setEditingUser({ ...editingUser, role: e.target.value as UserRole })
+                        : setNewUser({ ...newUser, role: e.target.value as UserRole })
                       }
                       className="w-full px-4 py-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none font-bold text-sm text-slate-900 dark:text-white appearance-none cursor-pointer focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 transition-all"
                     >

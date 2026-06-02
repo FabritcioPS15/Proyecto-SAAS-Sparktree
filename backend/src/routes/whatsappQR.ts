@@ -128,7 +128,7 @@ router.post('/logout', async (req, res) => {
       await multiWhatsAppService.deleteConnection(connection.id, connection.userId);
       res.json({ message: 'Logged out and connection deleted' });
     } else {
-      res.status(404).json({ error: 'No connection found' });
+      res.json({ message: 'No active connection found to logout' });
     }
   } catch (error: any) {
     res.status(500).json({ error: error.message });

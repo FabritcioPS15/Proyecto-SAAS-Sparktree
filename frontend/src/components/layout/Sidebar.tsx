@@ -27,9 +27,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
   MessageCircle, CreditCard, TrendingUp, QrCode,
-  ChevronLeft, ChevronRight, ShieldAlert, BadgeInfo
+  ChevronLeft, ChevronRight, ShieldAlert, BadgeInfo, ChevronDown
 } from 'lucide-react';
 import { SiDialogflow } from "react-icons/si";
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 
 // =============================================================================
 // CONFIGURACIÓN DE MENÚS POR ROL
@@ -48,7 +49,18 @@ const empresaMenuItems = [
   { icon: TrendingUp, label: 'Clientes Potenciales', path: '/leads' },
   { icon: BarChart3, label: 'Analíticas', path: '/analytics' },
   { icon: SiDialogflow, label: 'Constructor de Bots', path: '/flow-manager' },
-  { icon: QrCode, label: 'Conexión WhatsApp', path: '/whatsapp-qr' },
+  { 
+    icon: QrCode, 
+    label: 'Conexiones', 
+    path: '/connections',
+    subItems: [
+      { label: 'WhatsApp', path: '/whatsapp-qr', icon: FaWhatsapp },
+      { label: 'Instagram', path: '/instagram-config', icon: FaInstagram },
+      { label: 'TikTok', path: '/tiktok-config', icon: null },
+      { label: 'Telegram', path: '/telegram-config', icon: FaTelegram },
+      { label: 'Messenger', path: '/facebook-config', icon: FaFacebookMessenger }
+    ]
+  },
   { icon: Settings, label: 'Configuración', path: '/settings' },
   { icon: CreditCard, label: 'Facturación', path: '/billing' },
 ];
@@ -68,7 +80,18 @@ const adminMenuItems = [
   { icon: Settings, label: 'Configuración', path: '/settings' },
   { icon: CreditCard, label: 'Facturación', path: '/billing' },
   { icon: SiDialogflow, label: 'Constructor de Bots', path: '/flow-manager' },
-  { icon: QrCode, label: 'Conexión WhatsApp', path: '/whatsapp-qr' },
+  { 
+    icon: QrCode, 
+    label: 'Conexiones', 
+    path: '/connections',
+    subItems: [
+      { label: 'WhatsApp', path: '/whatsapp-qr', icon: FaWhatsapp },
+      { label: 'Instagram', path: '/instagram-config', icon: FaInstagram },
+      { label: 'TikTok', path: '/tiktok-config', icon: null },
+      { label: 'Telegram', path: '/telegram-config', icon: FaTelegram },
+      { label: 'Messenger', path: '/facebook-config', icon: FaFacebookMessenger }
+    ]
+  },
   { icon: ShieldAlert, label: 'Empresas', path: '/admin/organizations' },
   { icon: BadgeInfo, label: 'Usuarios', path: '/admin/staff' },
 ];
@@ -85,7 +108,7 @@ const empresaCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/clients'] },
   { name: 'Negocio', items: ['/leads', '/analytics'] },
   { name: 'Chatbot', items: ['/flow-manager'] },
-  { name: 'Sistema', items: ['/settings', '/whatsapp-qr'] },
+  { name: 'Sistema', items: ['/settings', '/connections'] },
   { name: 'Facturación', items: ['/billing'] }
 ];
 
@@ -97,7 +120,7 @@ const adminCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/clients'] },
   { name: 'Negocio', items: ['/leads', '/analytics'] },
   { name: 'Chatbot', items: ['/flow-manager'] },
-  { name: 'Sistema', items: ['/settings', '/whatsapp-qr'] },
+  { name: 'Sistema', items: ['/settings', '/connections'] },
   { name: 'Administración', items: ['/admin/organizations', '/admin/staff'] },
   { name: 'Facturación', items: ['/billing'] }
 ];
@@ -122,6 +145,7 @@ export const Sidebar = ({ onCollapsedChange }: SidebarProps) => {
     // Recuperar estado del sidebar desde localStorage
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(['/connections']));
 
   // Determinar configuración según rol del usuario
   const isEmpresa = user?.role === 'empresa';
@@ -139,6 +163,21 @@ export const Sidebar = ({ onCollapsedChange }: SidebarProps) => {
     setCollapsed(newCollapsed);
     localStorage.setItem('sidebar-collapsed', String(newCollapsed));
     onCollapsedChange?.(newCollapsed);
+  };
+
+  /**
+   * Alterna el estado expandido de un item con sub-items
+   */
+  const toggleExpanded = (path: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(path)) {
+        newSet.delete(path);
+      } else {
+        newSet.add(path);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -194,50 +233,86 @@ export const Sidebar = ({ onCollapsedChange }: SidebarProps) => {
                 .map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path;
+                  const hasSubItems = item.subItems && item.subItems.length > 0;
+                  const isExpanded = expandedItems.has(item.path);
 
                   return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      title={collapsed ? item.label : undefined}
-                      className={`group relative flex items-center gap-3 rounded-xl transition-all duration-300 overflow-hidden ${
-                        collapsed ? 'justify-center px-0 py-3.5' : 'px-4 py-2.5'
-                      } ${
-                        isActive
-                          ? 'bg-accent-500 text-black shadow-lg shadow-accent-500/30 font-black'
-                          : 'text-slate-400 hover:bg-accent-500/10 hover:text-white border border-transparent'
-                      }`}
-                    >
-                      {/* Icono del item */}
-                      <div className={`transition-transform duration-300 ${
-                        isActive ? 'scale-110' : 'group-hover:scale-110'
-                      }`}>
-                        <Icon 
-                          className={`${collapsed ? 'w-5 h-5' : 'w-[20px] h-[20px]'}`} 
-                          strokeWidth={isActive ? 2.5 : 2} 
-                        />
-                      </div>
+                    <div key={item.path}>
+                      {/* Item principal */}
+                      <Link
+                        to={item.path}
+                        title={collapsed ? item.label : undefined}
+                        onClick={() => hasSubItems && !collapsed && toggleExpanded(item.path)}
+                        className={`group relative flex items-center gap-3 rounded-xl transition-all duration-300 overflow-hidden ${
+                          collapsed ? 'justify-center px-0 py-3.5' : 'px-4 py-2.5'
+                        } ${
+                          isActive
+                            ? 'bg-accent-500 text-black shadow-lg shadow-accent-500/30 font-black'
+                            : 'text-slate-400 hover:bg-accent-500/10 hover:text-white border border-transparent'
+                        }`}
+                      >
+                        {/* Icono del item */}
+                        <div className={`transition-transform duration-300 ${
+                          isActive ? 'scale-110' : 'group-hover:scale-110'
+                        }`}>
+                          <Icon 
+                            className={`${collapsed ? 'w-5 h-5' : 'w-[20px] h-[20px]'}`} 
+                            strokeWidth={isActive ? 2.5 : 2} 
+                          />
+                        </div>
 
-                      {/* Etiqueta del item (solo cuando no está colapsado) */}
-                      {!collapsed && (
-                        <span className="text-[13.5px] truncate tracking-tight">
-                          {item.label}
-                        </span>
-                      )}
+                        {/* Etiqueta del item (solo cuando no está colapsado) */}
+                        {!collapsed && (
+                          <span className="text-[13.5px] truncate tracking-tight flex-1">
+                            {item.label}
+                          </span>
+                        )}
 
-                      {/* Indicador de estado activo (solo cuando no está colapsado) */}
-                      {isActive && !collapsed && (
-                        <div className="absolute right-4 w-1.5 h-1.5 bg-black/40 rounded-full" />
-                      )}
+                        {/* Chevron para sub-items (solo cuando no está colapsado) */}
+                        {!collapsed && hasSubItems && (
+                          <ChevronDown 
+                            className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} 
+                          />
+                        )}
 
-                      {/* Tooltip para modo colapsado */}
-                      {collapsed && (
-                        <div className="pointer-events-none absolute left-full ml-4 px-3 py-2 bg-white text-black text-[11px] font-black rounded-lg shadow-2xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
-                          {item.label}
-                          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-white" />
+                        {/* Indicador de estado activo (solo cuando no está colapsado) */}
+                        {isActive && !collapsed && (
+                          <div className="absolute right-4 w-1.5 h-1.5 bg-black/40 rounded-full" />
+                        )}
+
+                        {/* Tooltip para modo colapsado */}
+                        {collapsed && (
+                          <div className="pointer-events-none absolute left-full ml-4 px-3 py-2 bg-white text-black text-[11px] font-black rounded-lg shadow-2xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+                            {item.label}
+                            <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-white" />
+                          </div>
+                        )}
+                      </Link>
+
+                      {/* Sub-items (solo cuando no está colapsado y está expandido) */}
+                      {!collapsed && hasSubItems && isExpanded && (
+                        <div className="ml-8 mt-1 space-y-1">
+                          {item.subItems?.map((subItem) => {
+                            const SubIcon = subItem.icon;
+                            const isSubActive = location.pathname === subItem.path;
+                            return (
+                              <Link
+                                key={subItem.path}
+                                to={subItem.path}
+                                className={`group flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                                  isSubActive
+                                    ? 'bg-accent-500/20 text-accent-400 font-semibold'
+                                    : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
+                                }`}
+                              >
+                                {SubIcon && <SubIcon className="w-4 h-4" />}
+                                <span className="text-xs">{subItem.label}</span>
+                              </Link>
+                            );
+                          })}
                         </div>
                       )}
-                    </Link>
+                    </div>
                   );
                 })}
             </div>

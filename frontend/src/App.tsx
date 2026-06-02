@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { WhatsAppProvider } from './contexts/WhatsAppContext';
+import { ConnectionsProvider } from './contexts/ConnectionsContext';
 import { Layout } from './components/layout/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -18,10 +19,15 @@ const Billing = lazy(() => import('./pages/Billing').then(module => ({ default: 
 const FlowManager = lazy(() => import('./pages/FlowManager').then(module => ({ default: module.FlowManager })));
 const Leads = lazy(() => import('./pages/Leads').then(module => ({ default: module.Leads })));
 const WhatsAppQR = lazy(() => import('./pages/WhatsAppQR').then(module => ({ default: module.WhatsAppQR })));
+const Connections = lazy(() => import('./pages/Connections').then(module => ({ default: module.Connections })));
 const Reports = lazy(() => import('./pages/Reports').then(module => ({ default: module.Reports })));
 const Organizations = lazy(() => import('./pages/Organizations').then(module => ({ default: module.Organizations })));
 const StaffManagement = lazy(() => import('./pages/StaffManagement').then(module => ({ default: module.StaffManagement })));
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+const TelegramConfig = lazy(() => import('./pages/TelegramConfig').then(module => ({ default: module.TelegramConfig })));
+const InstagramConfig = lazy(() => import('./pages/InstagramConfig').then(module => ({ default: module.InstagramConfig })));
+const FacebookConfig = lazy(() => import('./pages/FacebookConfig').then(module => ({ default: module.FacebookConfig })));
+const TikTokConfig = lazy(() => import('./pages/TikTokConfig').then(module => ({ default: module.TikTokConfig })));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -51,6 +57,11 @@ function AppContent() {
         <Route path="/billing" element={<ProtectedRoute><Layout><Billing /></Layout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
         <Route path="/whatsapp-qr" element={<ProtectedRoute><Layout><WhatsAppQR /></Layout></ProtectedRoute>} />
+        <Route path="/connections" element={<ProtectedRoute><Layout><Connections /></Layout></ProtectedRoute>} />
+        <Route path="/telegram-config" element={<ProtectedRoute><Layout><TelegramConfig /></Layout></ProtectedRoute>} />
+        <Route path="/instagram-config" element={<ProtectedRoute><Layout><InstagramConfig /></Layout></ProtectedRoute>} />
+        <Route path="/facebook-config" element={<ProtectedRoute><Layout><FacebookConfig /></Layout></ProtectedRoute>} />
+        <Route path="/tiktok-config" element={<ProtectedRoute><Layout><TikTokConfig /></Layout></ProtectedRoute>} />
         <Route path="/admin/organizations" element={<ProtectedRoute><Layout><Organizations /></Layout></ProtectedRoute>} />
         <Route path="/admin/staff" element={<ProtectedRoute><Layout><StaffManagement /></Layout></ProtectedRoute>} />
       </Routes>
@@ -62,13 +73,15 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <WhatsAppProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <AppContent />
-            </BrowserRouter>
-          </AuthProvider>
-        </WhatsAppProvider>
+        <ConnectionsProvider>
+          <WhatsAppProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <AppContent />
+              </BrowserRouter>
+            </AuthProvider>
+          </WhatsAppProvider>
+        </ConnectionsProvider>
       </NotificationProvider>
     </ThemeProvider>
   );

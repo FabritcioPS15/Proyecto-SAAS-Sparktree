@@ -180,7 +180,7 @@ export const Login = () => {
                 ].map((account) => (
                   <button 
                     key={account.email}
-                    onClick={() => setTestAccount(account.email, 'hashed_password_placeholder')}
+                    onClick={() => setTestAccount(account.email, 'admin123')}
                     className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-white/10 transition-all text-left group/btn"
                   >
                     <div className="flex flex-col">
