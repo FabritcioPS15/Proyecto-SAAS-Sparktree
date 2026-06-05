@@ -5,11 +5,19 @@ import api from '../services/api';
 import { 
   Check, Send, Search, Filter, Users, MoreVertical, 
   Smile, Paperclip, Mic, Star, Volume2, MessageCircle, 
-  Trash2, ChevronLeft, ChevronRight, MoreHorizontal 
+  Trash2, ChevronLeft, ChevronRight, MoreHorizontal, ChevronDown 
 } from 'lucide-react';
-import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
 
 import { PageLoader } from '../components/layout/PageLoader';
+
+const MOCK_AGENTS = [
+  { id: '1', name: 'Ana Gómez' },
+  { id: '2', name: 'Carlos Ruiz' },
+  { id: '3', name: 'Maria Torres' },
+  { id: '4', name: 'David Silva' },
+  { id: '5', name: 'Laura Vega' },
+];
 
 export const Conversations = () => {
   const { id } = useParams();
@@ -27,6 +35,10 @@ export const Conversations = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  
+  // Assignment state (mock)
+  const [assignedAgents, setAssignedAgents] = useState<Record<string, string>>({});
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
   
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastMessagesLength = useRef(0);
@@ -214,7 +226,7 @@ export const Conversations = () => {
     const channelMap: Record<string, { icon: any; color: string; label: string }> = {
       whatsapp: { icon: FaWhatsapp, color: 'bg-green-500', label: 'WhatsApp' },
       instagram: { icon: FaInstagram, color: 'bg-gradient-to-br from-pink-500 to-purple-600', label: 'Instagram' },
-      tiktok: { icon: null, color: 'bg-black', label: 'TikTok' },
+      tiktok: { icon: FaTiktok, color: 'bg-black', label: 'TikTok' },
       telegram: { icon: FaTelegram, color: 'bg-blue-500', label: 'Telegram' },
       messenger: { icon: FaFacebookMessenger, color: 'bg-blue-600', label: 'Messenger' }
     };
@@ -234,7 +246,14 @@ export const Conversations = () => {
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Conversaciones</h1>
             <div className="flex items-center gap-1">
-              <button className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-accent-500 hover:bg-accent-500/10 rounded-xl transition-all">
+              <button
+                onClick={() => {
+                  setFilterStatus(filterStatus === 'groups' ? 'all' : 'groups');
+                  setCurrentPage(1);
+                }}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${filterStatus === 'groups' ? 'text-accent-500 bg-accent-500/10 shadow-[0_0_10px_rgba(249,115,22,0.2)]' : 'text-gray-400 hover:text-accent-500 hover:bg-accent-500/10'}`}
+                title={filterStatus === 'groups' ? "Viendo solo grupos" : "Filtrar por grupos"}
+              >
                 <Users className="w-4 h-4" />
               </button>
               
@@ -271,7 +290,7 @@ export const Conversations = () => {
                       { id: 'all', label: 'Todos', icon: MessageCircle },
                       { id: 'whatsapp', label: 'WhatsApp', icon: FaWhatsapp },
                       { id: 'instagram', label: 'Instagram', icon: FaInstagram },
-                      { id: 'tiktok', label: 'TikTok', icon: null },
+                      { id: 'tiktok', label: 'TikTok', icon: FaTiktok },
                       { id: 'telegram', label: 'Telegram', icon: FaTelegram },
                       { id: 'messenger', label: 'Messenger', icon: FaFacebookMessenger }
                     ].map(f => (
@@ -288,22 +307,7 @@ export const Conversations = () => {
                 )}
               </div>
 
-              <div className="relative">
-                <button 
-                  onClick={() => { setIsMenuOpen(!isMenuOpen); setIsFilterOpen(false); }}
-                  className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isMenuOpen ? 'text-accent-500 bg-accent-500/10' : 'text-gray-400 hover:text-accent-500 hover:bg-accent-500/10'}`}
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-                {isMenuOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-[#1c212b] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <button className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">Nueva difusión</button>
-                    <button className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">Configuración</button>
-                    <div className="h-px bg-gray-100 dark:bg-white/5 my-1 mx-2" />
-                    <button onClick={() => window.location.reload()} className="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">Recargar</button>
-                  </div>
-                )}
-              </div>
+
             </div>
           </div>
 
@@ -470,13 +474,57 @@ export const Conversations = () => {
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedConv.contactId?.phoneNumber}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button className="p-3 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
-                    <Search className="w-5 h-5" />
-                  </button>
-                  <button className="p-3 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
+                <div className="flex flex-col items-end gap-2 relative">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Siendo atendida por:</span>
+                    <div className="relative">
+                      <button 
+                        onClick={() => setIsAssignOpen(!isAssignOpen)} 
+                        className="flex items-center gap-2 text-xs font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-white/10 hover:border-accent-500/50 hover:bg-white dark:hover:bg-white/10 transition-all shadow-sm"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        {assignedAgents[selectedConv._id] ? MOCK_AGENTS.find(a => a.id === assignedAgents[selectedConv._id])?.name : 'Sin asignar'}
+                        <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                      </button>
+                      
+                      {isAssignOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsAssignOpen(false)}></div>
+                          <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1c212b] border border-gray-100 dark:border-white/5 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                            <div className="px-3 py-2 border-b border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-white/5">
+                              <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Asignar a:</span>
+                            </div>
+                            <div className="py-1">
+                              {MOCK_AGENTS.map(agent => (
+                                <button
+                                  key={agent.id}
+                                  onClick={() => { 
+                                    setAssignedAgents(prev => ({ ...prev, [selectedConv._id]: agent.id })); 
+                                    setIsAssignOpen(false); 
+                                  }}
+                                  className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors font-bold ${
+                                    assignedAgents[selectedConv._id] === agent.id 
+                                      ? 'text-accent-500 bg-accent-500/5' 
+                                      : 'text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  {agent.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button className="p-2 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
+                      <Search className="w-4 h-4" />
+                    </button>
+                    <button className="p-2 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

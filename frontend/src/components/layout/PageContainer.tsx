@@ -11,7 +11,7 @@ interface PageContainerProps {
  */
 export const PageContainer = ({ children, className = "" }: PageContainerProps) => {
   return (
-    <div className={`h-full space-y-4 animate-in fade-in duration-500 flex flex-col p-6 lg:p-8 ${className}`}>
+    <div className={`h-full animate-in fade-in duration-500 flex flex-col ${className}`}>
       {children}
     </div>
   );

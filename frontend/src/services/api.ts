@@ -235,4 +235,44 @@ export const logoutQR = async () => {
   }
 };
 
+export const getPlatformConnections = async () => {
+  try {
+    const response = await api.get('/platform/connections');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching platform connections:', error);
+    throw error;
+  }
+};
+
+export const createPlatformConnection = async (data: { platformType: string; displayName: string; config: any }) => {
+  try {
+    const response = await api.post('/platform/connections', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating platform connection:', error);
+    throw error;
+  }
+};
+
+export const startPlatformConnection = async (id: string) => {
+  try {
+    const response = await api.post(`/platform/connections/${id}/start`);
+    return response.data;
+  } catch (error) {
+    console.error('Error starting platform connection:', error);
+    throw error;
+  }
+};
+
+export const deletePlatformConnection = async (id: string) => {
+  try {
+    const response = await api.post(`/platform/connections/${id}/delete`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting platform connection:', error);
+    throw error;
+  }
+};
+
 export default api;

@@ -17,9 +17,12 @@ export const TelegramConfig = () => {
 
     setLoading(true);
     try {
+      const cleanUsername = botUsername.startsWith('@') ? botUsername.substring(1) : botUsername;
       await addConnection('telegram', {
-        displayName: `@${botUsername}`,
-        username: botUsername
+        botToken: botToken,
+        botUsername: cleanUsername,
+        displayName: `@${cleanUsername}`,
+        username: `@${cleanUsername}`
       });
       setBotToken('');
       setBotUsername('');

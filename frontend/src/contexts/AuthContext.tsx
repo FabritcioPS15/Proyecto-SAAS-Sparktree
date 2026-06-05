@@ -9,12 +9,21 @@ interface User {
   organization_id: string;
 }
 
+interface Profile {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   organizationId: string | null;
+  activeProfile: Profile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  selectProfile: (profile: Profile) => void;
+  clearProfile: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +33,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,9 +41,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedSession = localStorage.getItem('sparktree_session');
     if (savedSession) {
       try {
-        const { user, organizationId } = JSON.parse(savedSession);
+        const { user, organizationId, activeProfile } = JSON.parse(savedSession);
         setUser(user);
         setOrganizationId(organizationId);
+        if (activeProfile) setActiveProfile(activeProfile);
       } catch (e) {
         console.error('Failed to restore session', e);
         localStorage.removeItem('sparktree_session');
@@ -53,7 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       localStorage.setItem('sparktree_session', JSON.stringify({ 
         user: userData, 
-        organizationId: orgId 
+        organizationId: orgId,
+        activeProfile: null
       }));
     } catch (error: any) {
       console.error('Login failed', error);
@@ -65,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Logging out...');
     setUser(null);
     setOrganizationId(null);
+    setActiveProfile(null);
     localStorage.removeItem('sparktree_session');
     
     // Forzar la redirección al login
@@ -73,8 +86,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 100);
   };
 
+  const selectProfile = (profile: Profile) => {
+    setActiveProfile(profile);
+    const savedSession = localStorage.getItem('sparktree_session');
+    if (savedSession) {
+      const parsed = JSON.parse(savedSession);
+      localStorage.setItem('sparktree_session', JSON.stringify({ ...parsed, activeProfile: profile }));
+    }
+  };
+
+  const clearProfile = () => {
+    setActiveProfile(null);
+    const savedSession = localStorage.getItem('sparktree_session');
+    if (savedSession) {
+      const parsed = JSON.parse(savedSession);
+      localStorage.setItem('sparktree_session', JSON.stringify({ ...parsed, activeProfile: null }));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, organizationId, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, organizationId, activeProfile, loading, login, logout, selectProfile, clearProfile }}>
       {children}
     </AuthContext.Provider>
   );

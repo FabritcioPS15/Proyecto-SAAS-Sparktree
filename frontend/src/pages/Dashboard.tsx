@@ -63,10 +63,10 @@ export const Dashboard = () => {
           const data = [];
           const today = new Date();
           today.setHours(23, 59, 59, 999);
-          
+
           let start: Date;
           let end: Date = today;
-          
+
           if (timeRange === 'custom' && customStart && customEnd) {
             start = new Date(customStart);
             end = new Date(customEnd);
@@ -75,7 +75,7 @@ export const Dashboard = () => {
             start = new Date(today);
             start.setDate(start.getDate() - days + 1);
           }
-          
+
           const currentDate = new Date(start);
           while (currentDate <= end) {
             const baseValue = isConnected ? 80 + Math.random() * 120 : 150 + Math.random() * 100;
@@ -125,16 +125,6 @@ export const Dashboard = () => {
                   Tu ecosistema inteligente está operando al <span className="font-bold text-slate-900">99.9%</span> de capacidad. Has tenido <span className="font-bold text-emerald-600">+{stats.newUsersToday} ingresos</span> hoy.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
-                <div className="metric-card px-8 py-5 min-w-[160px] cursor-pointer hover:shadow-xl transition-all" onClick={() => navigate('/analytics')}>
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Status Global</p>
-                  <p className="text-2xl font-bold text-emerald-600 tracking-tight">Activo</p>
-                </div>
-                <div className="metric-card px-8 py-5 min-w-[160px] cursor-pointer hover:shadow-xl transition-all" onClick={() => navigate('/reports')}>
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Latencia</p>
-                  <p className="text-3xl font-bold text-slate-900 tracking-tighter">1.32<small className="text-lg text-slate-400 ml-1">s</small></p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -146,8 +136,8 @@ export const Dashboard = () => {
               { icon: Activity, label: 'Bot Resp.', value: stats.botResponses, color: 'accent', desc: 'IA Activa', path: '/analytics' },
               { icon: UserPlus, label: 'Nuevos', value: stats.newUsersToday, color: 'accent', desc: 'Ingresos hoy', path: '/leads' }
             ].map((item, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className="group relative bg-white dark:bg-[#11141b] rounded-xl p-3.5 border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-lg transition-all duration-500 overflow-hidden cursor-pointer"
                 onClick={() => navigate(item.path)}
               >
@@ -174,7 +164,7 @@ export const Dashboard = () => {
                 <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Estado de Canales</h3>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado de conexiones omnicanal</p>
               </div>
-              <button 
+              <button
                 className="px-4 py-2 bg-accent-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all shadow-md"
                 onClick={() => navigate('/connections')}
               >
@@ -186,9 +176,9 @@ export const Dashboard = () => {
                 const connection = connections.find(c => c.platform_type === platform.id);
                 const isConnected = connection?.status === 'connected';
                 const PlatformIcon = platform.icon;
-                
+
                 return (
-                  <div 
+                  <div
                     key={platform.id}
                     className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 border border-slate-100 dark:border-slate-700/50 cursor-pointer hover:border-accent-500/30 transition-all"
                     onClick={() => navigate(platform.route)}
@@ -225,7 +215,7 @@ export const Dashboard = () => {
                   </div>
                   <div className="flex items-center bg-slate-50 dark:bg-slate-800/30 rounded-xl p-1 border border-slate-100 dark:border-slate-700/50 h-10">
                     {['7d', '30d', 'custom'].map((range) => (
-                      <button 
+                      <button
                         key={range}
                         className={`px-4 h-full rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${selectedTimeRange === range ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-accent-500'}`}
                         onClick={() => {
@@ -244,8 +234,8 @@ export const Dashboard = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
                       <div className="flex-1 relative group">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
-                        <input 
-                          type="date" 
+                        <input
+                          type="date"
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
                           className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all"
@@ -254,8 +244,8 @@ export const Dashboard = () => {
                       <span className="hidden sm:block text-[9px] font-black text-slate-300 tracking-tighter">AL</span>
                       <div className="flex-1 relative group">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
-                        <input 
-                          type="date" 
+                        <input
+                          type="date"
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
                           className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all"

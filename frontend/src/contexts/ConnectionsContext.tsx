@@ -1,4 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+import { 
+  getPlatformConnections, 
+  createPlatformConnection, 
+  startPlatformConnection, 
+  deletePlatformConnection,
+  getQRStatus,
+  logoutQR
+} from '../services/api';
 
 export type PlatformType = 'whatsapp' | 'telegram' | 'instagram' | 'facebook_messenger' | 'tiktok';
 
@@ -19,6 +28,8 @@ interface ConnectionsContextType {
   removeConnection: (id: string) => Promise<void>;
   getConnectionByPlatform: (platform: PlatformType) => PlatformConnection | undefined;
   isConnecting: (platform: PlatformType) => boolean;
+  refreshConnections: () => Promise<void>;
+  loading: boolean;
 }
 
 const ConnectionsContext = createContext<ConnectionsContextType | undefined>(undefined);
@@ -33,26 +44,100 @@ export const useConnections = () => {
 
 export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
   const [connections, setConnections] = useState<PlatformConnection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  // Load connections from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('platform_connections');
-    if (saved) {
-      try {
-        setConnections(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error loading connections:', e);
-      }
+  const refreshConnections = async () => {
+    if (!user) {
+      setConnections([]);
+      setLoading(false);
+      return;
     }
-  }, []);
 
-  // Save connections to localStorage when they change
+    try {
+      // 1. Fetch platform connections from backend
+      const platformConns = await getPlatformConnections();
+      
+      // 2. Fetch WhatsApp QR status from backend
+      let whatsappConn: PlatformConnection | null = null;
+      try {
+        const qrStatus = await getQRStatus();
+        if (qrStatus && qrStatus.status) {
+          whatsappConn = {
+            id: qrStatus.id || 'whatsapp_session',
+            platform_type: 'whatsapp',
+            display_name: qrStatus.displayName || 'WhatsApp Business',
+            status: qrStatus.status === 'connected' ? 'connected' : 'disconnected',
+            phone_number: qrStatus.phoneNumber,
+            connected_at: qrStatus.lastConnectedAt
+          };
+        }
+      } catch (err) {
+        console.error('Error fetching WhatsApp status in ConnectionsContext:', err);
+      }
+
+      // Map backend connections to the format expected by the frontend
+      const mappedPlatformConns: PlatformConnection[] = (platformConns || []).map((conn: any) => ({
+        id: conn.id,
+        platform_type: (conn.platformType || conn.platform_type || '') === 'facebook_messenger' ? 'facebook_messenger' : (conn.platformType || conn.platform_type) as PlatformType,
+        display_name: conn.displayName || conn.display_name || 'Conexión',
+        status: conn.status,
+        phone_number: conn.phone_number,
+        username: conn.botUsername || conn.username || conn.platformAccountId || conn.platform_account_id,
+        connected_at: conn.lastConnectedAt || conn.connected_at
+      }));
+
+      // Combine both lists
+      const combined: PlatformConnection[] = [];
+      if (whatsappConn) {
+        combined.push(whatsappConn);
+      }
+      
+      // Exclude duplicate whatsapp connections if any returned by platformConns
+      mappedPlatformConns.forEach(conn => {
+        if (conn.platform_type !== 'whatsapp') {
+          combined.push(conn);
+        }
+      });
+
+      setConnections(combined);
+    } catch (error) {
+      console.error('Error refreshing connections:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Poll for status updates
   useEffect(() => {
-    localStorage.setItem('platform_connections', JSON.stringify(connections));
-  }, [connections]);
+    refreshConnections();
+    
+    const interval = setInterval(() => {
+      refreshConnections();
+    }, 10000); // refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   const addConnection = async (platform: PlatformType, data: any) => {
-    // Simulate connection process
+    // If it's WhatsApp, it's initialized via QR flow
+    if (platform === 'whatsapp') {
+      const newConnection: PlatformConnection = {
+        id: 'whatsapp_session',
+        platform_type: 'whatsapp',
+        display_name: data.displayName || 'WhatsApp Business',
+        status: 'connected',
+        phone_number: data.phoneNumber,
+        connected_at: new Date().toISOString()
+      };
+      setConnections(prev => {
+        const filtered = prev.filter(c => c.platform_type !== 'whatsapp');
+        return [...filtered, newConnection];
+      });
+      return;
+    }
+
+    // Set connection status to connecting locally
     setConnections(prev => 
       prev.map(c => 
         c.platform_type === platform 
@@ -61,30 +146,78 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
       )
     );
 
-    // Simulate delay based on platform
-    const delay = platform === 'whatsapp' || platform === 'telegram' ? 3000 : 2000;
-    
-    await new Promise(resolve => setTimeout(resolve, delay));
+    // Prepare config payload based on the platform type
+    let config: any = {};
+    if (platform === 'telegram') {
+      config = {
+        bot_token: data.botToken,
+        bot_username: data.botUsername
+      };
+    } else if (platform === 'instagram') {
+      config = {
+        instagram_business_account_id: data.instagramBusinessAccountId,
+        facebook_page_id: data.facebookPageId,
+        access_token: data.accessToken
+      };
+    } else if (platform === 'tiktok') {
+      config = {
+        access_token: data.accessToken,
+        advertiser_id: data.advertiserId,
+        refresh_token: data.refreshToken,
+        webhook_secret: data.webhookSecret
+      };
+    } else if (platform === 'facebook_messenger') {
+      config = {
+        page_id: data.pageId,
+        page_access_token: data.pageAccessToken,
+        app_id: data.appId,
+        app_secret: data.appSecret
+      };
+    }
 
-    const newConnection: PlatformConnection = {
-      id: `${platform}_${Date.now()}`,
-      platform_type: platform,
-      display_name: data.displayName || `${platform.charAt(0).toUpperCase() + platform.slice(1)} Connection`,
-      status: 'connected',
-      phone_number: data.phoneNumber,
-      username: data.username,
-      connected_at: new Date().toISOString()
-    };
+    try {
+      // 1. Create connection on the backend
+      const response = await createPlatformConnection({
+        platformType: platform,
+        displayName: data.displayName || (platform === 'telegram' ? `@${data.botUsername}` : platform),
+        config
+      });
 
-    setConnections(prev => {
-      // Remove existing connection for this platform
-      const filtered = prev.filter(c => c.platform_type !== platform);
-      return [...filtered, newConnection];
-    });
+      const connectionId = response.connection.id;
+      
+      // 2. Start the connection on the backend
+      await startPlatformConnection(connectionId);
+
+      // 3. Refresh connections
+      await refreshConnections();
+    } catch (error) {
+      console.error(`Error connecting to platform ${platform}:`, error);
+      throw error;
+    }
   };
 
   const removeConnection = async (id: string) => {
-    setConnections(prev => prev.filter(c => c.id !== id));
+    // Check if it's the WhatsApp connection
+    const conn = connections.find(c => c.id === id);
+    if (conn && conn.platform_type === 'whatsapp') {
+      try {
+        await logoutQR();
+      } catch (error) {
+        console.error('Error logging out WhatsApp:', error);
+      }
+      setConnections(prev => prev.filter(c => c.id !== id));
+      return;
+    }
+
+    if (id) {
+      try {
+        await deletePlatformConnection(id);
+        await refreshConnections();
+      } catch (error) {
+        console.error('Error deleting platform connection:', error);
+        throw error;
+      }
+    }
   };
 
   const getConnectionByPlatform = (platform: PlatformType) => {
@@ -102,7 +235,9 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
       addConnection,
       removeConnection,
       getConnectionByPlatform,
-      isConnecting
+      isConnecting,
+      refreshConnections,
+      loading
     }}>
       {children}
     </ConnectionsContext.Provider>

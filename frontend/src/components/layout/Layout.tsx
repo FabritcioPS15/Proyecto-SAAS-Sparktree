@@ -36,13 +36,11 @@ export const Layout = ({ children, fullWidth = false, noPadding = false, noHeade
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Abstract background elements */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 blur-[120px] rounded-full -mr-64 -mt-64 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent-500/5 blur-[100px] rounded-full -ml-32 -mb-32 pointer-events-none" />
+
 
         {!noHeader && <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />}
 
-        <main className={`flex-1 overflow-hidden ${noPadding ? '' : 'px-4 sm:px-8 py-8'} relative z-10 min-h-0 transition-all duration-300 flex flex-col ${fullWidth ? 'max-w-none' : (isSidebarCollapsed ? 'max-w-[1800px]' : 'max-w-[1600px]')}`}>
+        <main className={`flex-1 overflow-hidden ${noPadding ? '' : 'pl-4 md:pl-6 pr-0 py-0'} relative z-10 min-h-0 transition-all duration-300 flex flex-col ${fullWidth ? 'max-w-none' : 'max-w-none'}`}>
           <div className="w-full h-full mx-auto flex flex-col flex-1 min-h-0">
             {children}
           </div>

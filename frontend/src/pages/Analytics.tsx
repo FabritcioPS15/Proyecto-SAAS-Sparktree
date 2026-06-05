@@ -174,11 +174,10 @@ export const Analytics = () => {
             { icon: MessageCircle, label: 'Finalización', value: `${stats.completionRate}%`, color: 'slate' },
             { icon: Activity, label: 'Usuarios Activos', value: stats.totalUsers.toLocaleString(), color: 'slate' }
           ].map((item, idx) => (
-            <div key={idx} className="bg-white/40 dark:bg-black/20 rounded-3xl p-5 border border-slate-100 dark:border-white/5 hover:shadow-xl transition-all duration-500 group overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-accent-500/5 blur-2xl rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
+            <div key={idx} className="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 group overflow-hidden relative">
 
               <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="p-2.5 bg-white dark:bg-black rounded-xl text-slate-600 dark:text-slate-400 group-hover:bg-black group-hover:text-accent-500 dark:group-hover:bg-accent-500 dark:group-hover:text-black transition-all duration-300 shadow-sm border border-slate-50 dark:border-white/10">
+                <div className="p-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-400 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/20 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors border border-gray-200 dark:border-gray-700">
                   <item.icon className="w-5 h-5" />
                 </div>
                 <Activity className="w-3 h-3 text-accent-500/30" />
@@ -193,8 +192,8 @@ export const Analytics = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-2">
-          <div className="bg-white/40 dark:bg-slate-800/20 rounded-3xl p-6 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 flex flex-col min-h-[400px]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col min-h-[400px]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Interacciones Diarias</h3>
               <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">Mensajes procesados</p>
@@ -242,7 +241,7 @@ export const Analytics = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-2 bg-white/40 dark:bg-slate-800/20 rounded-3xl p-8 border border-slate-100 dark:border-slate-700/30 hover:shadow-xl transition-all duration-500 flex flex-col min-h-[450px]">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl p-8 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col min-h-[450px]">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
                 <span className="p-2.5 bg-emerald-500/10 rounded-xl"><CheckCircle className="w-5 h-5 text-emerald-500" /></span>
@@ -293,8 +292,8 @@ export const Analytics = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-          <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500 flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Resumen Semanal</h3>
               <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Ejecuciones por semana</p>
@@ -345,7 +344,7 @@ export const Analytics = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500 flex flex-col">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Actividad por Hora</h3>
               <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Ejecuciones y días activos por hora</p>
@@ -401,8 +400,8 @@ export const Analytics = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-            <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500 flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">Ejecuciones Diarias</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Ejecuciones y flujos únicos por día</p>
@@ -461,7 +460,7 @@ export const Analytics = () => {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-[#11141b] rounded-[2rem] p-6 shadow-xl shadow-slate-200/5 dark:shadow-none border border-gray-100 dark:border-gray-800/50 hover:shadow-2xl transition-all duration-500 flex flex-col">
+            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">Tasa de Éxito Semanal</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">Promedio de completion rate</p>

@@ -30,7 +30,7 @@ import {
   ChevronLeft, ChevronRight, ShieldAlert, BadgeInfo, ChevronDown
 } from 'lucide-react';
 import { SiDialogflow } from "react-icons/si";
-import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
 
 // =============================================================================
 // CONFIGURACIÓN DE MENÚS POR ROL
@@ -56,13 +56,14 @@ const empresaMenuItems = [
     subItems: [
       { label: 'WhatsApp', path: '/whatsapp-qr', icon: FaWhatsapp },
       { label: 'Instagram', path: '/instagram-config', icon: FaInstagram },
-      { label: 'TikTok', path: '/tiktok-config', icon: null },
+      { label: 'TikTok', path: '/tiktok-config', icon: FaTiktok },
       { label: 'Telegram', path: '/telegram-config', icon: FaTelegram },
       { label: 'Messenger', path: '/facebook-config', icon: FaFacebookMessenger }
     ]
   },
   { icon: Settings, label: 'Configuración', path: '/settings' },
   { icon: CreditCard, label: 'Facturación', path: '/billing' },
+  { icon: BadgeInfo, label: 'Equipo', path: '/admin/staff' },
 ];
 
 /**
@@ -87,13 +88,13 @@ const adminMenuItems = [
     subItems: [
       { label: 'WhatsApp', path: '/whatsapp-qr', icon: FaWhatsapp },
       { label: 'Instagram', path: '/instagram-config', icon: FaInstagram },
-      { label: 'TikTok', path: '/tiktok-config', icon: null },
+      { label: 'TikTok', path: '/tiktok-config', icon: FaTiktok },
       { label: 'Telegram', path: '/telegram-config', icon: FaTelegram },
       { label: 'Messenger', path: '/facebook-config', icon: FaFacebookMessenger }
     ]
   },
   { icon: ShieldAlert, label: 'Empresas', path: '/admin/organizations' },
-  { icon: BadgeInfo, label: 'Usuarios', path: '/admin/staff' },
+  { icon: BadgeInfo, label: 'Equipo', path: '/admin/staff' },
 ];
 
 // =============================================================================
@@ -108,7 +109,7 @@ const empresaCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/clients'] },
   { name: 'Negocio', items: ['/leads', '/analytics'] },
   { name: 'Chatbot', items: ['/flow-manager'] },
-  { name: 'Sistema', items: ['/settings', '/connections'] },
+  { name: 'Sistema', items: ['/settings', '/connections', '/admin/staff'] },
   { name: 'Facturación', items: ['/billing'] }
 ];
 

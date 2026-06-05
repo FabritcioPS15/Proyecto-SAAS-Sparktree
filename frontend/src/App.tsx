@@ -29,11 +29,18 @@ const InstagramConfig = lazy(() => import('./pages/InstagramConfig').then(module
 const FacebookConfig = lazy(() => import('./pages/FacebookConfig').then(module => ({ default: module.FacebookConfig })));
 const TikTokConfig = lazy(() => import('./pages/TikTokConfig').then(module => ({ default: module.TikTokConfig })));
 
+const ProfileSelectionPage = lazy(() => import('./pages/ProfileSelection').then(module => ({ default: module.ProfileSelection })));
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, activeProfile } = useAuth();
   
   if (loading) return <PageLoader isInitial />;
   if (!user) return <Navigate to="/login" />;
+  
+  // Si es rol empresa y no ha seleccionado perfil, obligar a seleccionar
+  if (user.role === 'empresa' && !activeProfile) {
+    return <ProfileSelectionPage />;
+  }
   
   return <>{children}</>;
 };
@@ -73,15 +80,15 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <ConnectionsProvider>
-          <WhatsAppProvider>
-            <AuthProvider>
+        <AuthProvider>
+          <ConnectionsProvider>
+            <WhatsAppProvider>
               <BrowserRouter>
                 <AppContent />
               </BrowserRouter>
-            </AuthProvider>
-          </WhatsAppProvider>
-        </ConnectionsProvider>
+            </WhatsAppProvider>
+          </ConnectionsProvider>
+        </AuthProvider>
       </NotificationProvider>
     </ThemeProvider>
   );

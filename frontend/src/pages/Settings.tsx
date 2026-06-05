@@ -1,66 +1,57 @@
 import { useState, useEffect } from 'react';
-import { getSettings, saveSettings } from '../services/api';
-import { RiRobot2Line } from "react-icons/ri";
-import { WhatsAppNumbersManager } from '../components/settings/WhatsAppNumbersManager';
-
+import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/layout/PageHeader';
 import { PageBody } from '../components/layout/PageBody';
-import { PageLoader } from '../components/layout/PageLoader';
-import { Settings as SettingsIcon, Save, CheckCircle, ChevronDown } from 'lucide-react';
+import { Settings as SettingsIcon, Save, CheckCircle, User, Lock, Bell, Globe } from 'lucide-react';
 
 export const Settings = () => {
-  const [settings, setSettings] = useState({
-    botName: '',
-    systemStatus: 'inactive',
-    webhookUrl: '',
-    whatsappToken: '',
-    verifyToken: '',
-    phoneNumberId: ''
+  const { user } = useAuth();
+  
+  const [profile, setProfile] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    language: 'es',
+    timezone: 'America/Lima',
+    emailNotifications: true,
+    pushNotifications: true
   });
+
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getSettings()
-      .then((data) => {
-        setSettings(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load settings", err);
-        setLoading(false);
-      });
-  }, []);
+    if (user) {
+      setProfile(prev => ({
+        ...prev,
+        fullName: user.full_name || '',
+        email: user.email || '',
+      }));
+    }
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setSettings(prev => ({
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    
+    setProfile(prev => ({
       ...prev,
-      [name]: value
+      [name]: val
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await saveSettings(settings);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
-      console.error("Error saving settings", error);
-    }
+    // Simulate save process since there's no backend API for it right now
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   };
-
-  if (loading) {
-    return <PageLoader sectionName="Configuración" />;
-  }
 
   return (
     <div className="h-full space-y-1 animate-in fade-in duration-500 flex flex-col">
       <PageHeader
-        title="Configuración"
-        highlight="General"
-        description="Gestiona la identidad de tu bot, conexiones de API y parámetros globales del sistema."
+        title="Configuración de Perfil"
+        highlight="Ajustes"
+        description="Gestiona tu información personal, preferencias y seguridad de tu cuenta."
         icon={SettingsIcon}
       />
 
@@ -68,91 +59,102 @@ export const Settings = () => {
         <form onSubmit={handleSubmit} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
             
-            {/* Identidad del Bot */}
+            {/* Información Personal */}
             <div className="bg-white dark:bg-[#11141b]/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-accent-500/10 rounded-lg text-accent-500">
-                  <RiRobot2Line size={20} />
+                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                  <User size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Identidad del Bot</h3>
-                  <p className="text-xs text-slate-500">Personaliza cómo se identifica tu asistente</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Información Personal</h3>
+                  <p className="text-xs text-slate-500">Actualiza tus datos básicos</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre del Asistente</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</label>
                   <input
                     type="text"
-                    name="botName"
-                    value={settings.botName}
+                    name="fullName"
+                    value={profile.fullName}
                     onChange={handleChange}
-                    placeholder="Ej. Sparky Bot"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all text-sm"
+                    placeholder="Tu nombre completo"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Webhook URL</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={profile.email}
+                    onChange={handleChange}
+                    placeholder="ejemplo@correo.com"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Teléfono</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={profile.phone}
+                    onChange={handleChange}
+                    placeholder="+1 234 567 890"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Rol en el sistema</label>
                   <input
                     type="text"
-                    name="webhookUrl"
-                    value={settings.webhookUrl}
-                    onChange={handleChange}
-                    placeholder="https://tu-dominio.com/webhook"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all text-sm"
+                    disabled
+                    value={user?.role === 'admin' ? 'Administrador' : 'Usuario'}
+                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-sm text-gray-500 cursor-not-allowed"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Configuración Cloud API */}
+            {/* Preferencias Globales */}
             <div className="bg-white dark:bg-[#11141b]/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
-                  <SettingsIcon size={20} />
+                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+                  <Globe size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">WhatsApp Cloud API</h3>
-                  <p className="text-xs text-slate-500">Credenciales de conexión oficial de Meta</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Preferencias Regionales</h3>
+                  <p className="text-xs text-slate-500">Ajusta el idioma y zona horaria de tu sesión</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Phone Number ID</label>
-                    <input
-                      type="text"
-                      name="phoneNumberId"
-                      value={settings.phoneNumberId}
-                      onChange={handleChange}
-                      placeholder="Identificador numérico"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Verify Token</label>
-                    <input
-                      type="password"
-                      name="verifyToken"
-                      value={settings.verifyToken}
-                      onChange={handleChange}
-                      placeholder="Token para Webhook"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all text-sm"
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Idioma de la Interfaz</label>
+                  <select
+                    name="language"
+                    value={profile.language}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm"
+                  >
+                    <option value="es">Español</option>
+                    <option value="en">Inglés</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Access Token (Permanent)</label>
-                  <input
-                    type="password"
-                    name="whatsappToken"
-                    value={settings.whatsappToken}
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Zona Horaria</label>
+                  <select
+                    name="timezone"
+                    value={profile.timezone}
                     onChange={handleChange}
-                    placeholder="EAAG..."
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all text-sm"
-                  />
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm"
+                  >
+                    <option value="America/Lima">Lima (GMT-5)</option>
+                    <option value="America/Bogota">Bogotá (GMT-5)</option>
+                    <option value="America/Mexico_City">Ciudad de México (GMT-6)</option>
+                    <option value="Europe/Madrid">Madrid (GMT+1)</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -164,80 +166,90 @@ export const Settings = () => {
                 className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
                   saved 
                   ? 'bg-emerald-500 text-white shadow-emerald-500/20 cursor-default' 
-                  : 'bg-accent-500 text-black hover:shadow-xl hover:shadow-accent-500/20 active:scale-95'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-500/20 active:scale-95'
                 }`}
               >
                 {saved ? <CheckCircle size={18} /> : <Save size={18} />}
-                {saved ? 'Configuración Guardada' : 'Guardar Cambios'}
+                {saved ? 'Cambios Guardados' : 'Guardar Perfil'}
               </button>
-            </div>
-
-            {/* Gestión de Números WhatsApp */}
-            <div className="bg-white dark:bg-[#11141b]/50 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800/50 overflow-hidden">
-              <WhatsAppNumbersManager />
             </div>
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white dark:bg-[#11141b]/50 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800/50 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-slate-500/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-
-              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3 relative z-10">
-                <span className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl">📊</span>
-                Estado del Sistema
-              </h3>
-
-              <div className="space-y-5 relative z-10">
-                <div className="flex justify-between items-center py-4 border-b border-slate-50 dark:border-slate-800/50">
-                  <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Estado</span>
-                  <span className={`flex items-center gap-2 font-black text-sm ${settings.systemStatus === 'active' ? 'text-emerald-500' : 'text-secondary-500'}`}>
-                    {settings.systemStatus === 'active' ? '● ONLINE' : '○ MANTENIMIENTO'}
-                  </span>
+            
+            {/* Seguridad */}
+            <div className="bg-white dark:bg-[#11141b]/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500">
+                  <Lock size={20} />
                 </div>
-                <div className="flex justify-between items-center py-4 border-b border-slate-50 dark:border-slate-800/50">
-                  <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Versión API</span>
-                  <span className="text-slate-900 dark:text-white font-black text-sm uppercase">v2.4.92-beta</span>
-                </div>
-                <div className="flex justify-between items-center py-4 border-b border-slate-50 dark:border-slate-800/50">
-                  <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Base de Datos</span>
-                  <span className="text-emerald-500 font-black text-sm">● CONECTADO</span>
-                </div>
-                <div className="flex justify-between items-center py-4">
-                  <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Último Sync</span>
-                  <span className="text-slate-900 dark:text-white font-black text-xs uppercase tracking-tight">
-                    {new Date().toLocaleDateString('es-ES', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Seguridad</h3>
+                  <p className="text-xs text-slate-500">Protege el acceso a tu cuenta</p>
                 </div>
               </div>
 
-              <div className="mt-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-sm">
-                    ✨
+              <div className="space-y-4">
+                <button 
+                  type="button"
+                  className="w-full py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 hover:border-amber-500/50 transition-colors text-center"
+                >
+                  Cambiar Contraseña
+                </button>
+                <button 
+                  type="button"
+                  className="w-full py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-sm text-slate-700 dark:text-slate-300 hover:border-amber-500/50 transition-colors text-center"
+                >
+                  Autenticación en 2 Pasos
+                </button>
+              </div>
+            </div>
+
+            {/* Notificaciones */}
+            <div className="bg-white dark:bg-[#11141b]/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
+                  <Bell size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Notificaciones</h3>
+                  <p className="text-xs text-slate-500">Gestiona las alertas que recibes</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Correos Promocionales</span>
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      name="emailNotifications"
+                      className="peer sr-only" 
+                      checked={profile.emailNotifications}
+                      onChange={handleChange}
+                    />
+                    <div className="block bg-slate-200 dark:bg-slate-700 w-10 h-6 rounded-full transition-colors peer-checked:bg-purple-500"></div>
+                    <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4"></div>
                   </div>
-                  <p className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Sparktree Cloud</p>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                  Tu instancia se está ejecutando de forma óptima. No se han detectado latencias.
-                </p>
+                </label>
+                
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Alertas de Sistema</span>
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      name="pushNotifications"
+                      className="peer sr-only" 
+                      checked={profile.pushNotifications}
+                      onChange={handleChange}
+                    />
+                    <div className="block bg-slate-200 dark:bg-slate-700 w-10 h-6 rounded-full transition-colors peer-checked:bg-purple-500"></div>
+                    <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4"></div>
+                  </div>
+                </label>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-black to-slate-900 rounded-2xl p-8 text-white shadow-xl border border-white/5 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-accent-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/10 blur-3xl rounded-full" />
-
-              <h4 className="text-2xl font-black mb-4 relative z-10 tracking-tight">¿Necesitas ayuda?</h4>
-              <p className="text-slate-400 text-sm font-medium mb-6 relative z-10 leading-relaxed">
-                Nuestros expertos en FlowBuilder y Cloud API están disponibles 24/7 para ayudarte a optimizar tus procesos.
-              </p>
-              <button 
-                type="button"
-                className="w-full py-4 bg-accent-500 text-black rounded-2xl font-black shadow-xl hover:translate-y-[-2px] active:scale-95 transition-all text-[10px] uppercase tracking-widest relative z-10"
-              >
-                Contactar Soporte
-              </button>
-            </div>
           </div>
         </form>
       </PageBody>
