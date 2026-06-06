@@ -40,7 +40,7 @@ export const Layout = ({ children, fullWidth = false, noPadding = false, noHeade
 
         {!noHeader && <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />}
 
-        <main className={`flex-1 overflow-hidden ${noPadding ? '' : 'pl-4 md:pl-6 pr-0 py-0'} relative z-10 min-h-0 transition-all duration-300 flex flex-col ${fullWidth ? 'max-w-none' : 'max-w-none'}`}>
+        <main className={`flex-1 overflow-hidden ${noPadding ? '' : 'px-4 md:px-6 py-0'} relative z-10 min-h-0 transition-all duration-300 flex flex-col ${fullWidth ? 'max-w-none' : 'max-w-none'}`}>
           <div className="w-full h-full mx-auto flex flex-col flex-1 min-h-0">
             {children}
           </div>

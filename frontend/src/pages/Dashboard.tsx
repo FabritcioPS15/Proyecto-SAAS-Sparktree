@@ -9,7 +9,7 @@ import { PageBody } from '../components/layout/PageBody';
 import { PageLoader } from '../components/layout/PageLoader';
 import { useConnections } from '../contexts/ConnectionsContext';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
-
+import { SiTiktok } from 'react-icons/si';
 const initialStats = {
   totalUsers: 0,
   totalInteractions: 0,
@@ -36,7 +36,7 @@ export const Dashboard = () => {
   const platformData = [
     { id: 'whatsapp', name: 'WhatsApp', icon: FaWhatsapp, color: 'from-green-500 to-green-600', route: '/whatsapp-qr' },
     { id: 'instagram', name: 'Instagram', icon: FaInstagram, color: 'from-pink-500 to-purple-600', route: '/instagram-config' },
-    { id: 'tiktok', name: 'TikTok', icon: null, color: 'from-black to-gray-800', route: '/tiktok-config' },
+    { id: 'tiktok', name: 'TikTok', icon: SiTiktok, color: 'from-black to-gray-800', route: '/tiktok-config' },
     { id: 'telegram', name: 'Telegram', icon: FaTelegram, color: 'from-blue-500 to-blue-600', route: '/telegram-config' },
     { id: 'messenger', name: 'Messenger', icon: FaFacebookMessenger, color: 'from-blue-600 to-blue-700', route: '/facebook-config' }
   ];

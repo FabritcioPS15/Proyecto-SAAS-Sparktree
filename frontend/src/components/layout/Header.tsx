@@ -26,7 +26,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { NotificationBell } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConnections } from '../../contexts/ConnectionsContext';
-import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
+import { SiTiktok } from 'react-icons/si';
 import { useState } from 'react';
 
 interface HeaderProps {
@@ -50,7 +51,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
     telegram: FaTelegram,
     instagram: FaInstagram,
     facebook_messenger: FaFacebookMessenger,
-    tiktok: FaTiktok
+    tiktok: SiTiktok
   };
 
   // Platform routes
@@ -63,7 +64,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-emerald-50/95 dark:bg-emerald-950/30 backdrop-blur-xl border-b border-emerald-200/50 dark:border-emerald-800/50 transition-all duration-300 relative z-[55]">
+    <header className="sticky top-0 bg-white/90 dark:bg-[#0a0c10]/95 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-300 relative z-[55]">
       {/* Contenedor principal del header */}
       <div className="flex items-center justify-between px-6 py-4">
         {/* Sección izquierda: Menú móvil y título */}
@@ -109,7 +110,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                 telegram: 'text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 drop-shadow-[0_0_4px_rgba(14,165,233,0.2)]',
                 instagram: 'text-pink-500 hover:text-pink-600 dark:text-pink-400 dark:hover:text-pink-300 drop-shadow-[0_0_4px_rgba(236,72,153,0.2)]',
                 facebook_messenger: 'text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 drop-shadow-[0_0_4px_rgba(59,130,246,0.2)]',
-                tiktok: 'text-gray-900 hover:text-black dark:text-white dark:hover:text-gray-200 drop-shadow-[0_0_4px_rgba(255,255,255,0.2)]'
+                tiktok: 'text-[#010101] hover:text-[#fe2c55] dark:text-[#fe2c55] dark:hover:text-[#010101] drop-shadow-[0_0_4px_rgba(254,44,85,0.2)]'
               };
 
               const activeClass = brandColors[platform];

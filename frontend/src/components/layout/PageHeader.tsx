@@ -10,28 +10,54 @@ interface PageHeaderProps {
 
 export const PageHeader = ({ title, highlight, description, icon: Icon, action }: PageHeaderProps) => {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-6 relative z-20">
-      <div className="flex items-center gap-4">
-        {Icon && (
-          <div className="hidden sm:flex p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
-            <Icon className="w-5 h-5" strokeWidth={2} />
+    <div className="-mx-4 md:-mx-6 border-b border-slate-100 dark:border-slate-800/50 mb-6">
+      <div className="relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-[#11141b] px-6 md:px-10 py-6 md:py-8 min-h-[140px]">
+        
+        {/* Abstract Circles Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          {/* Dark Circle (Right/Bottom) */}
+          <div className="absolute top-[-10%] right-[-5%] w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#0f172a] dark:bg-[#050505] rounded-full shadow-lg" />
+          
+          {/* Green Circle 1 (Top/Middle) */}
+          <div className="absolute top-[-50%] right-[10%] w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#10b981] dark:bg-emerald-500 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.2)]" />
+          
+          {/* Green Circle 2 (Overlapping) */}
+          <div className="absolute top-[-20%] right-[2%] w-[250px] h-[250px] md:w-[400px] md:h-[400px] bg-[#10b981] dark:bg-emerald-500 rounded-full shadow-[-10px_10px_30px_rgba(0,0,0,0.2)] border border-emerald-400/50" />
+        </div>
+
+        {/* Content */}
+        <div className="flex items-center gap-5 relative z-10">
+          {Icon && (
+            <div className="hidden sm:flex p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
+              <Icon className="w-6 h-6" strokeWidth={1.5} />
+            </div>
+          )}
+          <div>
+            <h1 className="text-2xl md:text-3xl font-light text-slate-900 dark:text-white tracking-[0.2em] uppercase">
+              {title}
+            </h1>
+            <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              {highlight && (
+                <span className="text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-wide">
+                  {highlight}
+                </span>
+              )}
+              {description && (
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-md">
+                  {highlight && <span className="hidden sm:inline mx-1 text-slate-300 dark:text-slate-600">|</span>}
+                  {description}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {action && (
+          <div className="relative z-10 flex items-center mt-4 md:mt-0">
+            {action}
           </div>
         )}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-            {title} {highlight && <span className="text-emerald-600 dark:text-emerald-500">{highlight}</span>}
-          </h1>
-          {description && (
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">{description}</p>
-          )}
-        </div>
       </div>
-
-      {action && (
-        <div className="relative z-10 flex items-center">
-          {action}
-        </div>
-      )}
     </div>
   );
 };

@@ -49,30 +49,28 @@ function AppContent() {
   const { user } = useAuth();
 
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-        <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
-        <Route path="/clients" element={<ProtectedRoute><Layout><Users /></Layout></ProtectedRoute>} />
-        <Route path="/conversations" element={<ProtectedRoute><Layout fullWidth noPadding><Conversations /></Layout></ProtectedRoute>} />
-        <Route path="/conversations/:id" element={<ProtectedRoute><Layout fullWidth noPadding><Conversations /></Layout></ProtectedRoute>} />
-        <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />
-        <Route path="/flows" element={<ProtectedRoute><Layout><FlowManager /></Layout></ProtectedRoute>} />
-        <Route path="/flow-manager" element={<ProtectedRoute><Layout><FlowManager /></Layout></ProtectedRoute>} />
-        <Route path="/analytics" element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><Layout><Reports /></Layout></ProtectedRoute>} />
-        <Route path="/billing" element={<ProtectedRoute><Layout><Billing /></Layout></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
-        <Route path="/whatsapp-qr" element={<ProtectedRoute><Layout><WhatsAppQR /></Layout></ProtectedRoute>} />
-        <Route path="/connections" element={<ProtectedRoute><Layout><Connections /></Layout></ProtectedRoute>} />
-        <Route path="/telegram-config" element={<ProtectedRoute><Layout><TelegramConfig /></Layout></ProtectedRoute>} />
-        <Route path="/instagram-config" element={<ProtectedRoute><Layout><InstagramConfig /></Layout></ProtectedRoute>} />
-        <Route path="/facebook-config" element={<ProtectedRoute><Layout><FacebookConfig /></Layout></ProtectedRoute>} />
-        <Route path="/tiktok-config" element={<ProtectedRoute><Layout><TikTokConfig /></Layout></ProtectedRoute>} />
-        <Route path="/admin/organizations" element={<ProtectedRoute><Layout><Organizations /></Layout></ProtectedRoute>} />
-        <Route path="/admin/staff" element={<ProtectedRoute><Layout><StaffManagement /></Layout></ProtectedRoute>} />
-      </Routes>
-    </Suspense>
+    <Routes>
+      <Route path="/login" element={<Suspense fallback={<PageLoader sectionName="Inicio de Sesión" isInitial />}>{!user ? <Login /> : <Navigate to="/" />}</Suspense>} />
+      <Route path="/" element={<Suspense fallback={<PageLoader sectionName="Dashboard" />}><ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/clients" element={<Suspense fallback={<PageLoader sectionName="Clientes" />}><ProtectedRoute><Layout><Users /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/conversations" element={<Suspense fallback={<PageLoader sectionName="Conversaciones" />}><ProtectedRoute><Layout fullWidth noPadding><Conversations /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/conversations/:id" element={<Suspense fallback={<PageLoader sectionName="Conversación" />}><ProtectedRoute><Layout fullWidth noPadding><Conversations /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/leads" element={<Suspense fallback={<PageLoader sectionName="Leads" />}><ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/flows" element={<Suspense fallback={<PageLoader sectionName="Flujos" />}><ProtectedRoute><Layout><FlowManager /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/flow-manager" element={<Suspense fallback={<PageLoader sectionName="Gestor de Flujos" />}><ProtectedRoute><Layout><FlowManager /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/analytics" element={<Suspense fallback={<PageLoader sectionName="Analíticas" />}><ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/reports" element={<Suspense fallback={<PageLoader sectionName="Reportes" />}><ProtectedRoute><Layout><Reports /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/billing" element={<Suspense fallback={<PageLoader sectionName="Facturación" />}><ProtectedRoute><Layout><Billing /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/settings" element={<Suspense fallback={<PageLoader sectionName="Ajustes" />}><ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/whatsapp-qr" element={<Suspense fallback={<PageLoader sectionName="WhatsApp" />}><ProtectedRoute><Layout><WhatsAppQR /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/connections" element={<Suspense fallback={<PageLoader sectionName="Conexiones" />}><ProtectedRoute><Layout><Connections /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/telegram-config" element={<Suspense fallback={<PageLoader sectionName="Telegram" />}><ProtectedRoute><Layout><TelegramConfig /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/instagram-config" element={<Suspense fallback={<PageLoader sectionName="Instagram" />}><ProtectedRoute><Layout><InstagramConfig /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/facebook-config" element={<Suspense fallback={<PageLoader sectionName="Facebook Messenger" />}><ProtectedRoute><Layout><FacebookConfig /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/tiktok-config" element={<Suspense fallback={<PageLoader sectionName="TikTok" />}><ProtectedRoute><Layout><TikTokConfig /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/admin/organizations" element={<Suspense fallback={<PageLoader sectionName="Organizaciones" />}><ProtectedRoute><Layout><Organizations /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/admin/staff" element={<Suspense fallback={<PageLoader sectionName="Personal" />}><ProtectedRoute><Layout><StaffManagement /></Layout></ProtectedRoute></Suspense>} />
+    </Routes>
   );
 }
 
