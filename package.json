@@ -1,0 +1,35 @@
+{
+  "name": "sparktree-saas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SparkTree SaaS - Multi-tenant conversational AI platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w apps/backend",
+    "dev:frontend": "npm run dev -w apps/frontend",
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "build:backend": "npm run build -w apps/backend",
+    "build:frontend": "npm run build -w apps/frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "lint": "npm run lint -w apps/frontend",
+    "typecheck:backend": "npm run build -w apps/backend",
+    "typecheck:frontend": "npm run typecheck -w apps/frontend",
+    "clean": "rimraf apps/*/dist apps/*/node_modules packages/*/dist packages/*/node_modules node_modules"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "saas",
+    "multi-tenant",
+    "whatsapp",
+    "chatbot",
+    "ai",
+    "sparktree"
+  ],
+  "license": "UNLICENSED"
+}

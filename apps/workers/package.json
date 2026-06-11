@@ -1,0 +1,24 @@
+{
+  "name": "@sparktree/workers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SparkTree SaaS - Async job workers (BullMQ + Redis)",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "bullmq": "^5.7.0",
+    "ioredis": "^5.3.2",
+    "pino": "^10.3.1",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
