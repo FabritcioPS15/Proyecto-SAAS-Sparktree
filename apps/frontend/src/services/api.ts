@@ -275,4 +275,309 @@ export const deletePlatformConnection = async (id: string) => {
   }
 };
 
+// Automation / Workflows endpoints
+export const getWorkflows = async () => {
+  try {
+    const response = await api.get('/automation/workflows');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching workflows:', error);
+    throw error;
+  }
+};
+
+export const getWorkflow = async (id: string) => {
+  try {
+    const response = await api.get(`/automation/workflows/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching workflow:', error);
+    throw error;
+  }
+};
+
+export const createWorkflow = async (workflowData: any) => {
+  try {
+    const response = await api.post('/automation/workflows', workflowData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating workflow:', error);
+    throw error;
+  }
+};
+
+export const updateWorkflow = async (id: string, workflowData: any) => {
+  try {
+    const response = await api.put(`/automation/workflows/${id}`, workflowData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating workflow:', error);
+    throw error;
+  }
+};
+
+export const deleteWorkflow = async (id: string) => {
+  try {
+    const response = await api.delete(`/automation/workflows/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting workflow:', error);
+    throw error;
+  }
+};
+
+export const activateWorkflow = async (id: string) => {
+  try {
+    const response = await api.post(`/automation/workflows/${id}/activate`);
+    return response.data;
+  } catch (error) {
+    console.error('Error activating workflow:', error);
+    throw error;
+  }
+};
+
+export const deactivateWorkflow = async (id: string) => {
+  try {
+    const response = await api.post(`/automation/workflows/${id}/deactivate`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deactivating workflow:', error);
+    throw error;
+  }
+};
+
+export const executeWorkflow = async (id: string, triggerEvent: any) => {
+  try {
+    const response = await api.post(`/automation/workflows/${id}/execute`, { triggerEvent });
+    return response.data;
+  } catch (error) {
+    console.error('Error executing workflow:', error);
+    throw error;
+  }
+};
+
+export const getWorkflowExecutions = async (id: string) => {
+  try {
+    const response = await api.get(`/automation/workflows/${id}/executions`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching workflow executions:', error);
+    throw error;
+  }
+};
+
+export const getExecution = async (id: string) => {
+  try {
+    const response = await api.get(`/automation/executions/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching execution:', error);
+    throw error;
+  }
+};
+
+export const stopExecution = async (id: string) => {
+  try {
+    const response = await api.post(`/automation/executions/${id}/stop`);
+    return response.data;
+  } catch (error) {
+    console.error('Error stopping execution:', error);
+    throw error;
+  }
+};
+
+export const getNodeTypes = async () => {
+  try {
+    const response = await api.get('/automation/nodes');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching node types:', error);
+    throw error;
+  }
+};
+
+export const getNodeSchema = async (type: string) => {
+  try {
+    const response = await api.get(`/automation/nodes/${type}/schema`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching node schema:', error);
+    throw error;
+  }
+};
+
+export const validateWorkflow = async (workflow: any) => {
+  try {
+    const response = await api.post('/automation/validate', workflow);
+    return response.data;
+  } catch (error) {
+    console.error('Error validating workflow:', error);
+    throw error;
+  }
+};
+
+export const triggerWorkflows = async (event: any) => {
+  try {
+    const response = await api.post('/automation/trigger', event);
+    return response.data;
+  } catch (error) {
+    console.error('Error triggering workflows:', error);
+    throw error;
+  }
+};
+
+// Billing endpoints
+export const getPlans = async () => {
+  try {
+    const response = await api.get('/billing/plans');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching plans:', error);
+    throw error;
+  }
+};
+
+export const getPlan = async (id: string) => {
+  try {
+    const response = await api.get(`/billing/plans/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching plan:', error);
+    throw error;
+  }
+};
+
+export const createSubscription = async (data: { tenantId: string; planId: string; cycle: string; trialDays?: number }) => {
+  try {
+    const response = await api.post('/billing/subscriptions', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating subscription:', error);
+    throw error;
+  }
+};
+
+export const getSubscription = async (tenantId: string) => {
+  try {
+    const response = await api.get(`/billing/subscriptions/${tenantId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching subscription:', error);
+    throw error;
+  }
+};
+
+export const updateSubscription = async (id: string, updates: any) => {
+  try {
+    const response = await api.put(`/billing/subscriptions/${id}`, updates);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating subscription:', error);
+    throw error;
+  }
+};
+
+export const cancelSubscription = async (id: string, cancelAtPeriodEnd: boolean = true) => {
+  try {
+    const response = await api.post(`/billing/subscriptions/${id}/cancel`, { cancelAtPeriodEnd });
+    return response.data;
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
+    throw error;
+  }
+};
+
+export const getInvoices = async (tenantId: string) => {
+  try {
+    const response = await api.get(`/billing/invoices/${tenantId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    throw error;
+  }
+};
+
+export const createInvoice = async (data: { tenantId: string; subscriptionId: string; items: any[] }) => {
+  try {
+    const response = await api.post('/billing/invoices', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    throw error;
+  }
+};
+
+export const payInvoice = async (id: string, paymentMethodId: string) => {
+  try {
+    const response = await api.post(`/billing/invoices/${id}/pay`, { paymentMethodId });
+    return response.data;
+  } catch (error) {
+    console.error('Error paying invoice:', error);
+    throw error;
+  }
+};
+
+export const getPaymentMethods = async (tenantId: string) => {
+  try {
+    const response = await api.get(`/billing/payment-methods/${tenantId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching payment methods:', error);
+    throw error;
+  }
+};
+
+export const addPaymentMethod = async (data: any) => {
+  try {
+    const response = await api.post('/billing/payment-methods', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding payment method:', error);
+    throw error;
+  }
+};
+
+export const setDefaultPaymentMethod = async (id: string, tenantId: string) => {
+  try {
+    const response = await api.put(`/billing/payment-methods/${id}/default`, { tenantId });
+    return response.data;
+  } catch (error) {
+    console.error('Error setting default payment method:', error);
+    throw error;
+  }
+};
+
+export const recordUsage = async (data: { tenantId: string; subscriptionId: string; metrics: any }) => {
+  try {
+    const response = await api.post('/billing/usage', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error recording usage:', error);
+    throw error;
+  }
+};
+
+export const getUsage = async (tenantId: string, startDate?: Date, endDate?: Date) => {
+  try {
+    const params: any = {};
+    if (startDate) params.startDate = startDate.toISOString();
+    if (endDate) params.endDate = endDate.toISOString();
+    const response = await api.get(`/billing/usage/${tenantId}`, { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching usage:', error);
+    throw error;
+  }
+};
+
+export const checkLimits = async (tenantId: string) => {
+  try {
+    const response = await api.get(`/billing/limits/${tenantId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error checking limits:', error);
+    throw error;
+  }
+};
+
 export default api;

@@ -49,9 +49,10 @@ export const FlowManager = () => {
       try {
         setLoading(true);
         const data = await flowService.getFlows();
-        setFlows(data);
+        setFlows(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Error loading flows:', err);
+        setFlows([]);
       } finally {
         setLoading(false);
       }
@@ -68,7 +69,7 @@ export const FlowManager = () => {
     }
   };
 
-  const filteredAndSortedFlows = flows
+  const filteredAndSortedFlows = (Array.isArray(flows) ? flows : [])
     .filter(flow => {
       const matchesSearch = flow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         flow.description.toLowerCase().includes(searchTerm.toLowerCase());

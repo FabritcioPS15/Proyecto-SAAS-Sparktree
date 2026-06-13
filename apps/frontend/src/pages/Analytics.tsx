@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { TrendingUp, Users, MessageCircle, Activity, CheckCircle, BarChart3, Filter } from 'lucide-react';
 import { getAnalytics } from '../services/api';
-import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 
 interface HourlyActivity {
   hora: number;
@@ -138,6 +137,19 @@ export const Analytics = () => {
   }
 
   const { interactionsPerDay, topFlows, activeUsers, weeklySummary, dailyFlowSummary, hourlyActivity, stats } = analyticsData;
+  const safeStats = stats || {
+    avgResponseTime: 0,
+    satisfactionRate: 0,
+    completionRate: 0,
+    totalUsers: 0,
+    totalMessages: 0,
+    totalConversations: 0
+  };
+  const safeInteractionsPerDay = Array.isArray(interactionsPerDay) ? interactionsPerDay : [];
+  const safeActiveUsers = Array.isArray(activeUsers) ? activeUsers : [];
+  const safeWeeklySummary = Array.isArray(weeklySummary) ? weeklySummary : [];
+  const safeHourlyActivity = Array.isArray(hourlyActivity) ? hourlyActivity : [];
+  const safeDailyFlowSummary = Array.isArray(dailyFlowSummary) ? dailyFlowSummary : [];
   return (
     <PageContainer>
       <PageHeader 
@@ -169,10 +181,10 @@ export const Analytics = () => {
       <PageBody scrollable={true}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
           {[
-            { icon: TrendingUp, label: 'Tiempo Respuesta', value: `${stats.avgResponseTime}s`, color: 'slate' },
-            { icon: Users, label: 'Satisfacción', value: `${stats.satisfactionRate}%`, color: 'slate' },
-            { icon: MessageCircle, label: 'Finalización', value: `${stats.completionRate}%`, color: 'slate' },
-            { icon: Activity, label: 'Usuarios Activos', value: stats.totalUsers.toLocaleString(), color: 'slate' }
+            { icon: TrendingUp, label: 'Tiempo Respuesta', value: `${safeStats.avgResponseTime}s`, color: 'slate' },
+            { icon: Users, label: 'Satisfacción', value: `${safeStats.satisfactionRate}%`, color: 'slate' },
+            { icon: MessageCircle, label: 'Finalización', value: `${safeStats.completionRate}%`, color: 'slate' },
+            { icon: Activity, label: 'Usuarios Activos', value: safeStats.totalUsers.toLocaleString(), color: 'slate' }
           ].map((item, idx) => (
             <div key={idx} className="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 group overflow-hidden relative">
 
@@ -200,7 +212,7 @@ export const Analytics = () => {
             </div>
             <div className="flex-1 min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={interactionsPerDay.length > 0 ? interactionsPerDay : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={safeInteractionsPerDay.length > 0 ? safeInteractionsPerDay : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="interactionColor" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#41f0a5" />
@@ -251,7 +263,7 @@ export const Analytics = () => {
             </div>
             <div className="flex-1 min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={activeUsers.length > 0 ? activeUsers : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={safeActiveUsers.length > 0 ? safeActiveUsers : generateEmptyData()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="activeColor" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#10b981" />
@@ -300,7 +312,7 @@ export const Analytics = () => {
             </div>
             <div className="h-[200px] min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklySummary.length > 0 ? weeklySummary.map(w => ({
+                <BarChart data={safeWeeklySummary.length > 0 ? safeWeeklySummary.map(w => ({
                   week: `Sem ${new Date(w.semana).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}`,
                   ejecuciones: w.total_ejecuciones || 0,
                   completados: w.completados || 0,
@@ -351,7 +363,7 @@ export const Analytics = () => {
             </div>
             <div className="h-[200px] min-w-0 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={hourlyActivity.length > 0 ? hourlyActivity.map(h => ({
+                <LineChart data={safeHourlyActivity.length > 0 ? safeHourlyActivity.map(h => ({
                   hora: `${h.hora}:00`,
                   ejecuciones: h.ejecuciones || 0,
                   dias_activos: h.dias_activos || 0
@@ -408,7 +420,7 @@ export const Analytics = () => {
               </div>
               <div className="h-[200px] min-w-0 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dailyFlowSummary.length > 0 ? dailyFlowSummary.map(d => ({
+                  <LineChart data={safeDailyFlowSummary.length > 0 ? safeDailyFlowSummary.map(d => ({
                     dia: new Date(d.dia).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
                     total_ejecuciones: d.total_ejecuciones || 0,
                     flujos_unicos: d.flujos_unicos || 0,
@@ -468,13 +480,13 @@ export const Analytics = () => {
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-4xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
-                    {weeklySummary.length > 0 ? Math.round(weeklySummary.reduce((sum: number, w: { tasa_exito: number }) => sum + (w.tasa_exito || 0), 0) / weeklySummary.length) : 0}%
+                    {safeWeeklySummary.length > 0 ? Math.round(safeWeeklySummary.reduce((sum: number, w: { tasa_exito: number }) => sum + (w.tasa_exito || 0), 0) / safeWeeklySummary.length) : 0}%
                   </div>
                   <div className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-1">
                     Tasa promedio de éxito
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                    Basado en {weeklySummary.length} semanas
+                    Basado en {safeWeeklySummary.length} semanas
                   </div>
                 </div>
               </div>

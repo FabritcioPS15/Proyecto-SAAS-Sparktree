@@ -70,9 +70,10 @@ export const Organizations = () => {
     setLoading(true);
     try {
       const data = await getOrganizations();
-      setOrgs(data);
+      setOrgs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching orgs:', err);
+      setOrgs([]);
     } finally {
       setLoading(false);
     }
@@ -173,7 +174,7 @@ export const Organizations = () => {
       <PageBody>
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {orgs.map((org) => (
+            {(Array.isArray(orgs) ? orgs : []).map((org) => (
               <div key={org.id} className="group bg-white dark:bg-[#11141b] p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800/50 shadow-sm hover:shadow-xl transition-all duration-500 relative overflow-hidden flex flex-col">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-accent-500/5 blur-2xl rounded-full -mr-12 -mt-12 group-hover:bg-accent-500/10 transition-colors" />
 

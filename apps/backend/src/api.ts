@@ -6,6 +6,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import promClient from 'prom-client';
 
 // Import all routes
 import authRoutes from './modules/auth/auth.routes';
@@ -43,6 +44,51 @@ const io = new Server(httpServer, {
 
 // Export io instance for use in services
 export { io };
+
+// Prometheus metrics setup
+const register = new promClient.Registry();
+
+// Add default metrics (CPU, memory, etc.)
+promClient.collectDefaultMetrics({ register });
+
+// Custom metrics
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  registers: [register]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code'],
+  registers: [register]
+});
+
+const activeConnections = new promClient.Gauge({
+  name: 'websocket_active_connections',
+  help: 'Number of active WebSocket connections',
+  registers: [register]
+});
+
+const workflowExecutionsTotal = new promClient.Counter({
+  name: 'workflow_executions_total',
+  help: 'Total number of workflow executions',
+  labelNames: ['workflow_id', 'status'],
+  registers: [register]
+});
+
+const workflowExecutionDuration = new promClient.Histogram({
+  name: 'workflow_execution_duration_seconds',
+  help: 'Duration of workflow executions in seconds',
+  labelNames: ['workflow_id'],
+  buckets: [0.1, 0.5, 1, 2, 5, 10, 30],
+  registers: [register]
+});
+
+// Export metrics for use in other modules
+export { httpRequestDuration, httpRequestsTotal, activeConnections, workflowExecutionsTotal, workflowExecutionDuration };
 
 // Middleware
 const allowedOrigins: string[] = [
@@ -87,6 +133,13 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   const logMsg = `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} | Body: ${JSON.stringify(req.body)}`;
   console.log(logMsg);
+  
+  // Start timing for Prometheus metrics
+  const start = Date.now();
+  
+  // Store start time on request for later use
+  (req as any).startTime = start;
+  
   next();
 });
 
@@ -99,6 +152,16 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     service: 'Sparktree SaaS Backend'
   });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req: Request, res: Response) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(err instanceof Error ? err.message : 'Error generating metrics');
+  }
 });
 
 // API Routes
@@ -132,11 +195,38 @@ app.use('/api/assignment', assignmentRoutes);
 app.use('/api/internal-notes', internalNotesRoutes);
 app.use('/api/inbox', inboxRoutes);
 
+// Middleware to record metrics for all successful responses
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const originalJson = res.json;
+  res.json = function(data) {
+    // Record metrics for successful responses
+    const duration = (Date.now() - (req as any).startTime) / 1000;
+    const statusCode = res.statusCode;
+    httpRequestDuration.observe(
+      { method: req.method, route: req.route?.path || req.path, status_code: statusCode },
+      duration
+    );
+    httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: statusCode });
+    
+    return originalJson.call(this, data);
+  };
+  next();
+});
+
 // Webhook routes moved above tenantMiddleware
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('API Error:', err);
+  
+  // Record metrics for error responses
+  const duration = (Date.now() - (req as any).startTime) / 1000;
+  httpRequestDuration.observe(
+    { method: req.method, route: req.route?.path || req.path, status_code: 500 },
+    duration
+  );
+  httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: 500 });
+  
   res.status(500).json({
     error: 'Internal Server Error',
     message: err.message,
@@ -146,6 +236,14 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 // 404 handler
 app.use('*', (req: Request, res: Response) => {
+  // Record metrics for 404 responses
+  const duration = (Date.now() - (req as any).startTime) / 1000;
+  httpRequestDuration.observe(
+    { method: req.method, route: req.route?.path || req.path, status_code: 404 },
+    duration
+  );
+  httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: 404 });
+  
   res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.method} ${req.originalUrl} not found`,
@@ -173,6 +271,7 @@ io.on('connection', (socket: any) => {
 
   socket.on('disconnect', () => {
     console.log(`[WebSocket] Client disconnected: ${socket.id}`);
+    activeConnections.dec();
   });
 });
 

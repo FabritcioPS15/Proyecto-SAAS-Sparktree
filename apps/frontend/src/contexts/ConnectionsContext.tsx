@@ -77,7 +77,7 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Map backend connections to the format expected by the frontend
-      const mappedPlatformConns: PlatformConnection[] = (platformConns || []).map((conn: any) => ({
+      const mappedPlatformConns: PlatformConnection[] = (Array.isArray(platformConns) ? platformConns : []).map((conn: any) => ({
         id: conn.id,
         platform_type: (conn.platformType || conn.platform_type || '') === 'facebook_messenger' ? 'facebook_messenger' : (conn.platformType || conn.platform_type) as PlatformType,
         display_name: conn.displayName || conn.display_name || 'Conexión',
