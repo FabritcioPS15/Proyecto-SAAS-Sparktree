@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { Check } from 'lucide-react';
+import { Users, Check } from 'lucide-react';
 import { useState } from 'react';
 
 // Mock profiles data based on what was used in Conversations
