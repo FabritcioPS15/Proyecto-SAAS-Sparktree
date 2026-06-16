@@ -314,7 +314,7 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matc
       {/* ── Drag Handle / Title Bar ── */}
       <div
         onMouseDown={onDragStart}
-        className={`flex items-center justify-between px-3.5 py-2.5 bg-[#202c33] rounded-t-3xl border-b border-white/5 cursor-grab active:cursor-grabbing select-none shadow-2xl ${minimized ? 'rounded-3xl' : ''}`}
+        className={`flex items-center justify-between px-3.5 py-2.5 bg-[#202c33] rounded-t-sm border-b border-white/5 cursor-grab active:cursor-grabbing select-none shadow-2xl ${minimized ? 'rounded-sm' : ''}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
           <div className="flex items-center gap-1.5">
@@ -375,7 +375,7 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matc
 
       {/* ── Phone body (hidden when minimized) ── */}
       {!minimized && (
-        <div className="flex flex-col bg-[#111b21] rounded-b-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden border border-t-0 border-[#202c33]"
+        <div className="flex flex-col bg-[#111b21] rounded-b-sm shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden border border-t-0 border-[#202c33]"
           style={{ height: '520px' }}>
 
           {/* Mode + Keywords bar */}
@@ -408,7 +408,7 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matc
               backgroundColor: '#0b141a'
             }}
           >
-            <div className="self-center px-2.5 py-0.5 bg-[#182229] rounded-lg mb-1 mt-0.5 border border-white/5 z-10 relative">
+            <div className="self-center px-2.5 py-0.5 bg-[#182229] rounded-sm mb-1 mt-0.5 border border-white/5 z-10 relative">
               <span className="text-[8px] text-white/40 font-bold uppercase tracking-widest">
                 {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
@@ -419,7 +419,7 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matc
                 <MessageBubble key={msg.id} msg={msg} onButtonClick={handleButtonClick} />
               ))}
               {isTyping && (
-                <div className="self-start bg-[#202c33] px-3.5 py-2.5 rounded-2xl rounded-tl-none shadow-sm flex gap-1.5 items-center">
+                <div className="self-start bg-[#202c33] px-3.5 py-2.5 rounded-sm rounded-tl-none shadow-sm flex gap-1.5 items-center">
                   <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-delay:-0.15s]" />
                   <span className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce" />
@@ -489,7 +489,7 @@ const MessageBubble: React.FC<{ msg: Message; onButtonClick: (btn: any) => void 
 
     return (
       <div className={`self-center max-w-[85%] animate-in fade-in slide-in-from-top-2 duration-400 my-1`}>
-        <div className={`px-4 py-2 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-center border flex items-center gap-2 justify-center ${
+        <div className={`px-4 py-2 rounded-sm text-[10px] font-bold uppercase tracking-widest text-center border flex items-center gap-2 justify-center ${
           isDelay   ? 'bg-sky-500/10 border-sky-500/20 text-sky-300' :
           isWebhook ? 'bg-orange-500/10 border-orange-500/20 text-orange-300' :
           isHandoff ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' :
@@ -509,7 +509,7 @@ const MessageBubble: React.FC<{ msg: Message; onButtonClick: (btn: any) => void 
 
   return (
     <div className={`flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300 ${isUser ? 'items-end' : 'items-start'}`}>
-      <div className={`relative max-w-[82%] px-3.5 py-2.5 rounded-2xl shadow-sm ${
+      <div className={`relative max-w-[82%] px-3.5 py-2.5 rounded-sm shadow-sm ${
         msg.type === 'error'
           ? 'bg-rose-500/20 border border-rose-500/30 text-rose-300 rounded-tl-none'
           : isUser
@@ -528,7 +528,7 @@ const MessageBubble: React.FC<{ msg: Message; onButtonClick: (btn: any) => void 
 
         {/* Media Preview */}
         {msg.type === 'media' && msg.mediaUrl && (
-          <div className="mb-2 rounded-xl overflow-hidden bg-black/30 border border-white/10 max-w-[240px]">
+          <div className="mb-2 rounded-sm overflow-hidden bg-black/30 border border-white/10 max-w-[240px]">
             {!imgError ? (
               <img
                 src={msg.mediaUrl}
@@ -547,7 +547,7 @@ const MessageBubble: React.FC<{ msg: Message; onButtonClick: (btn: any) => void 
 
         {/* Capture indicator */}
         {msg.type === 'capture' && msg.variableName && (
-          <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-amber-500/15 rounded-lg border border-amber-500/20">
+          <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-amber-500/15 rounded-sm border border-amber-500/20">
             <span className="text-[9px] font-black uppercase text-amber-400">Guardará en @{msg.variableName}</span>
           </div>
         )}

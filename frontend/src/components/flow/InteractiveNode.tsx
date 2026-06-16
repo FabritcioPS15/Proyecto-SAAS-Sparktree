@@ -6,7 +6,7 @@ export const InteractiveNode = ({ id, data: initialData }: any) => {
   const data = nodeData?.data || initialData;
 
   return (
-    <div className="bg-white dark:bg-black rounded-2xl shadow-xl border-2 border-black dark:border-white/10 w-[320px] transition-all">
+    <div className="bg-white dark:bg-black rounded-sm shadow-xl border-2 border-black dark:border-white/10 w-[320px] transition-all">
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-black border-2 border-white dark:border-gray-800" />
       <div className="bg-black px-4 py-3 flex items-center justify-between border-b border-white/5">
         <div className="flex items-center gap-2">
@@ -23,7 +23,7 @@ export const InteractiveNode = ({ id, data: initialData }: any) => {
           {data.buttons?.map((btn: any, i: number) => (
             <div 
               key={btn.id || `btn-${i}`} 
-              className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-accent-600 dark:text-accent-400 text-center relative hover:border-accent-500 transition-colors uppercase tracking-widest"
+              className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm text-xs font-black text-accent-600 dark:text-accent-400 text-center relative hover:border-accent-500 transition-colors uppercase tracking-widest"
             >
               {btn.text || btn.title}
               <Handle 
@@ -35,7 +35,7 @@ export const InteractiveNode = ({ id, data: initialData }: any) => {
             </div>
           ))}
           {(!data.buttons || data.buttons.length === 0) && (
-             <div className="py-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-center">
+             <div className="py-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-sm flex items-center justify-center">
                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest italic">Sin botones</span>
              </div>
           )}

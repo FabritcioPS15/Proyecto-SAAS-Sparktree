@@ -8,7 +8,7 @@ export const DelayNode = ({ data }: any) => {
     : `${seconds}s`;
 
   return (
-    <div className="bg-white dark:bg-black rounded-2xl shadow-xl border-2 border-black dark:border-white/10 w-48 overflow-hidden transition-all hover:scale-[1.02] group">
+    <div className="bg-white dark:bg-black rounded-sm shadow-xl border-2 border-black dark:border-white/10 w-48 overflow-hidden transition-all hover:scale-[1.02] group">
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-black border-2 border-white dark:border-[#11141b]" />
       
       <div className="bg-black p-4 flex flex-col items-center justify-center gap-1 border-b border-white/5">

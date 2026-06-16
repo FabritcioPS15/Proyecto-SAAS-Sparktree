@@ -3,7 +3,7 @@ import { Webhook } from 'lucide-react';
 
 export const WebhookNode = ({ data }: any) => {
   return (
-    <div className="bg-white dark:bg-black rounded-2xl shadow-xl border-2 border-black dark:border-white/10 w-64 overflow-hidden transition-all hover:scale-[1.02]">
+    <div className="bg-white dark:bg-black rounded-sm shadow-xl border-2 border-black dark:border-white/10 w-64 transition-all hover:scale-[1.02]">
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-black border-2 border-white dark:border-gray-800" />
       <div className="bg-black px-4 py-3 flex items-center justify-between border-b border-white/5">
         <div className="flex items-center gap-2">
