@@ -2,6 +2,7 @@
   "name": "@sparktree/frontend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -11,6 +12,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "@tanstack/react-query": "^4.0.0",
     "@xyflow/react": "^12.11.0",
     "axios": "^1.0.0",
