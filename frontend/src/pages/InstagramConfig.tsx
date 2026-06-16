@@ -262,6 +262,7 @@ export const InstagramConfig = () => {
                 </div>
               </div>
             </div>
+          </div>
         </div>
       </div>
     </div>

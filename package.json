@@ -11,7 +11,10 @@
     "build:workers": "cd workers && npm run build",
     "db:migrate:master": "ts-node database/scripts/migrate.ts master",
     "db:migrate:tenant": "ts-node database/scripts/migrate.ts tenant",
-    "db:create:tenant": "ts-node database/scripts/migrate.ts create-tenant"
+    "db:create:tenant": "ts-node database/scripts/migrate.ts create-tenant",
+    "start": "npm run start:backend",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm start"
   },
   "devDependencies": {
     "ts-node": "^10.9.0",

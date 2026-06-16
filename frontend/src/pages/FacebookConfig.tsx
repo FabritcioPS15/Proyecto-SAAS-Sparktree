@@ -178,6 +178,7 @@ export const FacebookConfig = () => {
                 </div>
               </div>
             </div>
+          </div>
         </div>
       </div>
     </div>
