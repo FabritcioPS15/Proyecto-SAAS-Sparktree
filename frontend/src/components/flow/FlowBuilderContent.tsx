@@ -576,7 +576,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                         {
                           id: 'strict',
                           label: 'Modo Estricto',
-                          sub: 'Ideal para números personales. El bot solo se activa si el mensaje es idéntico a la palabra clave.',
+                          sub: 'Ideal para tus números personales. El bot solo se activa si el mensaje es idéntico a la(s) palabra(s) clave(s) .',
                           color: 'primary'
                         },
                         {

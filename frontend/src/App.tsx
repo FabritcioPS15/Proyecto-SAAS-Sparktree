@@ -34,6 +34,7 @@ const CRM = lazy(() => import('./pages/CRM').then(module => ({ default: module.C
 const Pipeline = lazy(() => import('./pages/Pipeline').then(module => ({ default: module.Pipeline })));
 
 const ProfileSelectionPage = lazy(() => import('./pages/ProfileSelection').then(module => ({ default: module.ProfileSelection })));
+const Catalogs = lazy(() => import('./pages/Catalogs').then(module => ({ default: module.Catalogs })));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, activeProfile } = useAuth();
@@ -61,6 +62,7 @@ function AppContent() {
       <Route path="/clients" element={<Suspense fallback={<PageLoader sectionName="Clientes" />}><ProtectedRoute><Layout><Users /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/conversations" element={<Suspense fallback={<PageLoader sectionName="Conversaciones" />}><ProtectedRoute><Layout fullWidth noPadding><Conversations /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/conversations/:id" element={<Suspense fallback={<PageLoader sectionName="Conversación" />}><ProtectedRoute><Layout fullWidth noPadding><Conversations /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/catalogs" element={<Suspense fallback={<PageLoader sectionName="Catálogos" />}><ProtectedRoute><Layout><Catalogs /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/leads" element={<Suspense fallback={<PageLoader sectionName="Leads" />}><ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/flows" element={<Suspense fallback={<PageLoader sectionName="Flujos" />}><ProtectedRoute><Layout><FlowManager /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/flow-manager" element={<Suspense fallback={<PageLoader sectionName="Gestor de Flujos" />}><ProtectedRoute><Layout><FlowManager /></Layout></ProtectedRoute></Suspense>} />

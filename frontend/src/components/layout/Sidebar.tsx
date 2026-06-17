@@ -26,7 +26,7 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
-  MessageCircle, CreditCard, TrendingUp, QrCode,
+  MessageCircle, CreditCard, TrendingUp, QrCode, Store,
   ChevronLeft, ChevronRight, ShieldAlert, BadgeInfo, ChevronDown
 } from 'lucide-react';
 import { SiDialogflow } from "react-icons/si";
@@ -47,6 +47,7 @@ const empresaMenuItems = [
   { icon: MessageSquare, label: 'Conversaciones', path: '/conversations' },
   { icon: Users, label: 'Clientes', path: '/clients' },
   { icon: TrendingUp, label: 'Clientes Potenciales', path: '/leads' },
+  { icon: Store, label: 'Catálogos', path: '/catalogs' },
   { icon: BarChart3, label: 'Analíticas', path: '/analytics' },
   { icon: SiDialogflow, label: 'Constructor de Bots', path: '/flow-manager' },
   { 
@@ -77,6 +78,7 @@ const adminMenuItems = [
   { icon: MessageSquare, label: 'Conversaciones', path: '/conversations' },
   { icon: Users, label: 'Clientes', path: '/clients' },
   { icon: TrendingUp, label: 'Clientes Potenciales', path: '/leads' },
+  { icon: Store, label: 'Catálogos', path: '/catalogs' },
   { icon: BarChart3, label: 'Analíticas', path: '/analytics' },
   { icon: Settings, label: 'Configuración', path: '/settings' },
   { icon: CreditCard, label: 'Facturación', path: '/billing' },
@@ -107,7 +109,7 @@ const adminMenuItems = [
  */
 const empresaCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/clients'] },
-  { name: 'Negocio', items: ['/leads', '/analytics'] },
+  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs'] },
   { name: 'Chatbot', items: ['/flow-manager'] },
   { name: 'Sistema', items: ['/settings', '/connections', '/admin/staff'] },
   { name: 'Facturación', items: ['/billing'] }
@@ -119,7 +121,7 @@ const empresaCategories = [
  */
 const adminCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/clients'] },
-  { name: 'Negocio', items: ['/leads', '/analytics'] },
+  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs'] },
   { name: 'Chatbot', items: ['/flow-manager'] },
   { name: 'Sistema', items: ['/settings', '/connections'] },
   { name: 'Administración', items: ['/admin/organizations', '/admin/staff'] },

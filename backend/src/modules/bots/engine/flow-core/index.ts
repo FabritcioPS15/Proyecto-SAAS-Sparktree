@@ -291,6 +291,7 @@ export async function handleIncomingMessage(
 
       if (!flow) {
         console.log(`[Bot Engine] No specific connection assignment, checking default flows for org ${organizationConfig.organizationId}`);
+        // Try is_active first (set by create-default endpoint)
         const { data: fetchedFlow } = await supabase
           .from('flows')
           .select('*')
@@ -300,6 +301,21 @@ export async function handleIncomingMessage(
           .limit(1)
           .maybeSingle();
         flow = fetchedFlow;
+        
+        // Fallback: check status='active' (set by FlowBuilder UI)
+        if (!flow) {
+          console.log(`[Bot Engine] No is_active flow found, checking status='active'...`);
+          const { data: statusFlow } = await supabase
+            .from('flows')
+            .select('*')
+            .eq('organization_id', organizationConfig.organizationId)
+            .eq('status', 'active')
+            .order('is_default', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          flow = statusFlow;
+        }
+        
         if (flow) {
           console.log(`[Bot Engine] Using default organization flow: ${flow.name}`);
         }
@@ -528,6 +544,19 @@ export async function handleIncomingMessage(
           .limit(1)
           .maybeSingle();
         flow = fetchedFlow;
+        
+        // Fallback: check status='active'
+        if (!flow) {
+          const { data: statusFlow } = await supabase
+            .from('flows')
+            .select('*')
+            .eq('organization_id', organizationConfig.organizationId)
+            .eq('status', 'active')
+            .order('is_default', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          flow = statusFlow;
+        }
       }
     }
 

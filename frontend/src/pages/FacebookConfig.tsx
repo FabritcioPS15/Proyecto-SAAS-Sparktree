@@ -47,8 +47,8 @@ export const FacebookConfig = () => {
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Página Conectada
           </div>
         ) : (
-          <div className="px-4 h-10 rounded-xl flex items-center gap-2 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest">
-            <div className="w-2 h-2 rounded-full bg-amber-500" /> Sin Conexión
+          <div className="px-4 h-10 rounded-xl flex items-center gap-2 bg-red-500/10 text-red-500 text-[10px] font-black uppercase tracking-widest">
+            <div className="w-2 h-2 rounded-full bg-red-500" /> Sin Conexión
           </div>
         )}
       />

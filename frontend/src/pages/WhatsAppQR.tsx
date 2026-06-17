@@ -34,7 +34,7 @@ export const WhatsAppQR = () => {
             setLoading(false);
             // Mark that we have real server data — safe to auto-init if needed
             hasLoadedOnce.current = true;
-            
+
             // Update ConnectionsContext when WhatsApp connects
             if (res.status === 'connected' && res.phoneNumber) {
                 await addConnection('whatsapp', {
@@ -42,7 +42,7 @@ export const WhatsAppQR = () => {
                     phoneNumber: res.phoneNumber
                 });
             }
-            
+
             return res;
         } catch (error) {
             console.error('Error fetching QR status:', error);
@@ -114,13 +114,13 @@ export const WhatsAppQR = () => {
         try {
             await logoutQR();
             setData({ status: 'disconnected' });
-            
+
             // Remove connection from ConnectionsContext
             const existingConnection = connections.find(c => c.platform_type === 'whatsapp');
             if (existingConnection) {
                 await removeConnection(existingConnection.id);
             }
-            
+
             await fetchStatus();
         } catch (error) {
             console.error('Error logging out:', error);
@@ -159,10 +159,10 @@ export const WhatsAppQR = () => {
                 icon={QrCode}
                 action={
                     <div className={`px-4 h-10 rounded-xl flex items-center gap-2 border text-[10px] font-black uppercase tracking-widest transition-all ${isConnected
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-                        : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                        ? 'bg-white border-emerald-500/20 text-emerald-500'
+                        : 'bg-white border-red-500/20 text-red-500'
                         }`}>
-                        <div className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-500'}`} />
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`} />
                         {isConnected ? 'Línea Activa' : 'Sin Conexión'}
                     </div>
                 }
@@ -179,7 +179,7 @@ export const WhatsAppQR = () => {
                                 className={`flex-1 p-4 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${connectionMethod === 'qr'
                                     ? 'bg-accent-500 border-accent-500 text-black'
                                     : 'bg-transparent border-gray-200 dark:border-gray-800 text-slate-500 hover:border-accent-500/30'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center justify-center gap-2">
                                     <QrCode className="w-4 h-4" />
@@ -191,7 +191,7 @@ export const WhatsAppQR = () => {
                                 className={`flex-1 p-4 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${connectionMethod === 'cloud'
                                     ? 'bg-accent-500 border-accent-500 text-black'
                                     : 'bg-transparent border-gray-200 dark:border-gray-800 text-slate-500 hover:border-accent-500/30'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center justify-center gap-2">
                                     <Cloud className="w-4 h-4" />

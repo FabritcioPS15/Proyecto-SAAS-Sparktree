@@ -322,30 +322,42 @@ export class MultiWhatsAppService {
       const profileName = msg.pushName || '';
       const { contact, conversation } = await this.saveMessageData(formattedMessage, senderPhone, connection, null, profileName);
 
-      // Route to message queue for async processing (RF-05)
-      try {
-        await messageQueueService.addMessageToQueue({
-          messageId: msg.key?.id || '',
-          connectionId: connection.id,
-          organizationId: connection.organizationId,
-          conversationId: conversation?.id || '',
-          contactId: contact?.id || '',
-          senderPhone,
-          message: formattedMessage,
-          timestamp: new Date().toISOString(),
-        });
-        console.log(`[MultiWhatsApp] Message routed to queue for async processing`);
-      } catch (queueError) {
-        console.error(`[MultiWhatsApp] Error routing to queue, processing synchronously:`, queueError);
-        // Fallback to synchronous processing if queue fails
-        const organizationConfig = {
-          organizationId: connection.organizationId,
-          conversationId: conversation?.id || undefined,
-          contactId: contact?.id || undefined,
-          whatsappConnectionId: connection.id,
-          senderJid: msg.key?.remoteJid || undefined
-        };
-        await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this.createWaServiceAdapter(connection));
+      // Process message through bot engine
+      const organizationConfig = {
+        organizationId: connection.organizationId,
+        conversationId: conversation?.id || undefined,
+        contactId: contact?.id || undefined,
+        whatsappConnectionId: connection.id,
+        senderJid: msg.key?.remoteJid || undefined
+      };
+
+      if (process.env.USE_REDIS === 'true') {
+        // Route to message queue for async processing (RF-05)
+        try {
+          await messageQueueService.addMessageToQueue({
+            messageId: msg.key?.id || '',
+            connectionId: connection.id,
+            organizationId: connection.organizationId,
+            conversationId: conversation?.id || '',
+            contactId: contact?.id || '',
+            senderPhone,
+            message: formattedMessage,
+            timestamp: new Date().toISOString(),
+          });
+          console.log(`[MultiWhatsApp] Message routed to queue for async processing`);
+        } catch (queueError) {
+          console.error(`[MultiWhatsApp] Error routing to queue, processing synchronously:`, queueError);
+          await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this.createWaServiceAdapter(connection));
+        }
+      } else {
+        // Process synchronously (local development without Redis)
+        console.log(`[MultiWhatsApp] Processing message synchronously (no Redis)`);
+        try {
+          await handleIncomingMessage(formattedMessage, senderPhone, organizationConfig, this.createWaServiceAdapter(connection));
+          console.log(`[MultiWhatsApp] ✅ Flow processing completed for ${senderPhone}`);
+        } catch (flowError) {
+          console.error(`[MultiWhatsApp] ❌ Error in flow processing:`, flowError);
+        }
       }
 
     } catch (error) {

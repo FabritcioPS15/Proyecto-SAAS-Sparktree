@@ -2,15 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getConversations, getConversationMessages, deleteConversation, deleteUser } from '../services/api';
 import api from '../services/api';
-import { 
-  Check, Send, Search, Filter, Users, MoreVertical, 
-  Smile, Paperclip, Mic, Star, Volume2, MessageCircle, 
-  Trash2, ChevronLeft, ChevronRight, MoreHorizontal, ChevronDown 
+import {
+  Check, Send, Search, Filter, Users, MoreVertical, Smile, Paperclip, Mic, Star, MessageCircle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Store
 } from 'lucide-react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
-
 import { PageLoader } from '../components/layout/PageLoader';
-
 const MOCK_AGENTS = [
   { id: '1', name: 'Ana Gómez' },
   { id: '2', name: 'Carlos Ruiz' },
@@ -35,11 +31,11 @@ export const Conversations = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-  
+
   // Assignment state (mock)
   const [assignedAgents, setAssignedAgents] = useState<Record<string, string>>({});
   const [isAssignOpen, setIsAssignOpen] = useState(false);
-  
+
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastMessagesLength = useRef(0);
 
@@ -174,15 +170,15 @@ export const Conversations = () => {
     if (!content) return '';
     try {
       const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-      const body = parsed.body || 
-                   parsed.text?.body || 
-                   parsed.text ||
-                   parsed.conversation ||
-                   parsed.extendedTextMessage?.text ||
-                   parsed.interactive?.button_reply?.title ||
-                   parsed.interactive?.list_reply?.title ||
-                   parsed.message?.conversation ||
-                   parsed.message?.extendedTextMessage?.text;
+      const body = parsed.body ||
+        parsed.text?.body ||
+        parsed.text ||
+        parsed.conversation ||
+        parsed.extendedTextMessage?.text ||
+        parsed.interactive?.button_reply?.title ||
+        parsed.interactive?.list_reply?.title ||
+        parsed.message?.conversation ||
+        parsed.message?.extendedTextMessage?.text;
 
       if (body) return body;
       if (parsed.type === 'media' || parsed.media || parsed.imageMessage || parsed.videoMessage) {
@@ -240,7 +236,7 @@ export const Conversations = () => {
 
       {/* --- SIDEBAR: Chat List --- */}
       <div className="w-[340px] lg:w-[380px] h-full flex flex-col bg-white dark:bg-[#11141b] border-r border-gray-100 dark:border-white/5 z-20 shadow-2xl relative transition-all duration-500">
-        
+
         {/* Sidebar Header */}
         <div className="pt-6 px-5 pb-3">
           <div className="flex items-center justify-between mb-5">
@@ -256,9 +252,9 @@ export const Conversations = () => {
               >
                 <Users className="w-4 h-4" />
               </button>
-              
+
               <div className="relative">
-                <button 
+                <button
                   onClick={() => { setIsFilterOpen(!isFilterOpen); setIsMenuOpen(false); }}
                   className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isFilterOpen ? 'text-accent-500 bg-accent-500/10' : 'text-gray-400 hover:text-accent-500 hover:bg-accent-500/10'}`}
                 >
@@ -274,7 +270,7 @@ export const Conversations = () => {
                       { id: 'unread', label: 'No leídos', icon: Star },
                       { id: 'groups', label: 'Grupos', icon: Users }
                     ].map(f => (
-                      <button 
+                      <button
                         key={f.id}
                         onClick={() => { setFilterStatus(f.id); setCurrentPage(1); }}
                         className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
@@ -294,7 +290,7 @@ export const Conversations = () => {
                       { id: 'telegram', label: 'Telegram', icon: FaTelegram },
                       { id: 'messenger', label: 'Messenger', icon: FaFacebookMessenger }
                     ].map(f => (
-                      <button 
+                      <button
                         key={f.id}
                         onClick={() => { setFilterChannel(f.id); setIsFilterOpen(false); setCurrentPage(1); }}
                         className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${filterChannel === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
@@ -321,7 +317,7 @@ export const Conversations = () => {
               placeholder="Buscar..."
               className="w-full h-11 pl-11 pr-4 bg-gray-50 dark:bg-white/5 border border-transparent focus:border-accent-500/20 rounded-xl outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400 transition-all font-bold"
               value={searchTerm}
-              onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
           </div>
         </div>
@@ -345,11 +341,10 @@ export const Conversations = () => {
                     navigate(`/conversations/${conv._id}`);
                   }
                 }}
-                className={`flex items-start gap-3 p-3.5 cursor-pointer rounded-2xl transition-all duration-300 relative group border ${
-                  isSelected 
-                    ? 'bg-white dark:bg-[#1c212b] border-accent-500/10 shadow-lg scale-[1.01] z-10' 
-                    : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5'
-                }`}
+                className={`flex items-start gap-3 p-3.5 cursor-pointer rounded-2xl transition-all duration-300 relative group border ${isSelected
+                  ? 'bg-white dark:bg-[#1c212b] border-accent-500/10 shadow-lg scale-[1.01] z-10'
+                  : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5'
+                  }`}
               >
                 {/* Active Indicator */}
                 {isSelected && (
@@ -385,15 +380,15 @@ export const Conversations = () => {
                     <p className={`text-[12px] truncate w-full pr-4 ${isSelected ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
                       {parseMessage(conv.lastMessageContent) || 'Sin mensajes'}
                     </p>
-                    
+
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {conv.unreadCount > 0 && (
                         <span className="bg-accent-500 text-black text-[9px] font-black h-4 min-w-[16px] flex items-center justify-center rounded-full px-1 shadow-sm">
                           {conv.unreadCount}
                         </span>
                       )}
-                      
-                      <button 
+
+                      <button
                         onClick={(e) => handleDeleteConversation(e, conv._id, conv.contactId?._id)}
                         className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
                       >
@@ -410,50 +405,34 @@ export const Conversations = () => {
         {/* Pagination Control */}
         {totalPages > 1 && (
           <div className="p-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between">
-             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                Pág {currentPage} / {totalPages}
-             </div>
-             <div className="flex items-center gap-1.5">
-                <button 
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="p-1.5 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 hover:text-accent-500 disabled:opacity-10 transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 hover:text-accent-500 disabled:opacity-10 transition-all"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-             </div>
+            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Pág {currentPage} / {totalPages}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 hover:text-accent-500 disabled:opacity-10 transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 hover:text-accent-500 disabled:opacity-10 transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       {/* --- MAIN PANE --- */}
       <div className="flex-1 flex flex-col min-h-0 bg-[#f7f9fc] dark:bg-[#0b0c10] overflow-hidden h-full relative">
-        
+
         {/* Modern Top Info Bar */}
-        <div className="pt-5 px-8 pb-3 flex items-center justify-between z-20">
-          <div className="flex items-center gap-4">
-            <div className="bg-emerald-500/10 px-4 py-1.5 rounded-full flex items-center gap-2 border border-emerald-500/5">
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse focus:ring-4 focus:ring-emerald-500/20" />
-              <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Conectado</span>
-            </div>
-            <p className="text-gray-400 dark:text-gray-600 text-[10px] font-black uppercase tracking-widest">Sparktree Engine</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2.5 bg-white dark:bg-white/5 rounded-xl text-gray-400 hover:text-accent-500 shadow-sm border border-gray-100 dark:border-white/5 transition-all">
-              <Volume2 className="w-4 h-4" />
-            </button>
-            <div className="w-9 h-9 rounded-xl bg-black dark:bg-accent-500 text-white dark:text-black flex items-center justify-center font-black text-xs shadow-md">
-               SA
-            </div>
-          </div>
-        </div>
+
 
         {selectedConv ? (
           <>
@@ -478,15 +457,15 @@ export const Conversations = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Siendo atendida por:</span>
                     <div className="relative">
-                      <button 
-                        onClick={() => setIsAssignOpen(!isAssignOpen)} 
+                      <button
+                        onClick={() => setIsAssignOpen(!isAssignOpen)}
                         className="flex items-center gap-2 text-xs font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-white/10 hover:border-accent-500/50 hover:bg-white dark:hover:bg-white/10 transition-all shadow-sm"
                       >
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         {assignedAgents[selectedConv._id] ? MOCK_AGENTS.find(a => a.id === assignedAgents[selectedConv._id])?.name : 'Sin asignar'}
                         <ChevronDown className="w-3.5 h-3.5 opacity-50" />
                       </button>
-                      
+
                       {isAssignOpen && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setIsAssignOpen(false)}></div>
@@ -498,15 +477,14 @@ export const Conversations = () => {
                               {MOCK_AGENTS.map(agent => (
                                 <button
                                   key={agent.id}
-                                  onClick={() => { 
-                                    setAssignedAgents(prev => ({ ...prev, [selectedConv._id]: agent.id })); 
-                                    setIsAssignOpen(false); 
+                                  onClick={() => {
+                                    setAssignedAgents(prev => ({ ...prev, [selectedConv._id]: agent.id }));
+                                    setIsAssignOpen(false);
                                   }}
-                                  className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors font-bold ${
-                                    assignedAgents[selectedConv._id] === agent.id 
-                                      ? 'text-accent-500 bg-accent-500/5' 
-                                      : 'text-gray-700 dark:text-gray-300'
-                                  }`}
+                                  className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors font-bold ${assignedAgents[selectedConv._id] === agent.id
+                                    ? 'text-accent-500 bg-accent-500/5'
+                                    : 'text-gray-700 dark:text-gray-300'
+                                    }`}
                                 >
                                   {agent.name}
                                 </button>
@@ -541,25 +519,23 @@ export const Conversations = () => {
 
                 return (
                   <div key={m._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
-                    {!isMe && (
-                      <div className="flex items-center gap-2 mb-1.5 ml-4">
-                        <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center">
+                    <div className="flex items-end gap-2 max-w-[80%] lg:max-w-[60%]">
+                      {!isMe && (
+                        <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 mb-1">
                           <Users className="w-3 h-3 text-gray-400" />
                         </div>
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Contacto</span>
-                      </div>
-                    )}
-                    <div className={`relative max-w-[80%] lg:max-w-[60%] px-5 py-3 rounded-2xl shadow-sm transition-all ${
-                      isMe
-                        ? 'bg-gradient-to-br from-accent-400 to-accent-600 text-white dark:text-black rounded-tr-none'
-                        : 'bg-white dark:bg-[#1c212b] text-gray-900 dark:text-white rounded-tl-none border border-gray-100 dark:border-white/5'
-                      }`}>
-                      <p className="text-[13px] font-medium leading-relaxed whitespace-pre-wrap tracking-wide">{body}</p>
-                      <div className={`flex justify-end items-center gap-1.5 mt-2 ${isMe ? 'text-white/70 dark:text-black/60' : 'text-gray-400 dark:text-gray-500'}`}>
-                        <span className="text-[9px] font-black uppercase tracking-widest">
-                          {formatTime(m.createdAt)}
-                        </span>
-                        {isMe && <Check className="w-3.5 h-3.5" />}
+                      )}
+                      <div className={`relative px-5 py-3 rounded-2xl shadow-sm transition-all ${isMe
+                        ? 'bg-gradient-to-br from-accent-400 to-accent-600 text-white dark:text-black rounded-br-none'
+                        : 'bg-white dark:bg-[#1c212b] text-gray-900 dark:text-white rounded-bl-none border border-gray-100 dark:border-white/5'
+                        }`}>
+                        <p className="text-[13px] font-medium leading-relaxed whitespace-pre-wrap tracking-wide">{body}</p>
+                        <div className={`flex justify-end items-center gap-1.5 mt-2 ${isMe ? 'text-white/70 dark:text-black/60' : 'text-gray-400 dark:text-gray-500'}`}>
+                          <span className="text-[9px] font-black uppercase tracking-widest">
+                            {formatTime(m.createdAt)}
+                          </span>
+                          {isMe && <Check className="w-3.5 h-3.5" />}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -579,20 +555,25 @@ export const Conversations = () => {
                   className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-400 font-bold text-base"
                 />
                 <div className="flex items-center gap-1">
-                   <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
+                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-all relative group/catalog">
+                    <Store className="w-5 h-5" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover/catalog:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Catálogo
+                    </div>
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
                     <Paperclip className="w-5 h-5" />
                   </button>
-                   <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
+                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
                     <Smile className="w-5 h-5" />
                   </button>
                   <button
                     onClick={handleSendMessage}
                     disabled={sending || !messageText.trim()}
-                    className={`p-3 rounded-2xl transition-all flex items-center justify-center ${
-                      messageText.trim() 
-                        ? 'bg-black dark:bg-accent-500 text-white dark:text-black shadow-lg shadow-accent-500/20 scale-105' 
-                        : 'bg-gray-50 dark:bg-white/5 text-gray-300 dark:text-gray-600'
-                    }`}
+                    className={`p-3 rounded-2xl transition-all flex items-center justify-center ${messageText.trim()
+                      ? 'bg-black dark:bg-accent-500 text-white dark:text-black shadow-lg shadow-accent-500/20 scale-105'
+                      : 'bg-gray-50 dark:bg-white/5 text-gray-300 dark:text-gray-600'
+                      }`}
                   >
                     <Send className={messageText.trim() ? "w-5 h-5" : "w-4 h-4"} />
                   </button>
@@ -607,8 +588,8 @@ export const Conversations = () => {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-10 select-none animate-in fade-in zoom-in-95 duration-1000">
             <div className="w-60 h-60 bg-white dark:bg-white/5 rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl relative transform -rotate-2 hover:rotate-0 transition-transform duration-700">
-               <div className="absolute inset-0 bg-accent-500/10 blur-[60px] rounded-full" />
-               <MessageCircle className="w-24 h-24 text-accent-500 z-10 animate-pulse-slow" />
+              <div className="absolute inset-0 bg-accent-500/10 blur-[60px] rounded-full" />
+              <MessageCircle className="w-24 h-24 text-accent-500 z-10 animate-pulse-slow" />
             </div>
             <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter">Sparktree Messaging</h2>
             <p className="max-w-sm text-gray-500 dark:text-gray-400 text-sm font-medium leading-relaxed mb-10 px-6">
@@ -644,3 +625,5 @@ export const Conversations = () => {
     </div>
   );
 };
+
+export default Conversations;
