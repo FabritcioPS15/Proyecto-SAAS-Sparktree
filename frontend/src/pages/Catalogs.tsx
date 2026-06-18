@@ -1,48 +1,133 @@
-import { useState } from 'react';
-import { Store, Plus, Search, Filter, Image, Video, FileText, ChevronRight, Package, Tag, Save, X, Edit2, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Store, Plus, Search, Filter, Image as ImageIcon, Video, Package, Tag, Save, X, Edit2, Trash2, Upload } from 'lucide-react';
 import { PageLoader } from '../components/layout/PageLoader';
-
-// MOCK DATA
-const MOCK_CATALOGS = [
-  {
-    id: '1',
-    name: 'Colección Verano 2026',
-    description: 'Catálogo principal de la nueva temporada',
-    status: 'active',
-    items: [
-      { id: '101', title: 'Camiseta Básica', price: '$25.00', type: 'image' },
-      { id: '102', title: 'Short Playa', price: '$35.00', type: 'video' },
-    ]
-  },
-  {
-    id: '2',
-    name: 'Accesorios',
-    description: 'Relojes, collares y más',
-    status: 'draft',
-    items: [
-      { id: '201', title: 'Reloj Deportivo', price: '$85.00', type: 'image' }
-    ]
-  }
-];
+import { getCatalogs, createCatalog, updateCatalog, deleteCatalog, uploadProductMedia } from '../services/api';
 
 export const Catalogs = () => {
-  const [catalogs, setCatalogs] = useState(MOCK_CATALOGS);
-  const [loading, setLoading] = useState(false);
+  const [catalogs, setCatalogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingCatalog, setEditingCatalog] = useState<any>(null);
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
 
-  if (loading) return <PageLoader sectionName="Catálogos" />;
+  useEffect(() => {
+    fetchCatalogs();
+  }, []);
+
+  const fetchCatalogs = async () => {
+    try {
+      setLoading(true);
+      const data = await getCatalogs();
+      setCatalogs(data);
+    } catch (error) {
+      console.error('Failed to fetch catalogs', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCreate = () => {
-    setEditingCatalog(null);
+    setEditingCatalog({
+      name: '',
+      description: '',
+      status: 'draft',
+      items: []
+    });
     setIsEditorOpen(true);
   };
 
   const handleEdit = (catalog: any) => {
-    setEditingCatalog(catalog);
+    // deep clone so we don't edit original until save
+    setEditingCatalog(JSON.parse(JSON.stringify(catalog)));
     setIsEditorOpen(true);
   };
+
+  const handleSave = async () => {
+    if (!editingCatalog) return;
+    try {
+      setLoading(true);
+      if (editingCatalog.id) {
+        await updateCatalog(editingCatalog.id, editingCatalog);
+      } else {
+        await createCatalog(editingCatalog);
+      }
+      setIsEditorOpen(false);
+      await fetchCatalogs();
+    } catch (error) {
+      console.error('Failed to save catalog', error);
+      alert('Error al guardar el catálogo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (catalogId: string) => {
+    if (window.confirm('¿Estás seguro de eliminar este catálogo?')) {
+      try {
+        setLoading(true);
+        await deleteCatalog(catalogId);
+        await fetchCatalogs();
+      } catch (error) {
+        console.error('Failed to delete catalog', error);
+        alert('Error al eliminar');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleAddItem = () => {
+    if (!editingCatalog) return;
+    setEditingCatalog({
+      ...editingCatalog,
+      items: [
+        ...(editingCatalog.items || []),
+        { id: Date.now().toString(), title: '', price: '', type: 'image', url: '', description: '', media_url: '' }
+      ]
+    });
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    if (!editingCatalog) return;
+    setEditingCatalog({
+      ...editingCatalog,
+      items: editingCatalog.items.filter((item: any) => item.id !== itemId)
+    });
+  };
+
+  const handleItemChange = (itemId: string, field: string, value: string) => {
+    if (!editingCatalog) return;
+    setEditingCatalog({
+      ...editingCatalog,
+      items: editingCatalog.items.map((item: any) => 
+        item.id === itemId ? { ...item, [field]: value } : item
+      )
+    });
+  };
+
+  const handleImageUpload = async (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingImage(itemId);
+      const url = await uploadProductMedia(file);
+      handleItemChange(itemId, 'media_url', url as string);
+    } catch (error) {
+      console.error('Upload failed', error);
+      alert('Error al subir la imagen. Verifica el tamaño (máx 10MB) o el almacenamiento.');
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
+  if (loading && catalogs.length === 0) return <PageLoader sectionName="Catálogos" />;
+
+  const filteredCatalogs = catalogs.filter(c => 
+    c.name?.toLowerCase().includes(search.toLowerCase()) || 
+    c.description?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="h-full animate-in fade-in duration-500 flex flex-col relative overflow-hidden bg-[#f7f9fc] dark:bg-[#0b0c10]">
@@ -88,23 +173,28 @@ export const Catalogs = () => {
 
         {/* Catalog Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {catalogs.map(catalog => (
-            <div key={catalog.id} className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-[2rem] p-6 shadow-xl hover:shadow-2xl transition-all group">
+          {filteredCatalogs.map(catalog => (
+            <div key={catalog.id} className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-[2rem] p-6 shadow-xl hover:shadow-2xl transition-all group flex flex-col">
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-gray-50 dark:bg-[#11141b] rounded-2xl flex items-center justify-center shadow-inner">
                   <Package className="w-6 h-6 text-accent-500" />
                 </div>
-                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${catalog.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-gray-100 dark:bg-white/10 text-gray-500 border-transparent'}`}>
-                  {catalog.status === 'active' ? 'Activo' : 'Borrador'}
+                <div className="flex items-center gap-2">
+                  <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${catalog.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-gray-100 dark:bg-white/10 text-gray-500 border-transparent'}`}>
+                    {catalog.status === 'active' ? 'Activo' : 'Borrador'}
+                  </div>
+                  <button onClick={() => handleDelete(catalog.id)} className="w-8 h-8 rounded-full bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
               <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2 tracking-tight">{catalog.name}</h3>
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-6 line-clamp-2">{catalog.description}</p>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-6 line-clamp-2 flex-1">{catalog.description}</p>
               
               <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-2 text-gray-400">
                   <Tag className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{catalog.items.length} items</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{catalog.items?.length || 0} items</span>
                 </div>
                 <button onClick={() => handleEdit(catalog)} className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-[#11141b] flex items-center justify-center text-gray-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all">
                   <Edit2 className="w-4 h-4" />
@@ -112,6 +202,11 @@ export const Catalogs = () => {
               </div>
             </div>
           ))}
+          {filteredCatalogs.length === 0 && !loading && (
+            <div className="col-span-full py-10 text-center text-gray-500">
+              No se encontraron catálogos.
+            </div>
+          )}
         </div>
       </div>
 
@@ -123,15 +218,15 @@ export const Catalogs = () => {
             {/* Editor Header */}
             <div className="px-8 py-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-white dark:bg-[#11141b]">
               <div>
-                <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{editingCatalog ? 'Editar Catálogo' : 'Nuevo Catálogo'}</h2>
+                <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{editingCatalog?.id ? 'Editar Catálogo' : 'Nuevo Catálogo'}</h2>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Configura los detalles e items</p>
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={() => setIsEditorOpen(false)} className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
                   <X className="w-5 h-5" />
                 </button>
-                <button className="bg-accent-500 hover:bg-accent-600 text-black px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2">
-                  <Save className="w-4 h-4" /> Guardar
+                <button onClick={handleSave} disabled={loading} className="bg-accent-500 hover:bg-accent-600 text-black px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 disabled:opacity-50">
+                  <Save className="w-4 h-4" /> {loading ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>
             </div>
@@ -142,11 +237,18 @@ export const Catalogs = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Nombre del Catálogo</label>
-                  <input type="text" placeholder="Ej. Promociones Verano" defaultValue={editingCatalog?.name} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-[#11141b] rounded-xl text-sm font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors" />
+                  <input type="text" placeholder="Ej. Promociones Verano" value={editingCatalog?.name || ''} onChange={e => setEditingCatalog({ ...editingCatalog, name: e.target.value })} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-[#11141b] rounded-xl text-sm font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Descripción</label>
-                  <textarea rows={3} placeholder="Describe el contenido del catálogo..." defaultValue={editingCatalog?.description} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-[#11141b] rounded-xl text-sm font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors resize-none" />
+                  <textarea rows={3} placeholder="Describe el contenido del catálogo..." value={editingCatalog?.description || ''} onChange={e => setEditingCatalog({ ...editingCatalog, description: e.target.value })} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-[#11141b] rounded-xl text-sm font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors resize-none" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Estado</label>
+                  <select value={editingCatalog?.status || 'draft'} onChange={e => setEditingCatalog({ ...editingCatalog, status: e.target.value })} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-[#11141b] rounded-xl text-sm font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors appearance-none">
+                    <option value="draft">Borrador</option>
+                    <option value="active">Activo</option>
+                  </select>
                 </div>
               </div>
 
@@ -156,7 +258,7 @@ export const Catalogs = () => {
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Productos / Items</h3>
-                  <button className="text-[10px] font-black text-accent-500 uppercase tracking-widest hover:text-accent-600 flex items-center gap-1">
+                  <button onClick={handleAddItem} className="text-[10px] font-black text-accent-500 uppercase tracking-widest hover:text-accent-600 flex items-center gap-1">
                     <Plus className="w-3 h-3" /> Añadir Item
                   </button>
                 </div>
@@ -164,21 +266,34 @@ export const Catalogs = () => {
                 <div className="space-y-4">
                   {editingCatalog?.items?.map((item: any) => (
                     <div key={item.id} className="p-4 bg-white dark:bg-[#11141b] border border-gray-100 dark:border-white/5 rounded-2xl flex items-start gap-4 group hover:border-accent-500/50 transition-colors shadow-sm">
-                      <div className="w-20 h-20 bg-gray-50 dark:bg-white/5 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden border border-gray-100 dark:border-white/5">
-                        {item.type === 'video' ? <Video className="w-6 h-6 text-gray-300" /> : <Image className="w-6 h-6 text-gray-300" />}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                          <span className="text-[9px] font-black text-white uppercase tracking-widest">Cambiar</span>
-                        </div>
+                      
+                      <div className="w-20 h-20 bg-gray-50 dark:bg-white/5 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden border border-gray-100 dark:border-white/5 group/img cursor-pointer">
+                        {item.media_url ? (
+                          <img src={item.media_url} alt="product media" className="w-full h-full object-cover" />
+                        ) : (
+                          item.media_type === 'video' ? <Video className="w-6 h-6 text-gray-300" /> : <ImageIcon className="w-6 h-6 text-gray-300" />
+                        )}
+                        <label className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer">
+                          <Upload className="w-4 h-4 text-white mb-1" />
+                          <span className="text-[8px] font-black text-white uppercase tracking-widest">{uploadingImage === item.id ? 'Subiendo' : 'Subir'}</span>
+                          <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleImageUpload(item.id, e)} disabled={uploadingImage === item.id} />
+                        </label>
                       </div>
+
                       <div className="flex-1 space-y-3">
-                        <input type="text" defaultValue={item.title} placeholder="Nombre del producto" className="w-full bg-transparent text-sm font-black text-gray-900 dark:text-white outline-none placeholder:text-gray-400" />
-                        <div className="flex gap-2">
-                          <input type="text" defaultValue={item.price} placeholder="Precio ($0.00)" className="w-1/2 px-3 py-2 bg-gray-50 dark:bg-[#0b0c10] rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors" />
-                          <input type="text" placeholder="Enlace/URL (opcional)" className="w-1/2 px-3 py-2 bg-gray-50 dark:bg-[#0b0c10] rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors" />
+                        <div className="flex items-center gap-2">
+                          <input type="text" value={item.title || ''} onChange={e => handleItemChange(item.id, 'title', e.target.value)} placeholder="Nombre del producto" className="w-full bg-transparent text-sm font-black text-gray-900 dark:text-white outline-none placeholder:text-gray-400" />
+                          <button onClick={() => handleItemChange(item.id, 'media_type', (item.media_type || item.type) === 'image' ? 'video' : 'image')} className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-accent-500 whitespace-nowrap">
+                            Es: {(item.media_type || item.type) === 'image' ? 'IMG' : 'VID'}
+                          </button>
                         </div>
-                        <textarea rows={2} placeholder="Descripción breve..." className="w-full px-3 py-2 bg-gray-50 dark:bg-[#0b0c10] rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors resize-none" />
+                        <div className="flex gap-2">
+                          <input type="text" value={item.price || ''} onChange={e => handleItemChange(item.id, 'price', e.target.value)} placeholder="Precio ($0.00)" className="w-1/2 px-3 py-2 bg-gray-50 dark:bg-[#0b0c10] rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors" />
+                          <input type="text" value={item.url || ''} onChange={e => handleItemChange(item.id, 'url', e.target.value)} placeholder="Enlace/URL (opcional)" className="w-1/2 px-3 py-2 bg-gray-50 dark:bg-[#0b0c10] rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors" />
+                        </div>
+                        <textarea rows={2} value={item.description || ''} onChange={e => handleItemChange(item.id, 'description', e.target.value)} placeholder="Descripción breve..." className="w-full px-3 py-2 bg-gray-50 dark:bg-[#0b0c10] rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none border border-transparent focus:border-accent-500 transition-colors resize-none" />
                       </div>
-                      <button className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-colors">
+                      <button onClick={() => handleRemoveItem(item.id)} className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -188,7 +303,7 @@ export const Catalogs = () => {
                     <div className="text-center py-10 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl">
                       <Package className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                       <p className="text-xs font-bold text-gray-400">Este catálogo está vacío.</p>
-                      <button className="mt-3 text-[10px] font-black text-accent-500 uppercase tracking-widest hover:underline">
+                      <button onClick={handleAddItem} className="mt-3 text-[10px] font-black text-accent-500 uppercase tracking-widest hover:underline">
                         Agrega tu primer producto
                       </button>
                     </div>

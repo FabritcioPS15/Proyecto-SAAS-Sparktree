@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getConversations, getConversationMessages, deleteConversation, deleteUser } from '../services/api';
+import { getConversations, getConversationMessages, deleteConversation, deleteUser, getCatalogs } from '../services/api';
 import api from '../services/api';
 import {
-  Check, Send, Search, Filter, Users, MoreVertical, Smile, Paperclip, Mic, Star, MessageCircle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Store
+  Check, Send, Search, Filter, Users, MoreVertical, Smile, Paperclip, Mic, Star, MessageCircle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Store, Package, X
 } from 'lucide-react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
 import { PageLoader } from '../components/layout/PageLoader';
@@ -31,6 +31,11 @@ export const Conversations = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+
+  // Catalog integration state
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [catalogs, setCatalogs] = useState<any[]>([]);
+  const [loadingCatalogs, setLoadingCatalogs] = useState(false);
 
   // Assignment state (mock)
   const [assignedAgents, setAssignedAgents] = useState<Record<string, string>>({});
@@ -123,6 +128,60 @@ export const Conversations = () => {
     }
   }, [selectedConv]);
 
+  const fetchCatalogs = async () => {
+    if (catalogs.length > 0) return;
+    try {
+      setLoadingCatalogs(true);
+      const data = await getCatalogs();
+      setCatalogs(data);
+    } catch (error) {
+      console.error('Failed to load catalogs', error);
+    } finally {
+      setLoadingCatalogs(false);
+    }
+  };
+
+  const toggleCatalog = () => {
+    if (!isCatalogOpen) {
+      fetchCatalogs();
+    }
+    setIsCatalogOpen(!isCatalogOpen);
+  };
+
+  const handleSelectProduct = async (item: any) => {
+    if (!selectedConv || sending) return;
+    setIsCatalogOpen(false);
+    
+    const productText = `*${item.title}*\n${item.description ? item.description + '\n' : ''}${item.price ? 'Precio: ' + item.price + '\n' : ''}${item.url ? 'Enlace: ' + item.url : ''}`;
+    
+    setSending(true);
+
+    const optimistic = {
+      _id: `tmp-${Date.now()}`,
+      direction: 'outbound',
+      content: item.media_url ? { url: item.media_url, caption: productText } : productText,
+      createdAt: new Date().toISOString(),
+      type: item.media_url ? 'image' : 'text',
+      status: 'sending'
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    try {
+      const response = await api.post(`/conversations/${selectedConv._id}/send`, { 
+        text: productText,
+        mediaUrl: item.media_url,
+        mediaType: 'image'
+      });
+      setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
+    } catch (err: any) {
+      setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+      const errMsg = err.response?.data?.error || 'Error al enviar el producto. Verifica la conexión.';
+      alert(errMsg);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!messageText.trim() || !selectedConv || sending) return;
     const text = messageText.trim();
@@ -144,6 +203,8 @@ export const Conversations = () => {
       setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+      const errMsg = err.response?.data?.error || 'Error al enviar el mensaje. Verifica la conexión.';
+      alert(errMsg);
     } finally {
       setSending(false);
     }
@@ -544,7 +605,62 @@ export const Conversations = () => {
             </div>
 
             {/* Input Footer Area */}
-            <div className="px-8 pb-8 pt-2 z-20">
+            <div className="px-8 pb-8 pt-2 z-20 relative">
+              {/* Catalog Popover */}
+              {isCatalogOpen && (
+                <div className="absolute bottom-full left-8 mb-4 w-[360px] bg-white dark:bg-[#1c212b] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300 z-50">
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-[#11141b] border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+                    <h4 className="text-sm font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+                      <Store className="w-4 h-4 text-accent-500" />
+                      Insertar Producto
+                    </h4>
+                    <button onClick={() => setIsCatalogOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-2 space-y-2">
+                    {loadingCatalogs ? (
+                      <div className="text-center py-6 text-xs font-bold text-gray-500">Cargando catálogos...</div>
+                    ) : catalogs.length === 0 ? (
+                      <div className="text-center py-6">
+                        <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-gray-500">No hay catálogos disponibles.</p>
+                      </div>
+                    ) : (
+                      catalogs.map(catalog => (
+                        <div key={catalog.id} className="mb-4 last:mb-0">
+                          <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 mb-2">{catalog.name}</h5>
+                          <div className="space-y-1">
+                            {catalog.items?.map((item: any) => (
+                              <button
+                                key={item.id}
+                                onClick={() => handleSelectProduct(item)}
+                                className="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group"
+                              >
+                                <div className="w-10 h-10 bg-gray-100 dark:bg-white/5 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                  {item.media_url ? (
+                                    <img src={item.media_url} alt={item.title} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Package className="w-4 h-4 text-gray-400" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{item.title}</p>
+                                  <p className="text-[10px] font-black text-accent-500 uppercase tracking-widest">{item.price ? `$${item.price}` : 'Sin precio'}</p>
+                                </div>
+                              </button>
+                            ))}
+                            {(!catalog.items || catalog.items.length === 0) && (
+                              <p className="text-[10px] font-bold text-gray-400 px-2">Catálogo vacío</p>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="bg-white dark:bg-[#1c212b] rounded-[1.5rem] p-2 pl-6 shadow-xl border border-gray-100 dark:border-white/5 flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-accent-500/5 group border-b-2 border-accent-500/10">
                 <input
                   type="text"
@@ -555,7 +671,7 @@ export const Conversations = () => {
                   className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-400 font-bold text-base"
                 />
                 <div className="flex items-center gap-1">
-                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-all relative group/catalog">
+                  <button onClick={toggleCatalog} className={`p-2 transition-all relative group/catalog ${isCatalogOpen ? 'text-accent-500 bg-accent-500/10 rounded-lg' : 'text-gray-400 hover:text-accent-500'}`}>
                     <Store className="w-5 h-5" />
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover/catalog:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                       Catálogo

@@ -28,6 +28,7 @@ import webhookRoutes from './modules/system/webhooks.routes';
 import assignmentRoutes from './modules/chat/assignment.routes';
 import internalNotesRoutes from './modules/chat/internalNotes.routes';
 import inboxRoutes from './modules/chat/inbox.routes';
+import catalogsRoutes from './modules/catalogs/catalogs.routes';
 
 // Load environment variables
 dotenv.config();
@@ -200,6 +201,7 @@ app.use('/api/platform', platformRoutes);
 app.use('/api/assignment', assignmentRoutes);
 app.use('/api/internal-notes', internalNotesRoutes);
 app.use('/api/inbox', inboxRoutes);
+app.use('/api/catalogs', catalogsRoutes);
 
 // Middleware to record metrics for all successful responses
 app.use((req: Request, res: Response, next: NextFunction) => {

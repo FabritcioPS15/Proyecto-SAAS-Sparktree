@@ -757,4 +757,77 @@ export const getCrmDashboard = async () => {
   }
 };
 
+// Catalogs endpoints
+export const getCatalogs = async () => {
+  try {
+    const response = await api.get('/catalogs');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching catalogs:', error);
+    throw error;
+  }
+};
+
+export const createCatalog = async (data: any) => {
+  try {
+    const response = await api.post('/catalogs', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating catalog:', error);
+    throw error;
+  }
+};
+
+export const updateCatalog = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/catalogs/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating catalog:', error);
+    throw error;
+  }
+};
+
+export const deleteCatalog = async (id: string) => {
+  try {
+    const response = await api.delete(`/catalogs/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting catalog:', error);
+    throw error;
+  }
+};
+
+export const uploadProductMedia = async (file: File) => {
+  try {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result as string;
+          // Extract base64 content
+          const content = base64Data.split(',')[1];
+          const response = await api.post('/catalogs/upload', {
+            fileName: file.name,
+            contentType: file.type,
+            base64Data: content
+          });
+          resolve(response.data.url);
+        } catch (err) {
+          console.error('Error uploading to backend:', err);
+          reject(err);
+        }
+      };
+      reader.onerror = (error) => {
+        console.error('Error reading file:', error);
+        reject(error);
+      };
+    });
+  } catch (error) {
+    console.error('Error uploading media:', error);
+    throw error;
+  }
+};
+
 export default api;
