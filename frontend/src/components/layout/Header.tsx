@@ -1,341 +1,204 @@
 /* =============================================================================
-   HEADER COMPONENT - Componente principal de navegación superior
-   =============================================================================
-   
-   Propósito:
-   - Proporcionar navegación y control del sistema
-   - Mostrar estado del sistema y notificaciones
-   - Facilitar acceso rápido a funciones principales
-   
-   Características:
-   - Responsive design con menú móvil
-   - Sistema de notificaciones en tiempo real
-   - Control de tema (light/dark)
-   - Gestión de perfil de usuario
-   - Indicadores de estado del sistema
-   
-   Dependencies:
-   - ThemeContext: Para control de tema
-   - AuthContext: Para datos de usuario
-   - NotificationContext: Para sistema de notificaciones
+   HEADER COMPONENT - Premium redesign: Linear/Vercel/Stripe inspired
    ============================================================================= */
 
-import { Moon, Sun, Menu, LogOut, User, Settings as SettingsIcon, ChevronDown, Shield, CreditCard, HelpCircle, Building2, Users } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Moon, Sun, Menu, LogOut, User, Settings as SettingsIcon,
+  ChevronDown, Building2, Users, Bell, Search, Plus, HelpCircle, CreditCard
+} from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { NotificationBell } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConnections } from '../../contexts/ConnectionsContext';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
-import { useState } from 'react';
 
 interface HeaderProps {
-  onMenuClick?: () => void; // Callback para abrir menú móvil
+  onMenuClick?: () => void;
 }
 
 export const Header = ({ onMenuClick }: HeaderProps) => {
-  // Hooks y contextos
   const { theme, toggleTheme } = useTheme();
   const { user, logout, activeProfile, clearProfile } = useAuth();
   const { connections } = useConnections();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Constantes de configuración
-  const isSidebarCollapsed = false; // TODO: Implementar contexto para sidebar state
-
-  // Platform icon mapping
   const platformIcons: Record<string, any> = {
     whatsapp: FaWhatsapp,
     telegram: FaTelegram,
     instagram: FaInstagram,
     facebook_messenger: FaFacebookMessenger,
-    tiktok: SiTiktok
+    tiktok: SiTiktok,
   };
 
-  // Platform routes
   const platformRoutes: Record<string, string> = {
     whatsapp: '/whatsapp-qr',
     telegram: '/telegram-config',
     instagram: '/instagram-config',
     facebook_messenger: '/facebook-config',
-    tiktok: '/tiktok-config'
+    tiktok: '/tiktok-config',
+  };
+
+  const platformColors: Record<string, string> = {
+    whatsapp: 'text-emerald-500',
+    telegram: 'text-sky-500',
+    instagram: 'text-pink-500',
+    facebook_messenger: 'text-blue-500',
+    tiktok: 'text-slate-900 dark:text-white',
   };
 
   return (
-    <header className="sticky top-0 bg-white/90 dark:bg-[#0a0c10]/95 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-300 relative z-[55]">
-      {/* Contenedor principal del header */}
-      <div className="flex items-center justify-between px-6 py-4">
-        {/* Sección izquierda: Menú móvil y título */}
-        <div className="flex items-center gap-4">
-          {/* Botón de menú para móvil */}
+    <header className="sticky top-0 z-[55] bg-[#F8FAFC] dark:bg-[#0F172A] transition-colors duration-300">
+      <div className="flex items-center justify-between h-14 px-6">
+
+        {/* Left: mobile menu + search */}
+        <div className="flex items-center gap-3">
           <button
             onClick={onMenuClick}
-            className="md:hidden p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 hover:scale-105 group"
+            className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             aria-label="Abrir menú"
           >
-            <Menu className="w-5 h-5 text-gray-700 dark:text-gray-300 group-hover:scale-110 transition-transform duration-300" />
+            <Menu className="w-4 h-4 text-slate-600 dark:text-slate-400" />
           </button>
 
-          {/* Título y estado del sistema */}
-          <div className="group">
-            <div className="flex items-center gap-3">
-              {/* Información principal */}
-              <div>
-                <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400">
-                  Sparktree OS
-                </h2>
-                <p className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest mt-0.5">
-                  Gestiona tu negocio en tiempo real
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Search bar */}
+          <button
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#1E293B] rounded-lg text-sm font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 transition-all w-56"
+          >
+            <Search className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-xs">Buscar...</span>
+            <span className="ml-auto text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-md">⌘K</span>
+          </button>
         </div>
 
-        {/* Sección derecha: Conexiones, notificaciones, tema y perfil */}
-        <div className="flex items-center gap-3">
-          {/* Indicadores de conexión de redes sociales */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-black/40 backdrop-blur-md rounded-2xl border border-white/60 dark:border-white/10 shadow-sm">
+        {/* Right: channels status + actions + profile */}
+        <div className="flex items-center gap-2">
+
+          {/* Channel connection pills */}
+          <div className="hidden lg:flex items-center gap-1 px-2 py-1 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#1E293B] rounded-xl">
             {Object.keys(platformIcons).map((platform) => {
               const Icon = platformIcons[platform];
-              const conn = connections.find(c => c.platform_type === platform);
+              const conn = connections.find((c) => c.platform_type === platform);
               const isConnected = conn?.status === 'connected';
               const route = platformRoutes[platform];
-
-              // Dynamic brand colors for active states
-              const brandColors: Record<string, string> = {
-                whatsapp: 'text-emerald-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 drop-shadow-[0_0_4px_rgba(16,185,129,0.2)]',
-                telegram: 'text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 drop-shadow-[0_0_4px_rgba(14,165,233,0.2)]',
-                instagram: 'text-pink-500 hover:text-pink-600 dark:text-pink-400 dark:hover:text-pink-300 drop-shadow-[0_0_4px_rgba(236,72,153,0.2)]',
-                facebook_messenger: 'text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 drop-shadow-[0_0_4px_rgba(59,130,246,0.2)]',
-                tiktok: 'text-[#010101] hover:text-[#fe2c55] dark:text-[#fe2c55] dark:hover:text-[#010101] drop-shadow-[0_0_4px_rgba(254,44,85,0.2)]'
-              };
-
-              const activeClass = brandColors[platform];
-              const inactiveClass = 'text-gray-300 dark:text-gray-600 hover:text-gray-400 dark:hover:text-gray-500';
-
-              const platformNames: Record<string, string> = {
-                whatsapp: 'WhatsApp',
-                telegram: 'Telegram',
-                instagram: 'Instagram',
-                facebook_messenger: 'Messenger',
-                tiktok: 'TikTok'
-              };
+              const color = platformColors[platform];
 
               return (
                 <button
                   key={platform}
                   onClick={() => navigate(route)}
-                  className="relative p-2 rounded-xl transition-all duration-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:scale-110 active:scale-95 group"
-                  title={`${platformNames[platform]} - ${isConnected ? 'Conectado' : 'Desconectado (Configurar)'}`}
+                  title={`${platform} — ${isConnected ? 'Conectado' : 'Desconectado'}`}
+                  className="relative p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
-                  <Icon className={`w-5 h-5 transition-colors duration-300 ${isConnected ? activeClass : inactiveClass}`} />
-
-                  {/* Active/Inactive status dot badge */}
-                  <span className={`absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-900 transition-all duration-300 ${isConnected
-                      ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
-                      : 'bg-gray-300 dark:bg-gray-600'
-                    }`} />
-
-                  {/* Tooltip detail */}
-                  <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1 bg-gray-900/95 dark:bg-gray-800/95 border border-gray-800 dark:border-gray-700/50 text-[10px] font-bold text-white uppercase tracking-wider rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap shadow-lg z-[60]">
-                    {platformNames[platform]}: {isConnected ? 'Activo' : 'Inactivo'}
-                  </span>
+                  <Icon className={`w-4 h-4 transition-colors ${isConnected ? color : 'text-slate-300 dark:text-slate-700'}`} />
+                  <span className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full border border-white dark:border-[#111827] ${isConnected ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`} />
                 </button>
               );
             })}
           </div>
 
-          {/* Sistema de notificaciones */}
-          <div className="relative group">
+          {/* Create Flow button */}
+          <button
+            onClick={() => navigate('/flow-manager')}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-black text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Crear Flujo
+          </button>
+
+          {/* Help */}
+          <button className="p-2 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-[#111827] hover:text-slate-700 dark:hover:text-slate-300 transition-all">
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-[#111827] hover:text-slate-700 dark:hover:text-slate-300 transition-all"
+            title={theme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'}
+          >
+            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          </button>
+
+          {/* Notifications */}
+          <div className="p-1">
             <NotificationBell />
           </div>
 
-
-
-          {/* Perfil de usuario y menú desplegable */}
-          <div className="relative group">
-            <div
-              onClick={() => {
-                console.log('Profile clicked, current state:', isProfileOpen);
-                setIsProfileOpen(!isProfileOpen);
-              }}
-              className="ml-2 flex items-center gap-3 bg-white/80 dark:bg-black/40 p-1.5 pr-4 rounded-2xl border border-white/60 dark:border-white/10 shadow-sm hover:shadow-md hover:bg-white dark:hover:bg-black transition-all duration-300 cursor-pointer group relative z-50"
-              role="button"
-              tabIndex={0}
-              aria-expanded={isProfileOpen}
-              aria-haspopup="true"
+          {/* Profile dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-white dark:hover:bg-[#111827] border border-transparent hover:border-[#E5E7EB] dark:hover:border-[#1E293B] transition-all"
             >
-              {/* Avatar del usuario */}
-              <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600">
-                <img
-                  src={`https://ui-avatars.com/api/?name=${user?.full_name || 'Admin'}&background=random`}
-                  alt={`Avatar de ${user?.full_name || 'Usuario'}`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* Información del usuario (solo en desktop) */}
-              {!isSidebarCollapsed && (
-                <div className="hidden lg:block pr-2">
-                  <p className="text-xs font-black text-gray-900 dark:text-white truncate max-w-[100px]">
-                    {activeProfile?.name || user?.full_name || 'Inicia Sesión'}
-                  </p>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">
-                    {activeProfile ? 'Equipo' : (user?.role || 'Guest')}
-                  </p>
-                </div>
-              )}
-
-              {/* Indicador de menú desplegable */}
-              <ChevronDown
-                className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''
-                  }`}
+              <img
+                src={`https://ui-avatars.com/api/?name=${user?.full_name || 'Admin'}&background=random`}
+                alt="avatar"
+                className="w-7 h-7 rounded-lg object-cover"
               />
-            </div>
+              <div className="hidden md:block text-left">
+                <p className="text-xs font-semibold text-slate-900 dark:text-white leading-none truncate max-w-[90px]">
+                  {activeProfile?.name || user?.full_name || 'Usuario'}
+                </p>
+                <p className="text-[10px] font-medium text-slate-500 capitalize leading-none mt-0.5">
+                  {activeProfile ? 'Equipo' : (user?.role || 'Guest')}
+                </p>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-            {/* Menú desplegable de perfil */}
             {isProfileOpen && (
               <>
-                {/* Backdrop para cerrar menú al hacer click fuera */}
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsProfileOpen(false)}
-                  aria-hidden="true"
-                />
-
-                {/* Contenedor del menú */}
-                <div className="absolute right-0 mt-3 w-72 bg-white dark:bg-[#11141b] rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-2xl z-[60] overflow-hidden animate-in slide-in-from-top-2 duration-200">
-                  {/* Cabecera del menú con información del usuario */}
-                  <div className="p-6 border-b border-gray-50 dark:border-gray-800/50 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50">
-                    <div className="flex items-center gap-4">
-                      {/* Avatar grande */}
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-primary-500/20 shadow-lg">
-                        <img
-                          src={`https://ui-avatars.com/api/?name=${user?.full_name || 'Admin'}&background=random`}
-                          alt={`Avatar de ${user?.full_name || 'Usuario'}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-
-                      {/* Información detallada del usuario */}
-                      <div className="flex-1">
-                        <p className="text-sm font-black text-gray-900 dark:text-white truncate">
+                <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#1E293B] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* User info header */}
+                  <div className="px-4 py-4 border-b border-[#E5E7EB] dark:border-[#1E293B]">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${user?.full_name || 'Admin'}&background=random`}
+                        alt="avatar"
+                        className="w-10 h-10 rounded-xl object-cover"
+                      />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate max-w-[160px]">
                           {activeProfile?.name || user?.full_name || 'Usuario'}
                         </p>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-tight">
-                          {activeProfile ? 'Miembro de Equipo' : (user?.role || 'Administrator')}
-                        </p>
-                        <p className="text-[10px] text-gray-400 truncate">
-                          {user?.email}
-                        </p>
+                        <p className="text-xs text-slate-500 truncate max-w-[160px]">{user?.email}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Opciones del menú */}
-                  <div className="p-2">
+                  {/* Menu items */}
+                  <div className="p-2 space-y-0.5">
                     {user?.role === 'empresa' && activeProfile && (
-                      <button 
-                        onClick={() => {
-                          clearProfile();
-                          setIsProfileOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 dark:hover:from-emerald-500/10 dark:hover:to-teal-500/10 rounded-xl transition-all duration-200 group"
-                      >
-                        <Users className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
-                        <span>Cambiar Perfil</span>
-                      </button>
+                      <MenuItem icon={<Users className="w-4 h-4" />} label="Cambiar Perfil" onClick={() => { clearProfile(); setIsProfileOpen(false); }} />
                     )}
-                    {/* Opción: Ajustes / Mi Perfil */}
-                    <button 
-                      onClick={() => {
-                        navigate('/settings');
-                        setIsProfileOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-500/10 dark:hover:to-indigo-500/10 rounded-xl transition-all duration-200 group"
-                    >
-                      <User className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
-                      <span>Mi Perfil y Ajustes</span>
-                    </button>
-                    
-                    {/* Opción: Cambiar Tema */}
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleTheme();
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 dark:hover:from-indigo-500/10 dark:hover:to-purple-500/10 rounded-xl transition-all duration-200 group"
-                    >
-                      {theme === 'light' ? (
-                        <Moon className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-                      ) : (
-                        <Sun className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-                      )}
-                      <span>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>
-                    </button>
-                    
-                    {/* Opción: Facturación */}
-                    <button 
-                      onClick={() => {
-                        navigate('/billing');
-                        setIsProfileOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 dark:hover:from-green-500/10 dark:hover:to-emerald-500/10 rounded-xl transition-all duration-200 group"
-                    >
-                      <CreditCard className="w-4 h-4 text-green-500 group-hover:scale-110 transition-transform" />
-                      <span>Facturación</span>
-                    </button>
+                    <MenuItem icon={<User className="w-4 h-4" />} label="Mi Perfil y Ajustes" onClick={() => { navigate('/settings'); setIsProfileOpen(false); }} />
+                    <MenuItem icon={theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />} label={theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'} onClick={(e) => { e.stopPropagation(); toggleTheme(); }} />
+                    <MenuItem icon={<CreditCard className="w-4 h-4" />} label="Facturación" onClick={() => { navigate('/billing'); setIsProfileOpen(false); }} />
 
-                    {/* Opciones de Administrador */}
                     {user?.role === 'admin' && (
                       <>
-                        <div className="my-2 border-t border-gray-100 dark:border-gray-800/50" />
-                        <div className="px-4 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                          Administración
-                        </div>
-                        
-                        <button 
-                          onClick={() => {
-                            navigate('/admin/organizations');
-                            setIsProfileOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 dark:hover:from-orange-500/10 dark:hover:to-red-500/10 rounded-xl transition-all duration-200 group"
-                        >
-                          <Building2 className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                          <span>Organizaciones</span>
-                        </button>
-
-                        <button 
-                          onClick={() => {
-                            navigate('/admin/staff');
-                            setIsProfileOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gradient-to-r hover:from-teal-50 hover:to-cyan-50 dark:hover:from-teal-500/10 dark:hover:to-cyan-500/10 rounded-xl transition-all duration-200 group"
-                        >
-                          <Users className="w-4 h-4 text-teal-500 group-hover:scale-110 transition-transform" />
-                          <span>Personal (Staff)</span>
-                        </button>
+                        <div className="my-1 border-t border-[#E5E7EB] dark:border-[#1E293B]" />
+                        <p className="px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Administración</p>
+                        <MenuItem icon={<Building2 className="w-4 h-4" />} label="Organizaciones" onClick={() => { navigate('/admin/organizations'); setIsProfileOpen(false); }} />
+                        <MenuItem icon={<Users className="w-4 h-4" />} label="Personal (Staff)" onClick={() => { navigate('/admin/staff'); setIsProfileOpen(false); }} />
                       </>
                     )}
                   </div>
 
-                  {/* Separador */}
-                  <div className="border-t border-gray-100 dark:border-gray-800" />
-
-                  {/* Opción: Cerrar Sesión */}
-                  <div className="p-2">
+                  <div className="border-t border-[#E5E7EB] dark:border-[#1E293B] p-2">
                     <button
-                      onClick={() => {
-                        logout();
-                        setIsProfileOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all duration-200 group"
+                      onClick={() => { logout(); setIsProfileOpen(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
                     >
-                      <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                      <span>Cerrar Sesión</span>
+                      <LogOut className="w-4 h-4" />
+                      Cerrar Sesión
                     </button>
                   </div>
                 </div>
@@ -344,10 +207,25 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           </div>
         </div>
       </div>
+
+      {/* Subtle bottom separator */}
+      <div className="border-b border-slate-200/60 dark:border-white/5" />
     </header>
   );
 };
+
+function MenuItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: (e: any) => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors text-left"
+    >
+      <span className="text-slate-400">{icon}</span>
+      {label}
+    </button>
+  );
+}
+
 /* =============================================================================
    FIN DEL COMPONENTE HEADER
    ============================================================================= */
-

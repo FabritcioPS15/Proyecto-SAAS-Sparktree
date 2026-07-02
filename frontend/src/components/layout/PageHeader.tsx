@@ -11,7 +11,7 @@ interface PageHeaderProps {
 export const PageHeader = ({ title, highlight, description, icon: Icon, action }: PageHeaderProps) => {
   return (
     <div className="-mx-4 md:-mx-6 border-b border-slate-100 dark:border-slate-800/50 mb-6">
-      <div className="relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-[#11141b] px-6 md:px-10 py-6 md:py-8 min-h-[140px]">
+      <div className="relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-dark-card px-6 md:px-10 py-6 md:py-8 min-h-[140px]">
         
         {/* Abstract Circles Background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">

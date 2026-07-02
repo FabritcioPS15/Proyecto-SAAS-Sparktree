@@ -10,31 +10,31 @@ import { Navigate } from 'react-router-dom';
 import { PageLoader } from './components/layout/PageLoader';
 
 // Lazy load pages for better performance
-const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
-const Users = lazy(() => import('./pages/Clients').then(module => ({ default: module.Clients })));
-const Conversations = lazy(() => import('./pages/Conversations').then(module => ({ default: module.Conversations })));
-const Analytics = lazy(() => import('./pages/Analytics').then(module => ({ default: module.Analytics })));
-const Settings = lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })));
-const Billing = lazy(() => import('./pages/Billing').then(module => ({ default: module.Billing })));
-const FlowManager = lazy(() => import('./pages/FlowManager').then(module => ({ default: module.FlowManager })));
-const Leads = lazy(() => import('./pages/Leads').then(module => ({ default: module.Leads })));
-const WhatsAppQR = lazy(() => import('./pages/WhatsAppQR').then(module => ({ default: module.WhatsAppQR })));
-const Connections = lazy(() => import('./pages/Connections').then(module => ({ default: module.Connections })));
-const Reports = lazy(() => import('./pages/Reports').then(module => ({ default: module.Reports })));
-const Organizations = lazy(() => import('./pages/Organizations').then(module => ({ default: module.Organizations })));
-const StaffManagement = lazy(() => import('./pages/StaffManagement').then(module => ({ default: module.StaffManagement })));
-const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
-const Register = lazy(() => import('./pages/Register').then(module => ({ default: module.Register })));
-const RecoverPassword = lazy(() => import('./pages/RecoverPassword').then(module => ({ default: module.RecoverPassword })));
-const TelegramConfig = lazy(() => import('./pages/TelegramConfig').then(module => ({ default: module.TelegramConfig })));
-const InstagramConfig = lazy(() => import('./pages/InstagramConfig').then(module => ({ default: module.InstagramConfig })));
-const FacebookConfig = lazy(() => import('./pages/FacebookConfig').then(module => ({ default: module.FacebookConfig })));
-const TikTokConfig = lazy(() => import('./pages/TikTokConfig').then(module => ({ default: module.TikTokConfig })));
-const CRM = lazy(() => import('./pages/CRM').then(module => ({ default: module.CRM })));
-const Pipeline = lazy(() => import('./pages/Pipeline').then(module => ({ default: module.Pipeline })));
+const Dashboard = lazy(() => import('./modules/dashboard/pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Users = lazy(() => import('./modules/crm/pages/Clients').then(module => ({ default: module.Clients })));
+const Conversations = lazy(() => import('./modules/inbox/pages/Conversations').then(module => ({ default: module.Conversations })));
+const Analytics = lazy(() => import('./modules/dashboard/pages/Analytics').then(module => ({ default: module.Analytics })));
+const Settings = lazy(() => import('./modules/settings/pages/Settings').then(module => ({ default: module.Settings })));
+const Billing = lazy(() => import('./modules/billing/pages/Billing').then(module => ({ default: module.Billing })));
+const FlowManager = lazy(() => import('./modules/automation/pages/FlowManager').then(module => ({ default: module.FlowManager })));
+const Leads = lazy(() => import('./modules/crm/pages/Leads').then(module => ({ default: module.Leads })));
+const WhatsAppQR = lazy(() => import('./modules/inbox/pages/WhatsAppQR').then(module => ({ default: module.WhatsAppQR })));
+const Connections = lazy(() => import('./modules/inbox/pages/Connections').then(module => ({ default: module.Connections })));
+const Reports = lazy(() => import('./modules/reports/pages/Reports').then(module => ({ default: module.Reports })));
+const Organizations = lazy(() => import('./modules/crm/pages/Organizations').then(module => ({ default: module.Organizations })));
+const StaffManagement = lazy(() => import('./modules/hr/pages/StaffManagement').then(module => ({ default: module.StaffManagement })));
+const Login = lazy(() => import('./modules/auth/pages/Login').then(module => ({ default: module.Login })));
+const Register = lazy(() => import('./modules/auth/pages/Register').then(module => ({ default: module.Register })));
+const RecoverPassword = lazy(() => import('./modules/auth/pages/RecoverPassword').then(module => ({ default: module.RecoverPassword })));
+const TelegramConfig = lazy(() => import('./modules/inbox/pages/TelegramConfig').then(module => ({ default: module.TelegramConfig })));
+const InstagramConfig = lazy(() => import('./modules/inbox/pages/InstagramConfig').then(module => ({ default: module.InstagramConfig })));
+const FacebookConfig = lazy(() => import('./modules/inbox/pages/FacebookConfig').then(module => ({ default: module.FacebookConfig })));
+const TikTokConfig = lazy(() => import('./modules/inbox/pages/TikTokConfig').then(module => ({ default: module.TikTokConfig })));
+const CRM = lazy(() => import('./modules/crm/pages/CRM').then(module => ({ default: module.CRM })));
+const Pipeline = lazy(() => import('./modules/crm/pages/Pipeline').then(module => ({ default: module.Pipeline })));
 
-const ProfileSelectionPage = lazy(() => import('./pages/ProfileSelection').then(module => ({ default: module.ProfileSelection })));
-const Catalogs = lazy(() => import('./pages/Catalogs').then(module => ({ default: module.Catalogs })));
+const ProfileSelectionPage = lazy(() => import('./modules/auth/pages/ProfileSelection').then(module => ({ default: module.ProfileSelection })));
+const Catalogs = lazy(() => import('./modules/crm/pages/Catalogs').then(module => ({ default: module.Catalogs })));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, activeProfile } = useAuth();
