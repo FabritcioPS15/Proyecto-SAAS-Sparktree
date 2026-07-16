@@ -40,7 +40,7 @@ export const ActivityTimeline = () => {
         <div className="space-y-6">
           {activities.map((item, idx) => (
             <div key={item.id} className="relative flex items-start gap-4">
-              <div className="absolute -left-4 w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700 top-1.5 -translate-x-1/2 ring-4 ring-white dark:ring-[#111827]"></div>
+              <div className="absolute -left-4 w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700 top-1.5 -translate-x-1/2 ring-4 ring-white dark:ring-[#242424]"></div>
               
               <div className="flex-1">
                 <div className="flex items-center gap-2">

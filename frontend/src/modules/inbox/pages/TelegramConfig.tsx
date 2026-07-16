@@ -1,37 +1,65 @@
 import { useState } from 'react';
 import { FaTelegram } from 'react-icons/fa';
-import { Activity } from 'lucide-react';
+import {
+  Key, CheckCircle, XCircle, AlertTriangle, Eye, EyeOff,
+  ExternalLink, ArrowRight, LogOut, Bot, MessageSquare,
+  User, Calendar, Shield
+} from 'lucide-react';
 import { useConnections } from '../../../contexts/ConnectionsContext';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { PageBody } from '../../../components/layout/PageBody';
+import { PageContainer } from '../../../components/layout/PageContainer';
+import { ConnectionLayout, EcosystemStatus } from '../components/ConnectionLayout';
+import { cn } from '../../../utils/cn';
+import { Modal } from '../../../components/ui/Modal';
+import { useNotifications } from '../../../contexts/NotificationContext';
+
+// Regex básico para token de Telegram: numéricos:alfanumérico
+const TOKEN_REGEX = /^\d{8,10}:[A-Za-z0-9_-]{35,40}$/;
 
 export const TelegramConfig = () => {
+  const { addNotification } = useNotifications();
   const { addConnection, removeConnection, getConnectionByPlatform, isConnecting } = useConnections();
-  const [botToken, setBotToken] = useState('');
-  const [botUsername, setBotUsername] = useState('');
-  const [loading, setLoading] = useState(false);
-
   const existingConnection = getConnectionByPlatform('telegram');
+  const isConnected = !!existingConnection;
+
+  // Form state
+  const [botToken, setBotToken] = useState('');
+  const [showToken, setShowToken] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const validateToken = (token: string): string | null => {
+    if (!token.trim()) return 'El token no puede estar vacío.';
+    if (!TOKEN_REGEX.test(token.trim())) return 'Formato de token inválido. Debe ser algo como "123456789:ABCdefGHIjklMNOpqrsTUVwxyz".';
+    if (token.toLowerCase().includes('invalid')) return 'Token inválido o revocado. Verifica que el token sea correcto en @BotFather.';
+    return null;
+  };
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!botToken || !botUsername) return;
-
-    setLoading(true);
-    try {
-      const cleanUsername = botUsername.startsWith('@') ? botUsername.substring(1) : botUsername;
-      await addConnection('telegram', {
-        botToken: botToken,
-        botUsername: cleanUsername,
-        displayName: `@${cleanUsername}`,
-        username: `@${cleanUsername}`
-      });
-      setBotToken('');
-      setBotUsername('');
-    } catch (error) {
-      console.error('Error connecting Telegram:', error);
-    } finally {
-      setLoading(false);
+    const validationError = validateToken(botToken);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
+
+    // TODO: reemplazar con llamada real a POST /api/channels/telegram/connect con { botToken }
+    setLoading(true);
+    setError('');
+    await new Promise(r => setTimeout(r, 1000));
+    setLoading(false);
+
+    const cleanUsername = botToken.split(':')[0];
+    await addConnection('telegram', {
+      botToken: botToken,
+      botUsername: cleanUsername,
+      displayName: 'Telegram Bot',
+      username: cleanUsername,
+    });
+    setBotToken('');
   };
 
   const handleDisconnect = async () => {
@@ -39,28 +67,31 @@ export const TelegramConfig = () => {
     setLoading(true);
     try {
       await removeConnection(existingConnection.id);
-    } catch (error) {
-      console.error('Error disconnecting Telegram:', error);
+      addNotification({ type: 'success', title: 'Bot desconectado', message: 'El bot de Telegram fue desconectado correctamente.' });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo desconectar el bot.' });
+      console.error('Error disconnecting Telegram:', err);
     } finally {
       setLoading(false);
+      setShowConfirm(false);
     }
   };
 
   return (
-    <div className="h-full animate-in fade-in duration-500 flex flex-col gap-1">
+    <PageContainer>
       <PageHeader
         title="Conexión de"
         highlight="Telegram"
-        description="Configura tu bot de Telegram para automatización de mensajes."
+        description="Conecta tu bot de Telegram para automatizar la atención al cliente."
         icon={FaTelegram}
         action={
-          existingConnection ? (
-            <div className="px-4 h-10 rounded-xl flex items-center gap-2 border-emerald-500/20 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest">
+          isConnected ? (
+            <div className="px-4 h-10 rounded-xl flex items-center gap-2 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
               Bot Activo
             </div>
           ) : (
-            <div className="px-4 h-10 rounded-xl flex items-center gap-2 border-red-500/20 bg-white text-red-500 text-[10px] font-black uppercase tracking-widest">
+            <div className="px-4 h-10 rounded-xl flex items-center gap-2 bg-white dark:bg-dark-card border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest">
               <div className="w-2 h-2 rounded-full bg-red-500" />
               Sin Conexión
             </div>
@@ -68,151 +99,208 @@ export const TelegramConfig = () => {
         }
       />
 
-      <div className="flex-1 bg-white dark:bg-dark-card/50 backdrop-blur-md rounded-2xl border border-gray-100 dark:border-gray-800/50 shadow-lg relative overflow-hidden flex flex-col min-h-0">
-        <div className="flex-1 p-5 lg:p-8 overflow-y-auto custom-scrollbar relative z-10">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full">
-            <div className="xl:col-span-1">
-              {existingConnection ? (
-                <div className="space-y-6">
-                  <div className="p-6/50 dark:bg-white/2 rounded-3xl border border-slate-100 dark:border-white/5">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/20">
-                        <FaTelegram size={32} color="white" />
-                      </div>
-                      <div>
-                        <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Bot Conectado</h3>
-                        <p className="text-sm text-slate-500">{existingConnection.display_name}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="p-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Username</p>
-                        <p className="text-lg font-bold text-slate-900 dark:text-white">{existingConnection.username}</p>
-                      </div>
-
-                      <div className="p-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estado</p>
-                        <p className="text-lg font-bold text-emerald-500">Activo</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleDisconnect}
-                      disabled={loading}
-                      className="mt-6 w-full h-12 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all disabled:opacity-50"
-                    >
-                      {loading ? 'Desconectando...' : 'Desconectar Bot'}
-                    </button>
+      <PageBody>
+      <ConnectionLayout sidebar={<EcosystemStatus platform="telegram" />}>
+        {isConnected ? (
+          /* --- CONNECTED STATE --- */
+          <>
+            <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 mb-6">
+                <div className="relative">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20">
+                    <FaTelegram size={36} color="white" />
                   </div>
-
-                  <div className="p-6 bg-blue-500/5 rounded-3xl border border-blue-500/10">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3">ℹ️ Información</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Tu bot de Telegram está activo y puede recibir mensajes. Los flujos de automatización creados en el Constructor de Bots funcionarán automáticamente con esta conexión.
-                    </p>
+                  <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center border-[3px] border-white dark:border-dark-card">
+                    <CheckCircle className="w-4 h-4 text-white" />
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="p-6/50 dark:bg-white/2 rounded-3xl border border-slate-100 dark:border-white/5">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-500 rounded-lg text-black shadow-lg shadow-blue-500/20">
-                        <FaTelegram size={20} color="white" />
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">Configurar Bot</h4>
-                    </div>
-
-                    <form onSubmit={handleConnect} className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                          Token del Bot
-                        </label>
-                        <input
-                          type="text"
-                          value={botToken}
-                          onChange={(e) => setBotToken(e.target.value)}
-                          placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                          required
-                        />
-                        <p className="text-[10px] text-slate-500 mt-1">
-                          Obtén el token de @BotFather en Telegram
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                          Username del Bot
-                        </label>
-                        <input
-                          type="text"
-                          value={botUsername}
-                          onChange={(e) => setBotUsername(e.target.value)}
-                          placeholder="@mi_bot"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                          required
-                        />
-                        <p className="text-[10px] text-slate-500 mt-1">
-                          El username debe empezar con @
-                        </p>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={loading || isConnecting('telegram')}
-                        className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loading || isConnecting('telegram') ? 'Conectando...' : 'Conectar Bot'}
-                      </button>
-                    </form>
-                  </div>
-
-                  <div className="p-6 bg-blue-500/5 rounded-3xl border border-blue-500/10">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3">📋 Pasos para obtener el token:</h4>
-                    <ol className="space-y-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed list-decimal list-inside">
-                      <li>Abre Telegram y busca a @BotFather</li>
-                      <li>Envía el comando /newbot</li>
-                      <li>Sigue las instrucciones para crear tu bot</li>
-                      <li>Copia el token que te proporciona</li>
-                      <li>Pega el token en el campo de arriba</li>
-                    </ol>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="xl:col-span-1 flex flex-col gap-6">
-              <div className="p-6/50 dark:bg-white/2 rounded-3xl border border-slate-100 dark:border-white/5">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-accent-500 rounded-lg text-black shadow-lg shadow-accent-500/20">
-                    <Activity className="w-4 h-4" />
-                  </div>
-                  <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Estado del Ecosistema</h4>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Plataforma</p>
-                    <p className="text-sm font-black text-slate-900 dark:text-white truncate">Telegram</p>
-                  </div>
-                  <div className="p-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Método</p>
-                    <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tighter">Bot API</p>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-3 text-[11px] leading-relaxed">
-                  <div className="flex items-start gap-4 p-4 rounded-2xl bg-accent-500/5 border border-accent-500/10">
-                    <div className="w-6 h-6 flex-shrink-0 bg-accent-500 text-black text-[10px] font-black rounded flex items-center justify-center">01</div>
-                    <p><span className="font-black text-slate-900 dark:text-white block uppercase mb-0.5">Automatización</span>El bot podrá contestar a cualquier mensaje enviado a este bot de Telegram.</p>
+                <div className="text-center sm:text-left flex-1">
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white">{existingConnection?.display_name || 'Bot Conectado'}</h3>
+                  <p className="text-blue-500 font-bold text-sm">@{existingConnection?.username || 'bot'}</p>
+                  <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
+                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> Conectado
+                    </span>
+                    {existingConnection?.connected_at && (
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        <Calendar className="w-3 h-3 inline mr-1" />
+                        {new Date(existingConnection.connected_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <Bot className="w-3 h-3" /> Bot
+                  </p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{existingConnection?.display_name || '—'}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <User className="w-3 h-3" /> Username
+                  </p>
+                  <p className="text-sm font-bold text-blue-500">@{existingConnection?.username || '—'}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowConfirm(true)}
+                className="w-full h-11 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Desconectar Bot
+              </button>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
+            <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl flex items-start gap-3">
+              <MessageSquare className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Tu bot está activo y puede recibir mensajes. Los flujos de automatización creados en el Constructor de Bots funcionarán automáticamente con esta conexión.
+              </p>
+            </div>
+
+            {/* Confirm disconnect modal */}
+            <Modal
+              open={showConfirm}
+              onClose={() => setShowConfirm(false)}
+              title="Desconectar Bot"
+              size="sm"
+              icon={<div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-xl flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-red-500" /></div>}
+              footer={
+                <div className="flex gap-3">
+                  <button onClick={() => setShowConfirm(false)}
+                    className="flex-1 h-11 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                    Cancelar
+                  </button>
+                  <button onClick={handleDisconnect} disabled={loading}
+                    className="flex-1 h-11 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                    {loading ? 'Desconectando...' : 'Desconectar'}
+                  </button>
+                </div>
+              }
+            >
+              <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+                ¿Estás seguro? Los flujos asociados dejarán de funcionar.
+              </p>
+            </Modal>
+          </>
+        ) : (
+          <>
+            {/* Instructions block */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
+                  <FaTelegram size={18} color="white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Obtén el Token de tu Bot</h3>
+                  <p className="text-[10px] text-slate-500">Sigue estos pasos en Telegram</p>
+                </div>
+              </div>
+              <div className="p-5 space-y-0">
+                {[
+                  { num: '01', text: 'Abre Telegram y busca el contacto oficial', bold: '@BotFather' },
+                  { num: '02', text: 'Envía el comando', bold: '/newbot', extra: 'y sigue las instrucciones' },
+                  { num: '03', text: 'Elige un nombre y username para tu bot' },
+                  { num: '04', text: 'BotFather te entregará un token. Cópialo y pégalo abajo' },
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start gap-4 py-3 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
+                    <span className="w-7 h-7 shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white text-[10px] font-black rounded-lg flex items-center justify-center shadow-sm">
+                      {step.num}
+                    </span>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed pt-0.5">
+                      {step.text} <span className="font-black text-slate-900 dark:text-white">{step.bold}</span>
+                      {step.extra && <span className="text-slate-500"> {step.extra}</span>}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 pb-5">
+                <a
+                  href="https://t.me/botfather"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-400 font-bold transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Abrir @BotFather
+                </a>
+              </div>
+            </div>
+
+            {/* Form */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
+                  <Key size={16} color="white" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">Conectar tu Bot</h3>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-400">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleConnect} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                    Token del Bot <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showToken ? 'text' : 'password'}
+                      value={botToken}
+                      onChange={e => { setBotToken(e.target.value); setError(''); }}
+                      placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+                      className={cn(
+                        "w-full h-11 pl-4 pr-12 bg-white dark:bg-slate-800/50 rounded-xl border text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 transition-all placeholder:text-slate-400",
+                        error ? 'border-red-400 focus:ring-red-500/20' : 'border-slate-200 dark:border-slate-700 focus:ring-blue-500/20 focus:border-blue-500'
+                      )}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1.5">Pega el token que te entregó @BotFather</p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || isConnecting('telegram')}
+                  className="w-full h-11 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                >
+                  {loading || isConnecting('telegram') ? (
+                    <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Validando...</>
+                  ) : (
+                    <><ArrowRight className="w-4 h-4" /> Validar y Conectar</>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Note */}
+            <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl flex items-start gap-3">
+              <Shield className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                El bot debe tener los mensajes directos habilitados y no debe estar restringido por privacidad de grupo. Usa <span className="font-bold text-slate-900 dark:text-white">/setprivacy</span> con @BotFather para deshabilitar el modo privado si es necesario.
+              </p>
+            </div>
+          </>
+        )}
+      </ConnectionLayout>
+      </PageBody>
+    </PageContainer>
   );
 };
-

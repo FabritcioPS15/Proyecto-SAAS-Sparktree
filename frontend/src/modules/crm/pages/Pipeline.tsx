@@ -1,9 +1,14 @@
 ﻿import { useState, useEffect } from 'react';
-import { Kanban, Plus, DollarSign, Edit, Trash2, Building2 } from 'lucide-react';
+import { Kanban, Plus, DollarSign, Edit, Trash2, Building2, Goal } from 'lucide-react';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 import { getCrmPipeline, createCrmDeal, updateCrmDeal, deleteCrmDeal, getCrmClients } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
+import { Modal } from '../../../components/ui/Modal';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { useNotifications } from '../../../contexts/NotificationContext';
 
 export const Pipeline = () => {
   const [pipeline, setPipeline] = useState<any[]>([]);
@@ -20,6 +25,7 @@ export const Pipeline = () => {
     expected_close_date: '',
     notes: ''
   });
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     fetchData();
@@ -46,14 +52,17 @@ export const Pipeline = () => {
     try {
       if (editingDeal) {
         await updateCrmDeal(editingDeal.id, formData);
+        addNotification({ type: 'success', title: 'Deal actualizado', message: `"${formData.name}" fue actualizado correctamente.` });
       } else {
         await createCrmDeal(formData);
+        addNotification({ type: 'success', title: 'Deal creado', message: `"${formData.name}" fue agregado al pipeline.` });
       }
       setShowModal(false);
       setEditingDeal(null);
       setFormData({ client_id: '', name: '', value: 0, stage: 'prospecting', probability: 10, expected_close_date: '', notes: '' });
       fetchData();
     } catch (error) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo guardar el deal.' });
       console.error('Error saving deal:', error);
     }
   };
@@ -194,18 +203,18 @@ export const Pipeline = () => {
 
                     {/* Stage selector */}
                     <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <select
+                      <Dropdown
                         value={deal.stage}
-                        onChange={(e) => handleMoveDeal(deal.id, e.target.value)}
-                        className="w-full text-xs dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                      >
-                        <option value="prospecting">ProspectaciÃ³n</option>
-                        <option value="qualification">CalificaciÃ³n</option>
-                        <option value="proposal">Propuesta</option>
-                        <option value="negotiation">NegociaciÃ³n</option>
-                        <option value="closed_won">Ganado</option>
-                        <option value="closed_lost">Perdido</option>
-                      </select>
+                        onChange={(v) => handleMoveDeal(deal.id, v)}
+                        options={[
+                          { value: 'prospecting', label: 'Prospectación' },
+                          { value: 'qualification', label: 'Calificación' },
+                          { value: 'proposal', label: 'Propuesta' },
+                          { value: 'negotiation', label: 'Negociación' },
+                          { value: 'closed_won', label: 'Ganado' },
+                          { value: 'closed_lost', label: 'Perdido' },
+                        ]}
+                      />
                     </div>
                   </div>
                 ))}
@@ -231,115 +240,82 @@ export const Pipeline = () => {
         </div>
 
         {/* Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-md mx-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                {editingDeal ? 'Editar Deal' : 'Nuevo Deal'}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente *</label>
-                  <select
-                    required
-                    value={formData.client_id}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  >
-                    <option value="">Seleccionar cliente</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name} {client.company && `(${client.company})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre del Deal *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor ($)</label>
-                  <input
-                    type="number"
-                    value={formData.value}
-                    onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etapa</label>
-                  <select
-                    value={formData.stage}
-                    onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  >
-                    <option value="prospecting">ProspectaciÃ³n</option>
-                    <option value="qualification">CalificaciÃ³n</option>
-                    <option value="proposal">Propuesta</option>
-                    <option value="negotiation">NegociaciÃ³n</option>
-                    <option value="closed_won">Ganado</option>
-                    <option value="closed_lost">Perdido</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Probabilidad (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.probability}
-                    onChange={(e) => setFormData({ ...formData, probability: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha esperada de cierre</label>
-                  <input
-                    type="date"
-                    value={formData.expected_close_date}
-                    onChange={(e) => setFormData({ ...formData, expected_close_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas</label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModal(false);
-                      setEditingDeal(null);
-                      setFormData({ client_id: '', name: '', value: 0, stage: 'prospecting', probability: 10, expected_close_date: '', notes: '' });
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium text-sm transition-colors"
-                  >
-                    {editingDeal ? 'Actualizar' : 'Crear'}
-                  </button>
-                </div>
-              </form>
+        <Modal
+          open={showModal}
+          onClose={() => { setShowModal(false); setEditingDeal(null); setFormData({ client_id: '', name: '', value: 0, stage: 'prospecting', probability: 10, expected_close_date: '', notes: '' }); }}
+          title={editingDeal ? 'Editar Deal' : 'Nuevo Deal'}
+          icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg"><Goal className="w-5 h-5 text-black" /></div>}
+          footer={
+            <div className="flex gap-3">
+              <button type="button" onClick={() => { setShowModal(false); setEditingDeal(null); setFormData({ client_id: '', name: '', value: 0, stage: 'prospecting', probability: 10, expected_close_date: '', notes: '' }); }}
+                className="flex-1 h-11 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                Cancelar
+              </button>
+              <button type="submit" form="deal-form"
+                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
+                {editingDeal ? 'Actualizar' : 'Crear'}
+              </button>
             </div>
-          </div>
-        )}
+          }
+        >
+          <form id="deal-form" onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cliente <span className="text-red-400">*</span></label>
+              <Dropdown
+                value={formData.client_id}
+                onChange={(v) => setFormData({ ...formData, client_id: v })}
+                placeholder="Seleccionar cliente"
+                options={clients.map(client => ({ value: client.id, label: `${client.name}${client.company ? ` (${client.company})` : ''}` }))}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Deal <span className="text-red-400">*</span></label>
+              <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Valor ($)</label>
+              <input type="number" value={formData.value} onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                className="w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Etapa</label>
+              <Dropdown
+                value={formData.stage}
+                onChange={(v) => setFormData({ ...formData, stage: v })}
+                options={[
+                  { value: 'prospecting', label: 'Prospectación' },
+                  { value: 'qualification', label: 'Calificación' },
+                  { value: 'proposal', label: 'Propuesta' },
+                  { value: 'negotiation', label: 'Negociación' },
+                  { value: 'closed_won', label: 'Ganado' },
+                  { value: 'closed_lost', label: 'Perdido' }
+                ]}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Probabilidad (%)</label>
+                <input type="number" min="0" max="100" value={formData.probability} onChange={(e) => setFormData({ ...formData, probability: parseInt(e.target.value) || 0 })}
+                  className="w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha cierre</label>
+                <DatePicker
+                  value={formData.expected_close_date ? dayjs(formData.expected_close_date) : null}
+                  onChange={(v) => setFormData({ ...formData, expected_close_date: v?.format('YYYY-MM-DD') || '' })}
+                  slotProps={{ textField: { size: 'small', sx: { '& .MuiInputBase-root': { height: '40px', borderRadius: '12px', backgroundColor: '#fff', border: '1px solid #e2e8f0', fontSize: '14px' } } } }}
+                  sx={{ width: '100%' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Notas</label>
+              <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} rows={3}
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all resize-none" />
+            </div>
+          </form>
+        </Modal>
       </PageBody>
     </PageContainer>
   );

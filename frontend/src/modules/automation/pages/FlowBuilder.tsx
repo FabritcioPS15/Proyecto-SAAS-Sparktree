@@ -37,7 +37,7 @@ export const FlowBuilder = () => {
 
   if (error || !flow) {
     return (
-      <div className="h-full flex items-center justify-center dark:bg-[#0f1117]">
+      <div className="h-full flex items-center justify-center dark:bg-[#252525]">
         <div className="text-center space-y-4 p-8 bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl max-w-md">
           <div className="w-20 h-20 bg-amber-50 dark:bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto mb-2">
             <AlertCircle className="w-10 h-10 text-amber-500" />

@@ -22,7 +22,8 @@ import { WebhookNode } from './WebhookNode';
 import { HandoffNode } from './HandoffNode';
 import { DelayNode } from './DelayNode';
 import { FlowSimulator } from './FlowSimulator';
-import { TriggerInput } from '../TriggerInput';
+import { TriggerInput } from './TriggerInput';
+import { Dropdown } from '../../../components/ui/Dropdown';
 import {
   Save, Bot, Play, Zap, Settings, Layers,
   Trash2,
@@ -355,7 +356,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
   );
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-slate-50 dark:bg-[#0f1117] overflow-hidden">
+    <div className="absolute inset-0 flex flex-col bg-slate-50 dark:bg-[#252525] overflow-hidden">
       <style>{`
         /* Mejorar la facilidad para conectar los nodos */
         .react-flow__handle {
@@ -555,17 +556,17 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Categoría</label>
-                    <select
+                    <Dropdown
                       value={flowCategory}
-                      onChange={(e) => setFlowCategory(e.target.value)}
-                      className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 rounded-sm text-sm font-bold outline-none border border-transparent focus:border-accent-500 cursor-pointer"
-                    >
-                      <option value="sales">Ventas</option>
-                      <option value="support">Soporte</option>
-                      <option value="marketing">Marketing</option>
-                      <option value="onboarding">Onboarding</option>
-                      <option value="other">Otro</option>
-                    </select>
+                      onChange={(v) => setFlowCategory(v)}
+                      options={[
+                        { value: 'sales', label: 'Ventas' },
+                        { value: 'support', label: 'Soporte' },
+                        { value: 'marketing', label: 'Marketing' },
+                        { value: 'onboarding', label: 'Onboarding' },
+                        { value: 'other', label: 'Otro' },
+                      ]}
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">

@@ -260,10 +260,10 @@ export const NotificationBell: React.FC = () => {
       {/* Botón de la campana */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all hover:scale-105 relative"
+        className="p-2 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-[#242424] hover:text-slate-700 dark:hover:text-slate-300 transition-all relative"
         aria-label={`Notificaciones${unreadCount > 0 ? ` (${unreadCount} no leídas)` : ''}`}
       >
-        <Bell className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        <Bell className="w-4 h-4" />
         
         {/* Badge de contador */}
         {unreadCount > 0 && (

@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Users, DollarSign, TrendingUp, Plus, Search, Filter, Edit, Trash2, Phone, Mail, Building2 } from 'lucide-react';
+﻿import { useState, useEffect } from 'react';
+import { Users, DollarSign, TrendingUp, Plus, Search, Filter, Edit, Trash2, Phone, Mail, Building2, UserPlus } from 'lucide-react';
 import { getCrmClients, createCrmClient, updateCrmClient, deleteCrmClient, getCrmDashboard } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
+import { Modal } from '../../../components/ui/Modal';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { useNotifications } from '../../../contexts/NotificationContext';
 
 export const CRM = () => {
   const [clients, setClients] = useState<any[]>([]);
@@ -21,6 +24,7 @@ export const CRM = () => {
     source: 'manual',
     notes: ''
   });
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     fetchData();
@@ -47,14 +51,17 @@ export const CRM = () => {
     try {
       if (editingClient) {
         await updateCrmClient(editingClient.id, formData);
+        addNotification({ type: 'success', title: 'Cliente actualizado', message: `"${formData.name}" fue actualizado correctamente.` });
       } else {
         await createCrmClient(formData);
+        addNotification({ type: 'success', title: 'Cliente creado', message: `"${formData.name}" fue agregado al CRM.` });
       }
       setShowModal(false);
       setEditingClient(null);
       setFormData({ name: '', email: '', phone: '', company: '', status: 'lead', source: 'manual', notes: '' });
       fetchData();
     } catch (error) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo guardar el cliente.' });
       console.error('Error saving client:', error);
     }
   };
@@ -193,18 +200,18 @@ export const CRM = () => {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-dark-card">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contacto</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fuente</th>
-                <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contacto</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fuente</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {filteredClients.map((client) => (
-                <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-dark-card transition-colors">
-                  <td className="px-6 py-4">
+              {filteredClients.map((client, index) => (
+                <tr key={client.id} className={`hover:bg-gray-50 dark:hover:bg-dark-card transition-colors ${index % 2 === 0 ? 'bg-emerald-50/40 dark:bg-emerald-900/5' : ''}`}>
+                  <td className="px-4 py-3">
                     <div className="flex items-center">
                       <div className="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center mr-3">
                         <span className="text-primary-600 font-bold text-sm">
@@ -217,13 +224,13 @@ export const CRM = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                       <Building2 className="w-4 h-4 mr-2" />
                       {client.company || '-'}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <span className={`px-2 py-1 text-xs font-bold rounded-full ${
                       client.status === 'customer' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
                       client.status === 'prospect' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
@@ -233,7 +240,7 @@ export const CRM = () => {
                       {client.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-400">
                       {client.phone && (
                         <div className="flex items-center">
@@ -249,10 +256,10 @@ export const CRM = () => {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">{client.source}</span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleEdit(client)}
@@ -275,95 +282,66 @@ export const CRM = () => {
         </div>
 
         {/* Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-dark-card rounded-xl p-6 w-full max-w-md mx-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa</label>
-                  <input
-                    type="text"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  >
-                    <option value="lead">Lead</option>
-                    <option value="prospect">Prospect</option>
-                    <option value="customer">Customer</option>
-                    <option value="churned">Churned</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas</label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModal(false);
-                      setEditingClient(null);
-                      setFormData({ name: '', email: '', phone: '', company: '', status: 'lead', source: 'manual', notes: '' });
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-medium text-sm transition-colors"
-                  >
-                    {editingClient ? 'Actualizar' : 'Crear'}
-                  </button>
-                </div>
-              </form>
+        <Modal
+          open={showModal}
+          onClose={() => { setShowModal(false); setEditingClient(null); setFormData({ name: '', email: '', phone: '', company: '', status: 'lead', source: 'manual', notes: '' }); }}
+          title={editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
+          subtitle={editingClient ? 'Modifica los datos del cliente seleccionado.' : 'Registra un nuevo cliente en el CRM.'}
+          icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg"><UserPlus className="w-5 h-5 text-white" /></div>}
+          footer={
+            <div className="flex gap-3">
+              <button type="button" onClick={() => { setShowModal(false); setEditingClient(null); setFormData({ name: '', email: '', phone: '', company: '', status: 'lead', source: 'manual', notes: '' }); }}
+                className="flex-1 h-11 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                Cancelar
+              </button>
+              <button type="submit" form="crm-form"
+                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
+                {editingClient ? 'Actualizar' : 'Crear'}
+              </button>
             </div>
-          </div>
-        )}
+          }
+        >
+          <form id="crm-form" onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre <span className="text-red-400">*</span></label>
+              <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all placeholder:text-slate-400" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Email</label>
+              <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all placeholder:text-slate-400" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Teléfono</label>
+              <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all placeholder:text-slate-400" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Empresa</label>
+              <input type="text" value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                className="w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all placeholder:text-slate-400" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Estado</label>
+              <Dropdown
+                value={formData.status}
+                onChange={(v) => setFormData({ ...formData, status: v })}
+                options={[
+                  { value: 'lead', label: 'Lead' },
+                  { value: 'prospect', label: 'Prospect' },
+                  { value: 'customer', label: 'Customer' },
+                  { value: 'churned', label: 'Churned' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Notas</label>
+              <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} rows={3}
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all placeholder:text-slate-400 resize-none" />
+            </div>
+          </form>
+        </Modal>
       </PageBody>
     </PageContainer>
   );

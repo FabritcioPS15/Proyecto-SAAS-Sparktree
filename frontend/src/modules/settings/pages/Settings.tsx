@@ -3,6 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Settings as SettingsIcon, Save, CheckCircle, User, Lock, Bell, Globe } from 'lucide-react';
+import { Dropdown } from '../../../components/ui/Dropdown';
 
 export const Settings = () => {
   const { user } = useAuth();
@@ -132,29 +133,27 @@ export const Settings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Idioma de la Interfaz</label>
-                  <select
-                    name="language"
+                  <Dropdown
                     value={profile.language}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm"
-                  >
-                    <option value="es">Español</option>
-                    <option value="en">Inglés</option>
-                  </select>
+                    onChange={(v) => setProfile({ ...profile, language: v })}
+                    options={[
+                      { value: 'es', label: 'Español' },
+                      { value: 'en', label: 'Inglés' },
+                    ]}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Zona Horaria</label>
-                  <select
-                    name="timezone"
+                  <Dropdown
                     value={profile.timezone}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm"
-                  >
-                    <option value="America/Lima">Lima (GMT-5)</option>
-                    <option value="America/Bogota">Bogotá (GMT-5)</option>
-                    <option value="America/Mexico_City">Ciudad de México (GMT-6)</option>
-                    <option value="Europe/Madrid">Madrid (GMT+1)</option>
-                  </select>
+                    onChange={(v) => setProfile({ ...profile, timezone: v })}
+                    options={[
+                      { value: 'America/Lima', label: 'Lima (GMT-5)' },
+                      { value: 'America/Bogota', label: 'Bogotá (GMT-5)' },
+                      { value: 'America/Mexico_City', label: 'Ciudad de México (GMT-6)' },
+                      { value: 'Europe/Madrid', label: 'Madrid (GMT+1)' },
+                    ]}
+                  />
                 </div>
               </div>
             </div>

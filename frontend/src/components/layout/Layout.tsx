@@ -25,21 +25,18 @@ export const Layout = ({ children, fullWidth = false, noPadding = false, noHeade
 
   return (
     <LayoutContext.Provider value={{ isSidebarCollapsed }}>
-      <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#0F172A] transition-colors duration-300">
-        <Sidebar onCollapsedChange={setIsSidebarCollapsed} />
-
-        {isMobileMenuOpen && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
+      <div className="flex h-screen bg-[#F8FAFC] dark:bg-[#252525] transition-colors duration-300">
+        <Sidebar
+          onCollapsedChange={setIsSidebarCollapsed}
+          isMobileOpen={isMobileMenuOpen}
+          onMobileClose={() => setIsMobileMenuOpen(false)}
+        />
 
         <div className="flex-1 flex flex-col overflow-hidden relative">
           {!noHeader && <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />}
 
-          <main className={`flex-1 overflow-auto relative z-10 min-h-0 transition-all duration-300 ${noPadding ? '' : ''}`}>
-            <div className="w-full h-full mx-auto flex flex-col flex-1 min-h-0">
+          <main className={`flex-1 overflow-y-auto overflow-x-hidden relative z-10 min-h-0 transition-all duration-300 ${noPadding ? '' : ''}`}>
+            <div className="w-full h-full mx-auto flex flex-col flex-1 min-h-0 layout-container">
               {children}
             </div>
           </main>

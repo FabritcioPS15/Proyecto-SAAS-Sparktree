@@ -10,13 +10,13 @@ interface PageHeaderProps {
 
 export const PageHeader = ({ title, highlight, description, icon: Icon, action }: PageHeaderProps) => {
   return (
-    <div className="-mx-4 md:-mx-6 border-b border-slate-100 dark:border-slate-800/50 mb-6">
-      <div className="relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-dark-card px-6 md:px-10 py-6 md:py-8 min-h-[140px]">
+    <div className="-mx-4 md:-mx-6 mb-6">
+      <div className="relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-dark-card px-6 md:px-10 py-6 md:py-8 min-h-[140px] rounded-b-2xl">
         
         {/* Abstract Circles Background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           {/* Dark Circle (Right/Bottom) */}
-          <div className="absolute top-[-10%] right-[-5%] w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#0f172a] dark:bg-[#050505] rounded-full shadow-lg" />
+          <div className="absolute top-[-10%] right-[-5%] w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#0f172a] dark:bg-[#111111] rounded-full shadow-lg" />
           
           {/* Green Circle 1 (Top/Middle) */}
           <div className="absolute top-[-50%] right-[10%] w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#10b981] dark:bg-emerald-500 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.2)]" />
@@ -28,7 +28,7 @@ export const PageHeader = ({ title, highlight, description, icon: Icon, action }
         {/* Content */}
         <div className="flex items-center gap-5 relative z-10">
           {Icon && (
-            <div className="hidden sm:flex p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="hidden sm:flex p-3.5 bg-slate-50 dark:bg-accent-500/10 rounded-2xl text-slate-800 dark:text-accent-300 border border-slate-200 dark:border-accent-500/20 shadow-sm">
               <Icon className="w-6 h-6" strokeWidth={1.5} />
             </div>
           )}
@@ -43,7 +43,7 @@ export const PageHeader = ({ title, highlight, description, icon: Icon, action }
                 </span>
               )}
               {description && (
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 max-w-md">
+                <p className="text-sm font-medium text-slate-500 dark:text-accent-200 max-w-md">
                   {highlight && <span className="hidden sm:inline mx-1 text-slate-300 dark:text-slate-600">|</span>}
                   {description}
                 </p>

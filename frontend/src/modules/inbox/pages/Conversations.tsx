@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getConversations, getConversationMessages, deleteConversation, deleteUser, getCatalogs } from '../../../services/api';
 import api from '../../../services/api';
@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
 import { PageLoader } from '../../../components/layout/PageLoader';
+import { Modal } from '../../../components/ui/Modal';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { useNotifications } from '../../../contexts/NotificationContext';
 const MOCK_AGENTS = [
   { id: '1', name: 'Ana GÃ³mez' },
   { id: '2', name: 'Carlos Ruiz' },
@@ -16,6 +19,7 @@ const MOCK_AGENTS = [
 ];
 
 export const Conversations = () => {
+  const { addNotification } = useNotifications();
   const { id } = useParams();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<any[]>([]);
@@ -24,6 +28,8 @@ export const Conversations = () => {
   const [loading, setLoading] = useState(true);
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
+  const [whatsappConnections, setWhatsappConnections] = useState<{ id: string; display_name: string }[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterChannel, setFilterChannel] = useState('all');
@@ -106,6 +112,16 @@ export const Conversations = () => {
     }
   }, [id, conversations]);
 
+  useEffect(() => {
+    api.get('/multi-whatsapp/connections').then(res => {
+      if (Array.isArray(res.data)) {
+        setWhatsappConnections(res.data);
+        const active = res.data.find((c: any) => c.status === 'connected');
+        if (active) setSelectedConnectionId(active.id);
+      }
+    }).catch(() => {});
+  }, []);
+
   const totalPages = Math.ceil(conversations.length / itemsPerPage);
   const paginatedConversations = conversations.slice(
     (currentPage - 1) * itemsPerPage,
@@ -151,9 +167,9 @@ export const Conversations = () => {
   const handleSelectProduct = async (item: any) => {
     if (!selectedConv || sending) return;
     setIsCatalogOpen(false);
-    
+
     const productText = `*${item.title}*\n${item.description ? item.description + '\n' : ''}${item.price ? 'Precio: ' + item.price + '\n' : ''}${item.url ? 'Enlace: ' + item.url : ''}`;
-    
+
     setSending(true);
 
     const optimistic = {
@@ -167,16 +183,17 @@ export const Conversations = () => {
     setMessages(prev => [...prev, optimistic]);
 
     try {
-      const response = await api.post(`/conversations/${selectedConv._id}/send`, { 
+      const response = await api.post(`/conversations/${selectedConv._id}/send`, {
         text: productText,
         mediaUrl: item.media_url,
-        mediaType: 'image'
+        mediaType: 'image',
+        whatsapp_connection_id: selectedConnectionId || undefined,
       });
       setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== optimistic._id));
-      const errMsg = err.response?.data?.error || 'Error al enviar el producto. Verifica la conexiÃ³n.';
-      alert(errMsg);
+      const errMsg = err.response?.data?.error || 'Error al enviar el producto. Verifica la conexión.';
+      addNotification({ type: 'error', title: 'Error', message: errMsg });
     } finally {
       setSending(false);
     }
@@ -199,12 +216,12 @@ export const Conversations = () => {
     setMessages(prev => [...prev, optimistic]);
 
     try {
-      const response = await api.post(`/conversations/${selectedConv._id}/send`, { text });
+      const response = await api.post(`/conversations/${selectedConv._id}/send`, { text, whatsapp_connection_id: selectedConnectionId || undefined });
       setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== optimistic._id));
-      const errMsg = err.response?.data?.error || 'Error al enviar el mensaje. Verifica la conexiÃ³n.';
-      alert(errMsg);
+      const errMsg = err.response?.data?.error || 'Error al enviar el mensaje. Verifica la conexión.';
+      addNotification({ type: 'error', title: 'Error', message: errMsg });
     } finally {
       setSending(false);
     }
@@ -212,7 +229,7 @@ export const Conversations = () => {
 
   const handleDeleteConversation = async (e: React.MouseEvent, conversationId: string, contactId?: string) => {
     e.stopPropagation();
-    if (window.confirm('Â¿Eliminar conversaciÃ³n y el cliente asociado?')) {
+    {
       try {
         await deleteConversation(conversationId);
         if (contactId) {
@@ -322,9 +339,9 @@ export const Conversations = () => {
                   <Filter className="w-4 h-4" />
                 </button>
                 {isFilterOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="px-4 py-2 border-b border-gray-100 dark:border-white/5 mb-2">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Estado</p>
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="px-3 py-1.5 border-b border-gray-100 dark:border-white/5 mb-1">
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Estado</p>
                     </div>
                     {[
                       { id: 'all', label: 'Todos', icon: MessageCircle },
@@ -334,14 +351,14 @@ export const Conversations = () => {
                       <button
                         key={f.id}
                         onClick={() => { setFilterStatus(f.id); setCurrentPage(1); }}
-                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${filterStatus === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
                       >
-                        <f.icon className="w-3.5 h-3.5" />
+                        <f.icon className="w-3 h-3" />
                         {f.label}
                       </button>
                     ))}
-                    <div className="px-4 py-2 border-t border-gray-100 dark:border-white/5 mt-2 mb-2">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Canal</p>
+                    <div className="px-3 py-1.5 border-t border-gray-100 dark:border-white/5 mt-1 mb-1">
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Canal</p>
                     </div>
                     {[
                       { id: 'all', label: 'Todos', icon: MessageCircle },
@@ -354,9 +371,9 @@ export const Conversations = () => {
                       <button
                         key={f.id}
                         onClick={() => { setFilterChannel(f.id); setIsFilterOpen(false); setCurrentPage(1); }}
-                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${filterChannel === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${filterChannel === f.id ? 'text-accent-500 bg-accent-500/5' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}
                       >
-                        {f.icon ? <f.icon className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5 flex items-center justify-center text-[10px] font-bold">T</span>}
+                        {f.icon ? <f.icon className="w-3 h-3" /> : <span className="w-3 h-3 flex items-center justify-center text-[9px] font-bold">T</span>}
                         {f.label}
                       </button>
                     ))}
@@ -620,11 +637,11 @@ export const Conversations = () => {
                   </div>
                   <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-2 space-y-2">
                     {loadingCatalogs ? (
-                      <div className="text-center py-6 text-xs font-bold text-gray-500">Cargando catÃ¡logos...</div>
+                      <div className="text-center py-6 text-xs font-bold text-gray-500">Cargando catálogos...</div>
                     ) : catalogs.length === 0 ? (
                       <div className="text-center py-6">
                         <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-xs font-bold text-gray-500">No hay catÃ¡logos disponibles.</p>
+                        <p className="text-xs font-bold text-gray-500">No hay catálogos disponibles.</p>
                       </div>
                     ) : (
                       catalogs.map(catalog => (
@@ -651,7 +668,7 @@ export const Conversations = () => {
                               </button>
                             ))}
                             {(!catalog.items || catalog.items.length === 0) && (
-                              <p className="text-[10px] font-bold text-gray-400 px-2">CatÃ¡logo vacÃ­o</p>
+                              <p className="text-[10px] font-bold text-gray-400 px-2">Catálogoo vacÃ­o</p>
                             )}
                           </div>
                         </div>
@@ -661,6 +678,16 @@ export const Conversations = () => {
                 </div>
               )}
 
+              {whatsappConnections.length > 0 && (
+                <div className="mb-2">
+                  <Dropdown
+                    value={selectedConnectionId}
+                    onChange={(v) => setSelectedConnectionId(v)}
+                    options={whatsappConnections.map(c => ({ value: c.id, label: c.display_name }))}
+                    placeholder="Conexión WhatsApp..."
+                  />
+                </div>
+              )}
               <div className="bg-white dark:bg-dark-card rounded-[1.5rem] p-2 pl-6 shadow-xl border border-gray-100 dark:border-white/5 flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-accent-500/5 group border-b-2 border-accent-500/10">
                 <input
                   type="text"
@@ -674,7 +701,7 @@ export const Conversations = () => {
                   <button onClick={toggleCatalog} className={`p-2 transition-all relative group/catalog ${isCatalogOpen ? 'text-accent-500 bg-accent-500/10 rounded-lg' : 'text-gray-400 hover:text-accent-500'}`}>
                     <Store className="w-5 h-5" />
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover/catalog:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      CatÃ¡logo
+                      Catálogo
                     </div>
                   </button>
                   <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">

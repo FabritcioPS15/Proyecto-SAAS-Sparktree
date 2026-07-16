@@ -10,6 +10,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: [
+      '@emotion/react', 
+      '@emotion/styled', 
+      '@emotion/cache',
+      '@emotion/serialize',
+      '@emotion/utils',
+      '@emotion/weak-memoize',
+      '@mui/styled-engine',
+      '@mui/material',
+      '@mui/x-date-pickers',
+    ],
+  },
   build: {
     outDir: 'dist',
     sourcemap: false, // Cleaner production build

@@ -29,7 +29,7 @@ export const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#050608] selection:bg-primary-500/30 overflow-hidden">
+    <div className="min-h-screen flex bg-[#252525] selection:bg-primary-500/30 overflow-hidden">
       {/* Left Side: Brand & Visuals */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden border-r border-white/5">
         {/* Background Glows */}

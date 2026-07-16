@@ -11,7 +11,23 @@
 
   html.dark,
   html.dark body {
-    background-color: #1E1E1E;
+    background-color: #252525;
+  }
+
+  :root {
+    --accent-50: 236 253 245;
+    --accent-100: 209 250 229;
+    --accent-200: 167 243 208;
+    --accent-300: 110 231 183;
+    --accent-400: 52 211 153;
+    --accent-500: 65 240 165;
+    --accent-600: 16 185 129;
+    --accent-700: 5 150 105;
+    --accent-800: 4 120 87;
+    --accent-900: 6 95 70;
+    --accent-950: 2 44 34;
+    --radius: 16px;
+    --table-cell-padding: 12px 16px;
   }
 }
 
@@ -19,12 +35,31 @@
 
   /* Unified Card Component */
   .card-panel {
-    @apply bg-white border border-slate-200/70 rounded-none shadow-sm transition-colors duration-300;
+    @apply bg-white border border-slate-200/70 shadow-sm transition-colors duration-300;
+    border-radius: var(--radius);
   }
 
   .dark .card-panel {
     @apply bg-dark-card border-white/5;
   }
+
+  /* Density */
+  [data-density="compact"] .density-padding { padding: 6px 12px; }
+  [data-density="spacious"] .density-padding { padding: 20px 24px; }
+
+  /* Card style */
+  [data-card-style="flat"] .card-panel { box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-color: transparent; }
+  [data-card-style="glass"] .card-panel { background-color: rgba(255,255,255,0.7); backdrop-filter: blur(12px); border-color: rgba(226,232,240,0.5); }
+  .dark [data-card-style="glass"] .card-panel { background-color: rgba(36,36,36,0.6); border-color: rgba(51,51,51,0.5); }
+
+  /* Layout */
+  [data-layout="boxed"] .layout-container { max-width: 1400px; margin-left: auto; margin-right: auto; }
+
+  /* Radius */
+  .dynamic-radius { border-radius: var(--radius); }
+
+  /* Accent utility classes (for non-Tailwind usage) */
+  .accent-glow { box-shadow: 0 0 20px rgba(var(--accent-500), 0.15); }
 
   /* Premium Studio Loader */
   .loader {

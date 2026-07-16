@@ -1,14 +1,25 @@
 import { useState } from 'react';
 import { TbReportSearch } from "react-icons/tb";
-import { BarChart3, TrendingUp, FileText, Download, Filter, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, FileText, Download, Filter, Calendar, Plus } from 'lucide-react';
 
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { Modal } from '../../../components/ui/Modal';
+import { useNotifications } from '../../../contexts/NotificationContext';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 
 export const Reports = () => {
+  const { addNotification } = useNotifications();
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedReport, setSelectedReport] = useState('conversations');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState('');
+  const [newStartDate, setNewStartDate] = useState<dayjs.Dayjs | null>(null);
+  const [newEndDate, setNewEndDate] = useState<dayjs.Dayjs | null>(null);
 
   const reportTypes = [
     {
@@ -57,22 +68,16 @@ export const Reports = () => {
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-              <select 
+              <Dropdown
                 value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-black text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500 focus:border-transparent font-medium"
-              >
-                {periods.map(period => (
-                  <option key={period.value} value={period.value}>
-                    {period.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setSelectedPeriod(v)}
+                options={periods}
+              />
             </div>
             
-            <button className="flex items-center gap-2 px-6 py-3 bg-black dark:bg-accent-500 text-white dark:text-black rounded-xl font-black uppercase tracking-wider text-[11px] transition-all duration-200 hover:shadow-lg hover:scale-105">
-              <Download className="w-4 h-4" />
-              Exportar Reporte
+            <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95">
+              <Plus className="w-4 h-4" />
+              Nuevo Reporte
             </button>
           </div>
         </div>
@@ -124,47 +129,47 @@ export const Reports = () => {
             <table className="w-full">
               <thead className="bg-slate-50 dark:bg-slate-800/50">
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-4 px-6 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Fecha</th>
-                  <th className="text-left py-4 px-6 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Tipo</th>
-                  <th className="text-left py-4 px-6 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Descripción</th>
-                  <th className="text-left py-4 px-6 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Estado</th>
-                  <th className="text-left py-4 px-6 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Acciones</th>
+                  <th className="text-left py-3 px-4 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Fecha</th>
+                  <th className="text-left py-3 px-4 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Tipo</th>
+                  <th className="text-left py-3 px-4 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Descripción</th>
+                  <th className="text-left py-3 px-4 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Estado</th>
+                  <th className="text-left py-3 px-4 font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                  <td className="py-4 px-6 text-slate-900 dark:text-white font-medium">2024-01-15</td>
-                  <td className="py-4 px-6">
+                <tr className="bg-emerald-50/40 dark:bg-emerald-900/5 border-b border-gray-100 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                  <td className="py-3 px-4 text-slate-900 dark:text-white font-medium">2024-01-15</td>
+                  <td className="py-3 px-4">
                     <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-xs font-black uppercase tracking-wider">
                       Conversación
                     </span>
                   </td>
-                  <td className="py-4 px-6 text-slate-600 dark:text-slate-400">Cliente interesado en producto premium</td>
-                  <td className="py-4 px-6">
+                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400">Cliente interesado en producto premium</td>
+                  <td className="py-3 px-4">
                     <span className="px-3 py-1 bg-accent-500/10 dark:bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded-full text-xs font-black uppercase tracking-wider">
                       Completado
                     </span>
                   </td>
-                  <td className="py-4 px-6">
+                  <td className="py-3 px-4">
                     <button className="text-accent-600 dark:text-accent-400 hover:text-accent-800 dark:hover:text-accent-300 font-black text-sm uppercase tracking-wider">
                       Ver detalles
                     </button>
                   </td>
                 </tr>
                 <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                  <td className="py-4 px-6 text-slate-900 dark:text-white font-medium">2024-01-14</td>
-                  <td className="py-4 px-6">
+                  <td className="py-3 px-4 text-slate-900 dark:text-white font-medium">2024-01-14</td>
+                  <td className="py-3 px-4">
                     <span className="px-3 py-1 bg-secondary-100 dark:bg-secondary-900/30 text-secondary-800 dark:text-secondary-400 rounded-full text-xs font-black uppercase tracking-wider">
                       Lead
                     </span>
                   </td>
-                  <td className="py-4 px-6 text-slate-600 dark:text-slate-400">Nuevo lead potencial identificado</td>
-                  <td className="py-4 px-6">
+                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400">Nuevo lead potencial identificado</td>
+                  <td className="py-3 px-4">
                     <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-full text-xs font-black uppercase tracking-wider">
                       En proceso
                     </span>
                   </td>
-                  <td className="py-4 px-6">
+                  <td className="py-3 px-4">
                     <button className="text-accent-600 dark:text-accent-400 hover:text-accent-800 dark:hover:text-accent-300 font-black text-sm uppercase tracking-wider">
                       Ver detalles
                     </button>
@@ -175,8 +180,45 @@ export const Reports = () => {
           </div>
         </div>
       </PageBody>
+
+      <Modal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Nuevo Reporte"
+        icon={<FileText className="w-5 h-5 text-accent-500" />}
+      >
+        <form onSubmit={(e) => { e.preventDefault(); addNotification({ type: 'success', title: 'Reporte creado', message: `Se ha creado el reporte ${newName}` }); setShowCreateModal(false); }} className="space-y-4">
+          <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nombre del reporte" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
+          <Dropdown
+            value={newType}
+            onChange={v => setNewType(v)}
+            placeholder="Seleccionar tipo"
+            options={[
+              { value: 'conversations', label: 'Conversaciones' },
+              { value: 'performance', label: 'Rendimiento' },
+              { value: 'leads', label: 'Leads' },
+            ]}
+          />
+          <div className="flex gap-3">
+            <DatePicker
+              value={newStartDate}
+              onChange={(v) => setNewStartDate(v)}
+              slotProps={{ textField: { size: 'small', required: true, sx: { '& .MuiInputBase-root': { borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid #e2e8f0' } } } }}
+              sx={{ width: '100%' }}
+            />
+            <DatePicker
+              value={newEndDate}
+              onChange={(v) => setNewEndDate(v)}
+              slotProps={{ textField: { size: 'small', required: true, sx: { '& .MuiInputBase-root': { borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid #e2e8f0' } } } }}
+              sx={{ width: '100%' }}
+            />
+          </div>
+          <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-emerald-600 transition-all shadow-md">Crear Reporte</button>
+        </form>
+      </Modal>
     </PageContainer>
   );
 };
 
 export default Reports;
+

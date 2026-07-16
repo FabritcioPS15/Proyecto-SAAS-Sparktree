@@ -187,7 +187,7 @@ export const Dashboard = () => {
                       className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-800/20 hover:border-slate-300 dark:hover:border-white/10 cursor-pointer transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 bg-white dark:bg-[#111827] rounded-lg border border-slate-100 dark:border-white/5 ${platform.color}`}>
+                        <div className={`p-2 bg-white dark:bg-[#242424] rounded-lg border border-slate-100 dark:border-white/5 ${platform.color}`}>
                           <PlatformIcon size={18} />
                         </div>
                         <div>

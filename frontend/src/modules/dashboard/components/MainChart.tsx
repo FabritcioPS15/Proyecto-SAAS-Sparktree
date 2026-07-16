@@ -1,7 +1,8 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Calendar } from 'lucide-react';
 import { DashboardCard } from './DashboardCard';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 
 interface MainChartProps {
   data: any[];
@@ -36,7 +37,7 @@ export const MainChart: React.FC<MainChartProps> = ({
               onClick={() => onRangeChange(range)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
                 selectedRange === range 
-                  ? 'bg-white dark:bg-[#111827] text-slate-900 dark:text-white shadow-sm' 
+                  ? 'bg-white dark:bg-[#242424] text-slate-900 dark:text-white shadow-sm' 
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
@@ -50,23 +51,21 @@ export const MainChart: React.FC<MainChartProps> = ({
       {showCustomRange && (
         <div className="flex items-center gap-3 mb-6 p-4 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-white/5 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
-            <div className="flex-1 relative group">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => onStartDateChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all"
+            <div className="flex-1">
+              <DatePicker
+                value={startDate ? dayjs(startDate) : null}
+                onChange={(v) => onStartDateChange(v?.format('YYYY-MM-DD') || '')}
+                slotProps={{ textField: { size: 'small', sx: { '& .MuiInputBase-root': { borderRadius: '8px', backgroundColor: '#fff', border: '1px solid #e2e8f0', height: '36px', fontSize: '14px' } } } }}
+                sx={{ width: '100%' }}
               />
             </div>
             <span className="hidden sm:block text-xs font-bold text-slate-400">a</span>
-            <div className="flex-1 relative group">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent-500 transition-colors" />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => onEndDateChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 outline-none transition-all"
+            <div className="flex-1">
+              <DatePicker
+                value={endDate ? dayjs(endDate) : null}
+                onChange={(v) => onEndDateChange(v?.format('YYYY-MM-DD') || '')}
+                slotProps={{ textField: { size: 'small', sx: { '& .MuiInputBase-root': { borderRadius: '8px', backgroundColor: '#fff', border: '1px solid #e2e8f0', height: '36px', fontSize: '14px' } } } }}
+                sx={{ width: '100%' }}
               />
             </div>
           </div>

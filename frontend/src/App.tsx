@@ -6,8 +6,11 @@ import { WhatsAppProvider } from './contexts/WhatsAppContext';
 import { ConnectionsProvider } from './contexts/ConnectionsContext';
 import { Layout } from './components/layout/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CustomizationProvider } from './contexts/CustomizationContext';
 import { Navigate } from 'react-router-dom';
 import { PageLoader } from './components/layout/PageLoader';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./modules/dashboard/pages/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -35,6 +38,30 @@ const Pipeline = lazy(() => import('./modules/crm/pages/Pipeline').then(module =
 
 const ProfileSelectionPage = lazy(() => import('./modules/auth/pages/ProfileSelection').then(module => ({ default: module.ProfileSelection })));
 const Catalogs = lazy(() => import('./modules/crm/pages/Catalogs').then(module => ({ default: module.Catalogs })));
+
+// New modules
+const Orders = lazy(() => import('./modules/orders/pages/Orders').then(module => ({ default: module.Orders })));
+const Promotions = lazy(() => import('./modules/promotions/pages/Promotions').then(module => ({ default: module.Promotions })));
+const MessageTemplates = lazy(() => import('./modules/automation/pages/MessageTemplates').then(module => ({ default: module.MessageTemplates })));
+const AssignmentRules = lazy(() => import('./modules/automation/pages/AssignmentRules').then(module => ({ default: module.AssignmentRules })));
+const BusinessHours = lazy(() => import('./modules/automation/pages/BusinessHours').then(module => ({ default: module.BusinessHours })));
+const Agents = lazy(() => import('./modules/support/pages/Agents').then(module => ({ default: module.Agents })));
+const KnowledgeBase = lazy(() => import('./modules/support/pages/KnowledgeBase').then(module => ({ default: module.KnowledgeBase })));
+const Support = lazy(() => import('./modules/support/pages/Support').then(module => ({ default: module.Support })));
+const Notifications = lazy(() => import('./modules/system/pages/Notifications').then(module => ({ default: module.Notifications })));
+const Webhooks = lazy(() => import('./modules/system/pages/Webhooks').then(module => ({ default: module.Webhooks })));
+const Plans = lazy(() => import('./modules/billing/pages/Plans').then(module => ({ default: module.Plans })));
+const AIProviderSettings = lazy(() => import('./modules/ai/pages/AIProviderSettings').then(module => ({ default: module.AIProviderSettings })));
+const Payments = lazy(() => import('./modules/billing/pages/Payments').then(module => ({ default: module.Payments })));
+const Usage = lazy(() => import('./modules/billing/pages/Usage').then(module => ({ default: module.Usage })));
+const RolesPermissions = lazy(() => import('./modules/system/pages/RolesPermissions').then(module => ({ default: module.RolesPermissions })));
+const AuditLogs = lazy(() => import('./modules/system/pages/AuditLogs').then(module => ({ default: module.AuditLogs })));
+const Companies = lazy(() => import('./modules/superadmin/pages/Companies').then(module => ({ default: module.Companies })));
+const BusinessMetrics = lazy(() => import('./modules/superadmin/pages/BusinessMetrics').then(module => ({ default: module.BusinessMetrics })));
+const SystemLogs = lazy(() => import('./modules/superadmin/pages/SystemLogs').then(module => ({ default: module.SystemLogs })));
+const Email = lazy(() => import('./modules/email/pages/Email').then(module => ({ default: module.Email })));
+const Calendar = lazy(() => import('./modules/calendar/pages/Calendar').then(module => ({ default: module.Calendar })));
+const WhatsAppManager = lazy(() => import('./modules/inbox/pages/WhatsAppManager').then(module => ({ default: module.WhatsAppManager })));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, activeProfile } = useAuth();
@@ -80,25 +107,67 @@ function AppContent() {
       <Route path="/admin/staff" element={<Suspense fallback={<PageLoader sectionName="Personal" />}><ProtectedRoute><Layout><StaffManagement /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/crm" element={<Suspense fallback={<PageLoader sectionName="CRM" />}><ProtectedRoute><Layout><CRM /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/pipeline" element={<Suspense fallback={<PageLoader sectionName="Pipeline" />}><ProtectedRoute><Layout><Pipeline /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/email" element={<Suspense fallback={<PageLoader sectionName="Correo" />}><ProtectedRoute><Layout><Email /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/calendar" element={<Suspense fallback={<PageLoader sectionName="Calendario" />}><ProtectedRoute><Layout><Calendar /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* New modules - Negocio */}
+      <Route path="/orders" element={<Suspense fallback={<PageLoader sectionName="Pedidos" />}><ProtectedRoute><Layout><Orders /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/promotions" element={<Suspense fallback={<PageLoader sectionName="Promociones" />}><ProtectedRoute><Layout><Promotions /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* New modules - Automatización */}
+      <Route path="/message-templates" element={<Suspense fallback={<PageLoader sectionName="Plantillas" />}><ProtectedRoute><Layout><MessageTemplates /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/assignment-rules" element={<Suspense fallback={<PageLoader sectionName="Reglas de Asignación" />}><ProtectedRoute><Layout><AssignmentRules /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/business-hours" element={<Suspense fallback={<PageLoader sectionName="Horarios de Atención" />}><ProtectedRoute><Layout><BusinessHours /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* New modules - Atención */}
+      <Route path="/support" element={<Suspense fallback={<PageLoader sectionName="Atención" />}><ProtectedRoute><Layout><Support /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/agents" element={<Suspense fallback={<PageLoader sectionName="Agentes" />}><ProtectedRoute><Layout><Agents /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/knowledge-base" element={<Suspense fallback={<PageLoader sectionName="Base de Conocimiento" />}><ProtectedRoute><Layout><KnowledgeBase /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* New modules - Sistema */}
+      <Route path="/notifications" element={<Suspense fallback={<PageLoader sectionName="Notificaciones" />}><ProtectedRoute><Layout><Notifications /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/webhooks" element={<Suspense fallback={<PageLoader sectionName="Webhooks" />}><ProtectedRoute><Layout><Webhooks /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/roles-permissions" element={<Suspense fallback={<PageLoader sectionName="Roles y Permisos" />}><ProtectedRoute><Layout><RolesPermissions /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/audit-logs" element={<Suspense fallback={<PageLoader sectionName="Auditoría" />}><ProtectedRoute><Layout><AuditLogs /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* New modules - Facturación */}
+      <Route path="/billing/plans" element={<Suspense fallback={<PageLoader sectionName="Planes" />}><ProtectedRoute><Layout><Plans /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/billing/payments" element={<Suspense fallback={<PageLoader sectionName="Pagos" />}><ProtectedRoute><Layout><Payments /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/billing/usage" element={<Suspense fallback={<PageLoader sectionName="Uso" />}><ProtectedRoute><Layout><Usage /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* New modules - Super Admin */}
+      <Route path="/superadmin/companies" element={<Suspense fallback={<PageLoader sectionName="Empresas" />}><ProtectedRoute><Layout><Companies /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/superadmin/business-metrics" element={<Suspense fallback={<PageLoader sectionName="Métricas del Negocio" />}><ProtectedRoute><Layout><BusinessMetrics /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/superadmin/system-logs" element={<Suspense fallback={<PageLoader sectionName="Logs del Sistema" />}><ProtectedRoute><Layout><SystemLogs /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* AI / LLM */}
+      <Route path="/ai/providers" element={<Suspense fallback={<PageLoader sectionName="Proveedores LLM" />}><ProtectedRoute><Layout><AIProviderSettings /></Layout></ProtectedRoute></Suspense>} />
+      
+      {/* Multi-WhatsApp */}
+      <Route path="/multi-whatsapp" element={<Suspense fallback={<PageLoader sectionName="WhatsApp Manager" />}><ProtectedRoute><Layout><WhatsAppManager /></Layout></ProtectedRoute></Suspense>} />
     </Routes>
   );
 }
 
 function App() {
   return (
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
     <ThemeProvider>
       <NotificationProvider>
         <AuthProvider>
           <ConnectionsProvider>
             <WhatsAppProvider>
+              <CustomizationProvider>
               <BrowserRouter>
                 <AppContent />
               </BrowserRouter>
+              </CustomizationProvider>
             </WhatsAppProvider>
           </ConnectionsProvider>
         </AuthProvider>
       </NotificationProvider>
     </ThemeProvider>
+    </LocalizationProvider>
   );
 }
 
