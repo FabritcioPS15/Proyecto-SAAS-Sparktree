@@ -3,27 +3,22 @@ import { Clock } from 'lucide-react';
 
 export const DelayNode = ({ data }: any) => {
   const seconds = data.delaySeconds || 3;
-  const displayTime = seconds >= 60 
-    ? `${(seconds / 60).toFixed(1)}m` 
+  const displayTime = seconds >= 60
+    ? `${(seconds / 60).toFixed(1)}m`
     : `${seconds}s`;
 
   return (
-    <div className="bg-white dark:bg-black rounded-sm shadow-xl border-2 border-black dark:border-white/10 w-48 overflow-hidden transition-all hover:scale-[1.02] group">
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-black border-2 border-white dark:border-dark-card" />
-      
-      <div className="bg-black p-4 flex flex-col items-center justify-center gap-1 border-b border-white/5">
-        <Clock className="w-6 h-6 text-accent-500 animate-pulse" />
+    <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 w-48 overflow-hidden transition-all hover:shadow-slate-500/10 group node-container">
+      <Handle type="target" position={Position.Top} className="!bg-white !border-slate-400 group-hover:!bg-slate-500" />
+      <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center justify-center gap-2">
+        <Clock className="w-4 h-4 text-slate-400" />
         <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Esperar</h3>
       </div>
-
-      <div className="p-6 text-center bg-white dark:bg-dark-card">
-        <span className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
-          {displayTime}
-        </span>
-        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-2 font-inter">Pausa en el flujo</p>
+      <div className="p-6 text-center bg-white dark:bg-gray-950 group-hover:bg-slate-50/30 dark:group-hover:bg-slate-950/20 transition-colors">
+        <span className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter">{displayTime}</span>
+        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-2">Pausa en el flujo</p>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-black border-2 border-white dark:border-dark-card" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white !border-slate-400 group-hover:!bg-slate-500" />
     </div>
   );
 };

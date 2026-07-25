@@ -39,10 +39,10 @@ router.get('/connections', tenantMiddleware, async (req: TenantRequest, res: Res
       })
     );
 
-    res.json(connectionsWithStatus);
+    return res.json(connectionsWithStatus);
   } catch (error: any) {
     console.error('Error in /platform/connections:', error);
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message });
   }
 });
 
@@ -66,10 +66,10 @@ router.get('/connections/:id', tenantMiddleware, async (req: TenantRequest, res:
     }
 
     const status = await multiPlatformService.getConnectionStatus(id as string);
-    res.json(status);
+    return res.json(status);
   } catch (error: any) {
     console.error('Error in /platform/connections/:id:', error);
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message });
   }
 });
 
@@ -123,7 +123,7 @@ router.post('/connections', tenantMiddleware, async (req: TenantRequest, res: Re
     res.json({ message: 'Platform connection created', connection });
   } catch (error: any) {
     console.error('Error in /platform/connections POST:', error);
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message });
   }
 });
 
@@ -151,7 +151,7 @@ router.post('/connections/:id/start', tenantMiddleware, async (req: TenantReques
     res.json({ message: 'Platform connection started' });
   } catch (error: any) {
     console.error('Error in /platform/connections/:id/start:', error);
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message });
   }
 });
 
@@ -181,7 +181,7 @@ router.post('/connections/:id/delete', tenantMiddleware, async (req: TenantReque
     res.json({ message: 'Platform connection deleted' });
   } catch (error: any) {
     console.error('Error in /platform/connections/:id/delete:', error);
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message });
   }
 });
 
@@ -238,7 +238,7 @@ router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res:
     });
   } catch (error: any) {
     console.error('Error in /platform/whatsapp-cloud:', error);
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message });
   }
 });
 

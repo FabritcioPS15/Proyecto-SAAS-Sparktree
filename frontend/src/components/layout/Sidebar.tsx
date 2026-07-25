@@ -8,7 +8,8 @@ import {
   ShoppingBag, Tag, MessageSquareText, UserCheck, Clock,
   Bot, Bell, Webhook, CreditCard as PaymentIcon,
   Activity, Lock, History, Globe, DollarSign, User, Database,
-  LogOut, Brain, Mail, Calendar as CalendarIcon, Smartphone
+  LogOut, Brain, Mail, Calendar as CalendarIcon, Smartphone,
+  FileText
 } from 'lucide-react';
 import { SiDialogflow } from 'react-icons/si';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
@@ -36,6 +37,7 @@ const empresaMenuItemsExpanded: MenuItem[] = [
   { icon: TrendingUp, label: 'Potenciales', path: '/leads' },
   { icon: Store, label: 'Catálogos', path: '/catalogs' },
   { icon: ShoppingBag, label: 'Pedidos', path: '/orders' },
+  { icon: FileText, label: 'Cotizaciones', path: '/cotizaciones' },
   { icon: Tag, label: 'Promociones', path: '/promotions' },
   { icon: BarChart3, label: 'Analíticas', path: '/analytics' },
   { icon: SiDialogflow, label: 'Constructor de Bots', path: '/flow-manager' },
@@ -122,7 +124,7 @@ const agentMenuItems: MenuItem[] = [
 
 const empresaCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/email', '/calendar', '/clients'] },
-  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/promotions'] },
+  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions'] },
   { name: 'Automatización', items: ['/flow-manager', '/message-templates', '/assignment-rules', '/business-hours'] },
   { name: 'Atención', items: ['/support', '/agents', '/knowledge-base'] },
   { name: 'Sistema', items: ['/connections', '/notifications', '/webhooks', '/admin/staff', '/roles-permissions', '/audit-logs', '/ai/providers'] },
@@ -131,7 +133,7 @@ const empresaCategories = [
 
 const adminCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/email', '/calendar', '/clients'] },
-  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/promotions'] },
+  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions'] },
   { name: 'Automatización', items: ['/flow-manager', '/message-templates', '/assignment-rules', '/business-hours'] },
   { name: 'Atención', items: ['/support', '/agents', '/knowledge-base'] },
   { name: 'Sistema', items: ['/connections', '/notifications', '/webhooks', '/ai/providers'] },

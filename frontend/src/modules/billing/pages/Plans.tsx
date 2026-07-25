@@ -42,7 +42,7 @@ const planIcons: Record<string, any> = {
 const planColors: Record<string, string> = {
   free: 'from-slate-400 to-slate-500',
   starter: 'from-blue-500 to-blue-700',
-  professional: 'from-accent-500 to-emerald-500',
+  professional: 'from-accent-500 to-accent-600',
   enterprise: 'from-purple-500 to-pink-600',
 };
 
@@ -72,7 +72,7 @@ export const Plans = () => {
     try {
       const [plansData, subData] = await Promise.all([
         getPlans(),
-        user?.tenantId ? getSubscription(user.tenantId).catch(() => null) : Promise.resolve(null),
+        user?.organization_id ? getSubscription(user.organization_id).catch(() => null) : Promise.resolve(null),
       ]);
       setPlans(Array.isArray(plansData) ? plansData : []);
       setSubscription(subData);
@@ -94,12 +94,12 @@ export const Plans = () => {
   };
 
   const handleConfirmUpgrade = async () => {
-    if (!selectedPlan || !user?.tenantId) return;
+    if (!selectedPlan || !user?.organization_id) return;
     setActionLoading(true);
     setError('');
     try {
       await createSubscription({
-        tenantId: user.tenantId,
+        tenantId: user.organization_id,
         planId: selectedPlan.id,
         cycle: selectedPlan.interval,
       });
@@ -175,7 +175,11 @@ export const Plans = () => {
           {subscription && (
             <div className="bg-gradient-to-r from-accent-500/10 via-accent-500/5 to-transparent rounded-2xl border border-accent-500/20 p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
+                <div className="flex items-start gap-4">
+                  <div className="p-2.5 bg-accent-500/10 rounded-xl text-accent-500 shrink-0">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
                   <p className="text-[10px] font-black text-accent-500 uppercase tracking-widest mb-1">Plan Actual</p>
                   <h3 className="text-2xl font-black text-slate-900 dark:text-white">
                     {subscription.plan?.name || 'Plan activo'}
@@ -186,6 +190,7 @@ export const Plans = () => {
                       : `Renovación: ${new Date(subscription.currentPeriodEnd).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}`
                     }
                   </p>
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setShowCancelConfirm(true)}
@@ -214,7 +219,7 @@ export const Plans = () => {
                   )}
                 >
                   {plan.highlighted && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg">
                       Más Popular
                     </div>
                   )}
@@ -222,7 +227,7 @@ export const Plans = () => {
                   <div className="p-6 flex flex-col flex-1">
                     <div className={cn(
                       'w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br shadow-lg',
-                      planColors[plan.name.toLowerCase()] || 'from-accent-500 to-emerald-500'
+                      planColors[plan.name.toLowerCase()] || 'from-accent-500 to-accent-600'
                     )}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
@@ -273,7 +278,7 @@ export const Plans = () => {
                         'w-full h-11 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed',
                         isCurrent
                           ? 'bg-accent-500/10 text-accent-500 border border-accent-500/20'
-                          : 'bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black shadow-md hover:shadow-lg'
+                          : 'bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black shadow-md hover:shadow-lg'
                       )}
                     >
                       {isCurrent ? 'Plan Actual' : 'Seleccionar'}
@@ -299,7 +304,7 @@ export const Plans = () => {
                 Cancelar
               </button>
               <button onClick={handleConfirmUpgrade} disabled={actionLoading}
-                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 {actionLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Activando...</> : 'Confirmar'}
               </button>
             </div>

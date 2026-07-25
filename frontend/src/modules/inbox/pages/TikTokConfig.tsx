@@ -260,7 +260,7 @@ export const TikTokConfig = () => {
                       Esta integración solo está disponible para cuentas TikTok Business.
                     </p>
                     <p className="text-xs text-slate-500 mb-3">
-                      No disponible actualmente para cuentas registradas en Estados Unidos, Espacio Económico Europeo, Suiza o Reino Unido.
+                      No disponible para cuentas de EE.UU., EEE, Suiza o Reino Unido.
                     </p>
                     <label className="flex items-start gap-2.5 cursor-pointer group">
                       <input

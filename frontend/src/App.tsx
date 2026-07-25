@@ -12,6 +12,7 @@ import { PageLoader } from './components/layout/PageLoader';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
+
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./modules/dashboard/pages/Dashboard').then(module => ({ default: module.Dashboard })));
 const Users = lazy(() => import('./modules/crm/pages/Clients').then(module => ({ default: module.Clients })));
@@ -47,6 +48,7 @@ const AssignmentRules = lazy(() => import('./modules/automation/pages/Assignment
 const BusinessHours = lazy(() => import('./modules/automation/pages/BusinessHours').then(module => ({ default: module.BusinessHours })));
 const Agents = lazy(() => import('./modules/support/pages/Agents').then(module => ({ default: module.Agents })));
 const KnowledgeBase = lazy(() => import('./modules/support/pages/KnowledgeBase').then(module => ({ default: module.KnowledgeBase })));
+const KnowledgeBases = lazy(() => import('./modules/automation/pages/KnowledgeBases').then(module => ({ default: module.KnowledgeBases })));
 const Support = lazy(() => import('./modules/support/pages/Support').then(module => ({ default: module.Support })));
 const Notifications = lazy(() => import('./modules/system/pages/Notifications').then(module => ({ default: module.Notifications })));
 const Webhooks = lazy(() => import('./modules/system/pages/Webhooks').then(module => ({ default: module.Webhooks })));
@@ -62,6 +64,7 @@ const SystemLogs = lazy(() => import('./modules/superadmin/pages/SystemLogs').th
 const Email = lazy(() => import('./modules/email/pages/Email').then(module => ({ default: module.Email })));
 const Calendar = lazy(() => import('./modules/calendar/pages/Calendar').then(module => ({ default: module.Calendar })));
 const WhatsAppManager = lazy(() => import('./modules/inbox/pages/WhatsAppManager').then(module => ({ default: module.WhatsAppManager })));
+const Cotizaciones = lazy(() => import('./modules/crm/pages/Cotizaciones').then(module => ({ default: module.Cotizaciones })));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, activeProfile } = useAuth();
@@ -113,11 +116,13 @@ function AppContent() {
       {/* New modules - Negocio */}
       <Route path="/orders" element={<Suspense fallback={<PageLoader sectionName="Pedidos" />}><ProtectedRoute><Layout><Orders /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/promotions" element={<Suspense fallback={<PageLoader sectionName="Promociones" />}><ProtectedRoute><Layout><Promotions /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/cotizaciones" element={<Suspense fallback={<PageLoader sectionName="Cotizaciones" />}><ProtectedRoute><Layout><Cotizaciones /></Layout></ProtectedRoute></Suspense>} />
       
       {/* New modules - Automatización */}
       <Route path="/message-templates" element={<Suspense fallback={<PageLoader sectionName="Plantillas" />}><ProtectedRoute><Layout><MessageTemplates /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/assignment-rules" element={<Suspense fallback={<PageLoader sectionName="Reglas de Asignación" />}><ProtectedRoute><Layout><AssignmentRules /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/business-hours" element={<Suspense fallback={<PageLoader sectionName="Horarios de Atención" />}><ProtectedRoute><Layout><BusinessHours /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/knowledge-bases" element={<Suspense fallback={<PageLoader sectionName="Knowledge Bases" />}><ProtectedRoute><Layout><KnowledgeBases /></Layout></ProtectedRoute></Suspense>} />
       
       {/* New modules - Atención */}
       <Route path="/support" element={<Suspense fallback={<PageLoader sectionName="Atención" />}><ProtectedRoute><Layout><Support /></Layout></ProtectedRoute></Suspense>} />

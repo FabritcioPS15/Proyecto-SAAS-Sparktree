@@ -185,7 +185,7 @@ export const WhatsAppQR = () => {
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <button onClick={handleCloudConnection} disabled={actionLoading}
-                                    className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]">
+                                    className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99]">
                                     {actionLoading ? 'Conectando...' : 'Conectar'}
                                 </button>
                                 <button onClick={() => setShowCloudForm(false)}
@@ -218,7 +218,7 @@ export const WhatsAppQR = () => {
                                     Esta línea será la encargada de enviar todas las respuestas automáticas.
                                 </p>
                                 <button onClick={handleInit} disabled={actionLoading}
-                                    className="flex items-center justify-center gap-2 h-11 px-8 bg-black dark:bg-white text-white dark:text-black rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">
+                                    className="flex items-center justify-center gap-2 h-11 px-8 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-[0.98] disabled:opacity-50">
                                     <RefreshCw className="w-3.5 h-3.5" />
                                     Regenerar Código
                                 </button>

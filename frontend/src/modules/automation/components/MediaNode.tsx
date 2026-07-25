@@ -3,45 +3,31 @@ import { Image, Play } from 'lucide-react';
 
 export const MediaNode = ({ data }: any) => {
   return (
-    <div className="bg-white dark:bg-black rounded-sm shadow-xl border-2 border-black dark:border-white/10 w-64 overflow-hidden transition-all hover:scale-[1.02]">
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-black border-2 border-white dark:border-gray-800" />
-      <div className="bg-black px-4 py-3 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <Image className="w-4 h-4 text-accent-500" />
-          <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Multimedia</h3>
-        </div>
+    <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-rose-200 dark:border-rose-900/50 w-64 overflow-hidden transition-all hover:shadow-rose-500/10 group node-container">
+      <Handle type="target" position={Position.Top} className="!bg-white !border-rose-400 group-hover:!bg-rose-500" />
+      <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center gap-2">
+        <Image className="w-4 h-4 text-rose-400" />
+        <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Multimedia</h3>
       </div>
-      <div className="p-4 bg-white dark:bg-gray-900/50">
+      <div className="p-4 bg-white dark:bg-gray-950 group-hover:bg-rose-50/30 dark:group-hover:bg-rose-950/20 transition-colors">
         {data.mediaUrl ? (
           <div className="space-y-3">
-             <div className="aspect-video bg-slate-100 dark:bg-slate-800 rounded-sm flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden relative group">
-              {data.mediaType === 'image' && <img src={data.mediaUrl} alt="Preview" className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity" />}
-              <div className="absolute inset-0 flex items-center justify-center">
-                 <Play className="w-6 h-6 text-accent-500 opacity-50" />
-              </div>
-            {data.isViewOnce && (
-              <div className="absolute top-2 right-2 px-2 py-0.5 bg-accent-500 text-[8px] font-black text-black rounded-full uppercase tracking-widest shadow-lg">
-                1 Vista
-              </div>
-            )}
-          </div>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold truncate italic">
-              {data.mediaUrl}
+            <div className="aspect-video bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <Play className="w-8 h-8 text-slate-300 dark:text-slate-600" />
             </div>
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold truncate font-mono">{data.mediaUrl}</div>
             {data.caption && (
-               <div className="text-xs text-slate-700 dark:text-slate-300 font-medium line-clamp-2 border-l-2 border-accent-500/30 pl-2 py-1">
-                 {data.caption}
-               </div>
+              <div className="text-xs text-slate-600 dark:text-slate-300 font-medium line-clamp-2 border-l-2 border-slate-300 dark:border-slate-600 pl-2.5 py-1">{data.caption}</div>
             )}
           </div>
         ) : (
-          <div className="py-8 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-sm">
-             <Image className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
-             <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest italic">Sin configurar</span>
+          <div className="py-8 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+            <Image className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
+            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest italic">Sin configurar</span>
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-black border-2 border-white dark:border-gray-800" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white !border-rose-400 group-hover:!bg-rose-500" />
     </div>
   );
 };

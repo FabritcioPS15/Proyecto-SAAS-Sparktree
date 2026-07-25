@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Edit, Trash2, Copy, MessageSquare, List, LayoutGrid } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Copy, MessageSquare, List, LayoutGrid, FileText } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -56,8 +56,9 @@ export const MessageTemplates = () => {
       <PageHeader
         title="Plantillas de Mensajes"
         description="Respuestas rápidas para agentes humanos"
+        icon={MessageSquare}
         action={
-          <button className="flex items-center justify-center gap-2 px-4 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95">
+          <button className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
             <Plus className="w-4 h-4" />
             Nueva Plantilla
           </button>

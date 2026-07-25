@@ -115,18 +115,53 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Request timeout middleware (RNF-02: 3-second response time)
+// Prevention of ERR_HTTP_HEADERS_SENT after timeout
 app.use((req, res, next) => {
+  const originalStatus = res.status;
+  const originalSend = res.send;
+  const originalJson = res.json;
+  const originalSetHeader = res.setHeader;
+
+  res.status = function (code) {
+    if (res.headersSent) return this;
+    return originalStatus.call(this, code);
+  };
+
+  res.send = function (body) {
+    if (res.headersSent) return this;
+    return originalSend.call(this, body);
+  };
+
+  res.json = function (obj) {
+    if (res.headersSent) return this;
+    return originalJson.call(this, obj);
+  };
+
+  res.setHeader = function (name, value) {
+    if (res.headersSent) return this;
+    try {
+      return originalSetHeader.call(this, name, value);
+    } catch (e) {
+      return this;
+    }
+  };
+
+  next();
+});
+
+// Request timeout middleware (RNF-02: 3-second response time, configurable via env)
+app.use((req, res, next) => {
+  const timeoutMs = parseInt(process.env.REQUEST_TIMEOUT_MS || '10000', 10);
   const timeout = setTimeout(() => {
     if (!res.headersSent) {
-      console.error(`[Timeout] Request to ${req.originalUrl} exceeded 3 seconds`);
+      console.error(`[Timeout] Request to ${req.originalUrl} exceeded ${timeoutMs / 1000} seconds`);
       res.status(504).json({
         error: 'Gateway Timeout',
         message: 'Request processing exceeded time limit',
         timestamp: new Date().toISOString()
       });
     }
-  }, 3000); // 3 second timeout
+  }, timeoutMs);
 
   res.on('finish', () => {
     clearTimeout(timeout);

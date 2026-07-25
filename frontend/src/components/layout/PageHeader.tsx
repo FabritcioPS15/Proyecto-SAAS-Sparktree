@@ -1,59 +1,84 @@
 import React from 'react';
 
+interface PageHeaderMeta {
+  label: string;
+  value: string | number;
+  icon?: any;
+  color?: 'accent' | 'emerald' | 'blue' | 'amber' | 'violet';
+}
+
 interface PageHeaderProps {
   title: string;
   highlight?: React.ReactNode;
   description: string;
   icon?: any;
   action?: React.ReactNode;
+  meta?: PageHeaderMeta[];
 }
 
-export const PageHeader = ({ title, highlight, description, icon: Icon, action }: PageHeaderProps) => {
-  return (
-    <div className="-mx-4 md:-mx-6 mb-6">
-      <div className="relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-dark-card px-6 md:px-10 py-6 md:py-8 min-h-[140px] rounded-b-2xl">
-        
-        {/* Abstract Circles Background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          {/* Dark Circle (Right/Bottom) */}
-          <div className="absolute top-[-10%] right-[-5%] w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#0f172a] dark:bg-[#111111] rounded-full shadow-lg" />
-          
-          {/* Green Circle 1 (Top/Middle) */}
-          <div className="absolute top-[-50%] right-[10%] w-[350px] h-[350px] md:w-[500px] md:h-[500px] bg-[#10b981] dark:bg-emerald-500 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.2)]" />
-          
-          {/* Green Circle 2 (Overlapping) */}
-          <div className="absolute top-[-20%] right-[2%] w-[250px] h-[250px] md:w-[400px] md:h-[400px] bg-[#10b981] dark:bg-emerald-500 rounded-full shadow-[-10px_10px_30px_rgba(0,0,0,0.2)] border border-emerald-400/50" />
-        </div>
+const pillColors: Record<string, string> = {
+  accent: 'bg-accent-500/10 text-accent-600 dark:text-accent-400 border border-accent-500/20',
+  emerald: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
+  blue: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
+  amber: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+  violet: 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/20',
+};
 
-        {/* Content */}
-        <div className="flex items-center gap-5 relative z-10">
+export const PageHeader = ({ title, highlight, description, icon: Icon, action, meta }: PageHeaderProps) => {
+  return (
+    <div className="-mx-4 md:-mx-6 mb-5">
+      <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-dark-card px-6 md:px-10 py-4 md:py-5 overflow-hidden border-b border-slate-100 dark:border-slate-800/40 shadow-sm">
+        
+        {/* Strong radial gradient from right */}
+        <div className="absolute -top-20 -right-16 w-[450px] h-[450px] bg-gradient-to-l from-accent-500/45 via-accent-500/20 to-transparent dark:from-accent-500/55 dark:via-accent-500/25 dark:to-transparent rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-32 -right-10 w-[350px] h-[350px] bg-gradient-to-l from-slate-900/20 via-slate-900/10 to-transparent dark:from-white/15 dark:via-white/8 dark:to-transparent rounded-full blur-[80px] pointer-events-none" />
+
+        {/* Left accent bar */}
+        <div className="absolute left-0 top-2 bottom-2 w-1.5 bg-gradient-to-b from-accent-500 via-accent-500/70 to-accent-500/20 rounded-r-full" />
+
+        <div className="flex items-center gap-4 relative z-10 min-w-0">
           {Icon && (
-            <div className="hidden sm:flex p-3.5 bg-slate-50 dark:bg-accent-500/10 rounded-2xl text-slate-800 dark:text-accent-300 border border-slate-200 dark:border-accent-500/20 shadow-sm">
-              <Icon className="w-6 h-6" strokeWidth={1.5} />
+            <div className="hidden sm:flex p-2.5 bg-accent-500/15 rounded-xl text-accent-500 dark:text-accent-400 border border-accent-500/30 dark:border-accent-500/20 shadow-lg shadow-accent-500/25 shrink-0">
+              <Icon className="w-5 h-5" strokeWidth={1.5} />
             </div>
           )}
-          <div>
-            <h1 className="text-2xl md:text-3xl font-light text-slate-900 dark:text-white tracking-[0.2em] uppercase">
-              {title}
-            </h1>
-            <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-              {highlight && (
-                <span className="text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-wide">
-                  {highlight}
-                </span>
-              )}
-              {description && (
-                <p className="text-sm font-medium text-slate-500 dark:text-accent-200 max-w-md">
-                  {highlight && <span className="hidden sm:inline mx-1 text-slate-300 dark:text-slate-600">|</span>}
-                  {description}
-                </p>
-              )}
+          <div className="min-w-0 space-y-1">
+            <div className="relative">
+              <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2 flex-wrap">
+                <h1 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  {title}
+                </h1>
+                {highlight && (
+                  <span className="text-lg md:text-xl font-bold text-accent-500 dark:text-accent-400 tracking-tight">
+                    {highlight}
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 h-0.5 w-12 bg-gradient-to-r from-accent-500 to-accent-500/30 rounded-full" />
             </div>
+            {description && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
+                {description}
+              </p>
+            )}
+            {meta && meta.length > 0 && (
+              <div className="flex items-center gap-2">
+                {meta.map((item, i) => {
+                  const MIcon = item.icon;
+                  return (
+                    <div key={i} className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold ${pillColors[item.color || 'accent']}`}>
+                      {MIcon && <MIcon className="w-3.5 h-3.5" />}
+                      <span>{item.label} <span className="font-black">{item.value}</span></span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
         {action && (
-          <div className="relative z-10 flex items-center mt-4 md:mt-0">
+          <div className="relative z-10 flex items-center shrink-0">
             {action}
           </div>
         )}

@@ -119,7 +119,7 @@ export const CRM = () => {
         action={
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-bold text-sm transition-all"
+            className="flex items-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95"
           >
             <Plus className="w-4 h-4" />
             Nuevo Cliente
@@ -133,8 +133,8 @@ export const CRM = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-white dark:bg-dark-card rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-blue-500/10 rounded-lg">
-                  <Users className="w-5 h-5 text-blue-500" />
+                <div className="p-2.5 bg-accent-500/10 rounded-lg">
+                  <Users className="w-5 h-5 text-accent-500" />
                 </div>
                 <span className="text-xs text-gray-500 font-bold uppercase">Total</span>
               </div>
@@ -144,8 +144,8 @@ export const CRM = () => {
 
             <div className="bg-white dark:bg-dark-card rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-green-500/10 rounded-lg">
-                  <DollarSign className="w-5 h-5 text-green-500" />
+                <div className="p-2.5 bg-accent-500/10 rounded-lg">
+                  <DollarSign className="w-5 h-5 text-accent-500" />
                 </div>
                 <span className="text-xs text-gray-500 font-bold uppercase">Valor</span>
               </div>
@@ -155,8 +155,8 @@ export const CRM = () => {
 
             <div className="bg-white dark:bg-dark-card rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-purple-500/10 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-purple-500" />
+                <div className="p-2.5 bg-accent-500/10 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-accent-500" />
                 </div>
                 <span className="text-xs text-gray-500 font-bold uppercase">Conversión</span>
               </div>
@@ -166,8 +166,8 @@ export const CRM = () => {
 
             <div className="bg-white dark:bg-dark-card rounded-xl p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-emerald-500/10 rounded-lg">
-                  <Users className="w-5 h-5 text-emerald-500" />
+                <div className="p-2.5 bg-accent-500/10 rounded-lg">
+                  <Users className="w-5 h-5 text-accent-500" />
                 </div>
                 <span className="text-xs text-gray-500 font-bold uppercase">Activos</span>
               </div>
@@ -196,8 +196,8 @@ export const CRM = () => {
         </div>
 
         {/* Clients Table */}
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead className="bg-gray-50 dark:bg-dark-card">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
@@ -287,7 +287,7 @@ export const CRM = () => {
           onClose={() => { setShowModal(false); setEditingClient(null); setFormData({ name: '', email: '', phone: '', company: '', status: 'lead', source: 'manual', notes: '' }); }}
           title={editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
           subtitle={editingClient ? 'Modifica los datos del cliente seleccionado.' : 'Registra un nuevo cliente en el CRM.'}
-          icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg"><UserPlus className="w-5 h-5 text-white" /></div>}
+          icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg"><UserPlus className="w-5 h-5 text-white" /></div>}
           footer={
             <div className="flex gap-3">
               <button type="button" onClick={() => { setShowModal(false); setEditingClient(null); setFormData({ name: '', email: '', phone: '', company: '', status: 'lead', source: 'manual', notes: '' }); }}
@@ -295,7 +295,7 @@ export const CRM = () => {
                 Cancelar
               </button>
               <button type="submit" form="crm-form"
-                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
+                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
                 {editingClient ? 'Actualizar' : 'Crear'}
               </button>
             </div>

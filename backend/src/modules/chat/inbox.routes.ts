@@ -71,66 +71,37 @@ router.get('/stats', tenantMiddleware, async (req: TenantRequest, res: Response)
 
     if (!orgId) return res.status(400).json({ error: 'Organization ID required' });
 
-    // Get total conversations
-    const { data: totalConversations, error: totalError } = await supabase
+    // Combine all stats into two queries: count with filters, and breakdown aggregates
+    const { data: conversations, error: convError } = await supabase
       .from('conversations')
-      .select('id', { count: 'exact' })
+      .select('platform_type, priority, status, assigned_to')
       .eq('organization_id', orgId);
 
-    // Get open conversations
-    const { data: openConversations, error: openError } = await supabase
-      .from('conversations')
-      .select('id', { count: 'exact' })
-      .eq('organization_id', orgId)
-      .eq('status', 'open');
+    if (convError) throw convError;
 
-    // Get assigned conversations
-    const { data: assignedConversations, error: assignedError } = await supabase
-      .from('conversations')
-      .select('id', { count: 'exact' })
-      .eq('organization_id', orgId)
-      .not('assigned_to', 'is', null);
+    const total = conversations?.length || 0;
+    let open = 0, assigned = 0, unassigned = 0;
+    const platformCounts: Record<string, number> = {};
+    const priorityCounts: Record<string, number> = {};
 
-    // Get unassigned conversations
-    const { data: unassignedConversations, error: unassignedError } = await supabase
-      .from('conversations')
-      .select('id', { count: 'exact' })
-      .eq('organization_id', orgId)
-      .is('assigned_to', null);
+    for (const conv of conversations || []) {
+      if (conv.status === 'open') open++;
+      if (conv.assigned_to) assigned++;
+      else unassigned++;
 
-    // Get conversations by platform
-    const { data: platformStats, error: platformError } = await supabase
-      .from('conversations')
-      .select('platform_type')
-      .eq('organization_id', orgId);
-
-    // Get conversations by priority
-    const { data: priorityStats, error: priorityError } = await supabase
-      .from('conversations')
-      .select('priority')
-      .eq('organization_id', orgId);
-
-    // Platform breakdown
-    const platformCounts: any = {};
-    if (platformStats) {
-      platformStats.forEach((conv: any) => {
+      if (conv.platform_type) {
         platformCounts[conv.platform_type] = (platformCounts[conv.platform_type] || 0) + 1;
-      });
-    }
-
-    // Priority breakdown
-    const priorityCounts: any = {};
-    if (priorityStats) {
-      priorityStats.forEach((conv: any) => {
+      }
+      if (conv.priority) {
         priorityCounts[conv.priority] = (priorityCounts[conv.priority] || 0) + 1;
-      });
+      }
     }
 
     res.json({
-      total: totalConversations?.length || 0,
-      open: openConversations?.length || 0,
-      assigned: assignedConversations?.length || 0,
-      unassigned: unassignedConversations?.length || 0,
+      total,
+      open,
+      assigned,
+      unassigned,
       byPlatform: platformCounts,
       byPriority: priorityCounts
     });
@@ -165,12 +136,14 @@ router.get('/:conversationId', tenantMiddleware, async (req: TenantRequest, res:
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
-    // Get messages
+    // Get messages (last 100, newest first for pagination)
+    const messageLimit = Math.min(parseInt(req.query.messageLimit as string) || 100, 500);
     const { data: messages, error: messagesError } = await supabase
       .from('messages')
-      .select('*')
+      .select('id, content, created_at, direction, type, status, organization_id')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(messageLimit);
 
     if (messagesError) throw messagesError;
 
@@ -182,13 +155,14 @@ router.get('/:conversationId', tenantMiddleware, async (req: TenantRequest, res:
         users(name, email, avatar_url)
       `)
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
 
     if (notesError) throw notesError;
 
     res.json({
       conversation,
-      messages: messages || [],
+      messages: (messages || []).reverse(), // chronological order
       notes: notes || []
     });
   } catch (error: any) {

@@ -10,13 +10,18 @@ router.get('/', async (req, res) => {
     const orgId = (req as any).organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
-    console.log(`[Conversations API] Fetching conversations for org: ${orgId}`);
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    console.log(`[Conversations API] Fetching conversations for org: ${orgId} (limit: ${limit}, offset: ${offset})`);
     
+    // Only select needed columns for the list; avoid loading all messages
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select('*, contacts(phone_number, profile_name, profile_picture), messages(content, created_at)')
+      .select('id, contact_id, last_message_at, status, created_at, organization_id, contacts(phone_number, profile_name, profile_picture), messages(content, created_at)')
       .eq('organization_id', orgId)
-      .order('last_message_at', { ascending: false });
+      .order('last_message_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     console.log('[Conversations API] DB Response:');
     console.log('  - Error:', error);
@@ -27,15 +32,18 @@ router.get('/', async (req, res) => {
     }
 
     const formattedConversations = (conversations || []).map((conv: any) => {
-      // Pick the latest message content
+      // Pick the latest message content (only first/last, not all messages)
       let lastMessageContent = 'Sin mensajes';
       if (conv.messages && conv.messages.length > 0) {
-        // Find the one with the latest created_at
+        // messages array only contains needed fields
         const latestMsg = conv.messages.reduce((prev: any, current: any) => 
           (new Date(current.created_at) > new Date(prev.created_at)) ? current : prev
         );
         lastMessageContent = latestMsg.content;
       }
+
+      // Remove raw messages data from the output (we already extracted what we need)
+      delete conv.messages;
 
       return {
         _id: conv.id,
@@ -74,14 +82,19 @@ router.get('/:id/messages', async (req, res) => {
     const orgId = (req as any).organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const offset = parseInt(req.query.offset as string) || 0;
+
     const { data: messages } = await supabase
       .from('messages')
-      .select('*')
+      .select('id, content, created_at, direction, type, status')
       .eq('conversation_id', req.params.id)
       .eq('organization_id', orgId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    const formattedMessages = (messages || []).map((msg: any) => ({
+    // Return in chronological order
+    const formattedMessages = (messages || []).reverse().map((msg: any) => ({
       _id: msg.id,
       direction: msg.direction,
       content: msg.content,

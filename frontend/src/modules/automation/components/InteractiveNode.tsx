@@ -4,43 +4,38 @@ import { ListPlus } from 'lucide-react';
 export const InteractiveNode = ({ id, data: initialData }: any) => {
   const nodeData = useNodesData(id);
   const data = nodeData?.data || initialData;
+  const buttons = data.buttons || [];
 
   return (
-    <div className="bg-white dark:bg-black rounded-sm shadow-xl border-2 border-black dark:border-white/10 w-[320px] transition-all">
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-black border-2 border-white dark:border-gray-800" />
-      <div className="bg-black px-4 py-3 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <ListPlus className="w-4 h-4 text-accent-500" />
-          <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Botones Interactivos</h3>
-        </div>
+    <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-violet-200 dark:border-violet-900/50 w-[320px] overflow-hidden transition-all hover:shadow-violet-500/10 group node-container">
+      <Handle type="target" position={Position.Top} className="!bg-white !border-violet-400 group-hover:!bg-violet-500" />
+      <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center gap-2">
+        <ListPlus className="w-4 h-4 text-violet-400" />
+        <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Botones Interactivos</h3>
       </div>
-      <div className="p-4 space-y-4">
-        <div className="text-sm text-slate-600 dark:text-slate-300 font-bold leading-relaxed whitespace-pre-wrap break-words">
-          {data.bodyText || <span className="text-xs text-slate-400 italic font-medium">Configura el mensaje principal...</span>}
-        </div>
-        
-        <div className="space-y-2 pt-2">
-          {data.buttons?.map((btn: any, i: number) => (
-            <div 
-              key={btn.id || `btn-${i}`} 
-              className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-sm text-xs font-black text-accent-600 dark:text-accent-400 text-center relative hover:border-accent-500 transition-colors uppercase tracking-widest"
-            >
-              {btn.text || btn.title}
-              <Handle 
-                type="source" 
-                position={Position.Right} 
-                id={btn.id || `btn-${i}`} 
-                className="w-4 h-4 bg-black hover:bg-black transition-colors right-[-8px] top-1/2 transform -translate-y-1/2 border-2 border-accent-500 shadow-md cursor-crosshair" 
-              />
+      <div className="p-4 space-y-3 bg-white dark:bg-gray-950 group-hover:bg-violet-50/30 dark:group-hover:bg-violet-950/20 transition-colors">
+        {data.bodyText ? (
+          <p className="text-sm text-slate-700 dark:text-slate-200 font-bold leading-relaxed whitespace-pre-wrap break-words">{data.bodyText}</p>
+        ) : (
+          <p className="text-xs text-slate-400 italic font-medium">Configura el mensaje principal...</p>
+        )}
+        <div className="space-y-2 pt-1">
+          {buttons.map((btn: any, i: number) => (
+            <div key={btn.id || `btn-${i}`} className="relative">
+              <div className="px-4 py-2.5 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-800/50 rounded-xl text-xs font-black text-violet-700 dark:text-violet-300 text-center uppercase tracking-widest">
+                {btn.text || btn.title}
+              </div>
+              <Handle type="source" position={Position.Right} id={btn.id || `btn-${i}`} className="!w-3.5 !h-3.5 !bg-white !border-violet-400 !right-[-7px] !top-1/2 !translate-y-[-50%] group-hover:!bg-violet-500" />
             </div>
           ))}
-          {(!data.buttons || data.buttons.length === 0) && (
-             <div className="py-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-sm flex items-center justify-center">
-                <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest italic">Sin botones</span>
-             </div>
+          {buttons.length === 0 && (
+            <div className="py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center">
+              <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest italic">Sin botones</span>
+            </div>
           )}
         </div>
       </div>
+      <Handle type="source" position={Position.Bottom} className="!bg-white !border-violet-400 group-hover:!bg-violet-500" />
     </div>
   );
 };

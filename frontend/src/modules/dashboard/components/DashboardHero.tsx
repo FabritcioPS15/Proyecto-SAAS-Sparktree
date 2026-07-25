@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Activity, AlertCircle } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import { Badge } from '../../../components/ui/Badge';
 
 export const DashboardHero = () => {
   return (
@@ -21,10 +21,10 @@ export const DashboardHero = () => {
         
         {/* Quick Summary Badges */}
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Badge icon={<Activity className="w-3 h-3" />} text="99.9% Uptime" color="emerald" />
-          <Badge icon={<span className="w-2 h-2 rounded-full bg-blue-500" />} text="134 conversaciones hoy" color="blue" />
-          <Badge text="5 canales activos" color="slate" />
-          <Badge icon={<AlertCircle className="w-3 h-3" />} text="0 alertas críticas" color="slate" />
+          <Badge variant="success" size="sm" shape="square" icon={<Activity className="w-3 h-3" />}>99.9% Uptime</Badge>
+          <Badge variant="info" size="sm" shape="square" icon={<span className="w-2 h-2 rounded-full bg-current" />}>134 conversaciones hoy</Badge>
+          <Badge variant="default" size="sm" shape="square">5 canales activos</Badge>
+          <Badge variant="default" size="sm" shape="square" icon={<AlertCircle className="w-3 h-3" />}>0 alertas críticas</Badge>
         </div>
       </div>
 
@@ -41,18 +41,4 @@ export const DashboardHero = () => {
   );
 };
 
-function Badge({ text, icon, color }: { text: string, icon?: React.ReactNode, color: 'emerald' | 'blue' | 'slate' | 'red' }) {
-  const colorStyles = {
-    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20",
-    blue: "bg-blue-50 text-blue-700 border-blue-200/50 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20",
-    slate: "bg-slate-100 text-slate-600 border-slate-200/50 dark:bg-slate-800/50 dark:text-slate-400 dark:border-white/5",
-    red: "bg-red-50 text-red-700 border-red-200/50 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20"
-  };
 
-  return (
-    <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border", colorStyles[color])}>
-      {icon}
-      {text}
-    </div>
-  );
-}

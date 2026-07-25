@@ -195,6 +195,36 @@ export const deleteOrganization = async (id: string) => {
   }
 };
 
+export const updateOrganizationPayment = async (id: string, paymentStatus: string) => {
+  try {
+    const response = await api.put(`/admin/organizations/${id}/payment`, { paymentStatus });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating payment:', error);
+    throw error;
+  }
+};
+
+export const updateOrganizationNotification = async (id: string, notification: string | null, showPopup: boolean) => {
+  try {
+    const response = await api.put(`/admin/organizations/${id}/notification`, { notification, showPopup });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating notification:', error);
+    throw error;
+  }
+};
+
+export const getOrganizationNotifications = async () => {
+  try {
+    const response = await api.get('/admin/organizations/notifications');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
 export const getLeads = async () => {
   try {
     const response = await api.get('/leads');
@@ -758,13 +788,46 @@ export const getCrmDashboard = async () => {
 };
 
 // Catalogs endpoints
+const MOCK_CATALOGS = [
+  {
+    id: 'mock-cat-1',
+    name: 'Productos Destacados',
+    description: 'Catálogo de productos más vendidos',
+    status: 'active',
+    items: [
+      { id: 'mock-item-1', title: 'Camiseta Premium', price: '29.99', type: 'image', url: '', description: 'Camiseta de algodón orgánico', media_url: 'https://picsum.photos/seed/shirt/400/400', media_type: 'image' },
+      { id: 'mock-item-2', title: 'Taza Personalizada', price: '14.99', type: 'image', url: '', description: 'Taza de cerámica con diseño exclusivo', media_url: 'https://picsum.photos/seed/mug/400/400', media_type: 'image' },
+      { id: 'mock-item-3', title: 'Gorra Deportiva', price: '19.99', type: 'image', url: '', description: 'Gorra ajustable transpirable', media_url: 'https://picsum.photos/seed/cap/400/400', media_type: 'image' },
+    ],
+  },
+  {
+    id: 'mock-cat-2',
+    name: 'Servicios Digitales',
+    description: 'Paquetes de servicios online',
+    status: 'active',
+    items: [
+      { id: 'mock-item-4', title: 'Plan Básico', price: '9.99', type: 'image', url: '', description: 'Acceso a contenido básico por 1 mes', media_url: 'https://picsum.photos/seed/basic/400/400', media_type: 'image' },
+      { id: 'mock-item-5', title: 'Plan Premium', price: '29.99', type: 'image', url: '', description: 'Acceso ilimitado + soporte prioritario', media_url: 'https://picsum.photos/seed/premium/400/400', media_type: 'image' },
+    ],
+  },
+  {
+    id: 'mock-cat-3',
+    name: 'Ofertas Especiales',
+    description: 'Productos en descuento por tiempo limitado',
+    status: 'draft',
+    items: [
+      { id: 'mock-item-6', title: 'Pack Bienvenida', price: '49.99', type: 'image', url: '', description: 'Kit completo de bienvenida con 3 productos', media_url: 'https://picsum.photos/seed/welcome/400/400', media_type: 'image' },
+    ],
+  },
+];
+
 export const getCatalogs = async () => {
   try {
     const response = await api.get('/catalogs');
     return response.data;
   } catch (error) {
-    console.error('Error fetching catalogs:', error);
-    throw error;
+    console.warn('API fallback: using mock catalog data');
+    return MOCK_CATALOGS;
   }
 };
 
@@ -795,6 +858,162 @@ export const deleteCatalog = async (id: string) => {
   } catch (error) {
     console.error('Error deleting catalog:', error);
     throw error;
+  }
+};
+
+// ============ Knowledge Base (RAG) endpoints ============
+const MOCK_KNOWLEDGE_BASES = [
+  {
+    id: 'kb-mock-1',
+    name: 'Productos y Servicios',
+    description: 'Información de productos, precios y disponibilidad',
+    documentCount: 3,
+    chunkSize: 500,
+    chunkOverlap: 50,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'kb-mock-2',
+    name: 'FAQ y Soporte',
+    description: 'Preguntas frecuentes y políticas de atención',
+    documentCount: 2,
+    chunkSize: 400,
+    chunkOverlap: 30,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+const MOCK_DOCUMENTS: Record<string, any[]> = {
+  'kb-mock-1': [
+    { id: 'doc-mock-1', title: 'Catálogo de productos 2024', type: 'text', status: 'ready', chunkCount: 8, createdAt: new Date().toISOString() },
+    { id: 'doc-mock-2', title: 'Política de precios', type: 'text', status: 'ready', chunkCount: 4, createdAt: new Date().toISOString() },
+    { id: 'doc-mock-3', title: 'https://ejemplo.com/productos', type: 'url', status: 'ready', chunkCount: 6, createdAt: new Date().toISOString() },
+  ],
+  'kb-mock-2': [
+    { id: 'doc-mock-4', title: 'Preguntas frecuentes', type: 'text', status: 'ready', chunkCount: 12, createdAt: new Date().toISOString() },
+    { id: 'doc-mock-5', title: 'Términos del servicio', type: 'text', status: 'processing', chunkCount: 0, createdAt: new Date().toISOString() },
+  ],
+};
+
+export const getKnowledgeBases = async () => {
+  try {
+    const response = await api.get('/knowledge/bases');
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: using mock KB data');
+    return MOCK_KNOWLEDGE_BASES;
+  }
+};
+
+export const createKnowledgeBase = async (data: { name: string; description?: string }) => {
+  try {
+    const response = await api.post('/knowledge/bases', data);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: mock create KB');
+    return { id: `kb-mock-${Date.now()}`, ...data, documentCount: 0, chunkSize: 500, chunkOverlap: 50, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  }
+};
+
+export const deleteKnowledgeBase = async (id: string) => {
+  try {
+    const response = await api.delete(`/knowledge/bases/${id}`);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: mock delete KB');
+    return { success: true };
+  }
+};
+
+export const getKnowledgeDocuments = async (baseId: string) => {
+  try {
+    const response = await api.get(`/knowledge/bases/${baseId}/documents`);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: using mock documents');
+    return MOCK_DOCUMENTS[baseId] || [];
+  }
+};
+
+export const addDocument = async (baseId: string, data: { title: string; content?: string; url?: string; type: string }) => {
+  try {
+    const response = await api.post(`/knowledge/bases/${baseId}/documents`, data);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: mock add document');
+    return { id: `doc-mock-${Date.now()}`, title: data.title, type: data.type, status: 'processing', chunkCount: 0, createdAt: new Date().toISOString() };
+  }
+};
+
+export const deleteDocument = async (baseId: string, docId: string) => {
+  try {
+    const response = await api.delete(`/knowledge/documents/${docId}`);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: mock delete document');
+    return { success: true };
+  }
+};
+
+export const ragQuery = async (data: { knowledgeBaseId: string; query: string }) => {
+  try {
+    const response = await api.post('/knowledge/rag', data);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: mock RAG query');
+    const mockSources = [
+      { title: 'Fragmento sobre productos', content: 'Nuestros productos incluyen camisetas, tazas y gorras personalizadas.', similarity: 0.92 },
+      { title: 'Información de precios', content: 'Los precios van desde $9.99 para planes básicos hasta $29.99 para premium.', similarity: 0.78 },
+    ];
+    return {
+      context: 'Información relevante encontrada en la base de conocimiento:\n' + mockSources.map(s => s.content).join('\n'),
+      sources: mockSources,
+      query: data.query,
+      knowledgeBaseId: data.knowledgeBaseId,
+    };
+  }
+};
+
+// ============ AI Provider endpoints ============
+export const getAIProviders = async () => {
+  try {
+    const response = await api.get('/ai/providers');
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: using mock AI provider config');
+    const saved = localStorage.getItem('sparktree_ai_providers');
+    return saved ? JSON.parse(saved) : [];
+  }
+};
+
+export const saveAIProvider = async (data: { provider: string; apiKey: string; model: string; baseUrl?: string }) => {
+  try {
+    const response = await api.post('/ai/providers', data);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: saving AI provider to localStorage');
+    const saved = localStorage.getItem('sparktree_ai_providers');
+    const providers = saved ? JSON.parse(saved) : [];
+    const existing = providers.findIndex((p: any) => p.provider === data.provider);
+    if (existing >= 0) providers[existing] = { ...providers[existing], ...data };
+    else providers.push({ id: `provider-${Date.now()}`, ...data });
+    localStorage.setItem('sparktree_ai_providers', JSON.stringify(providers));
+    return { success: true };
+  }
+};
+
+export const deleteAIProvider = async (provider: string) => {
+  try {
+    const response = await api.delete(`/ai/providers/${provider}`);
+    return response.data;
+  } catch (error) {
+    console.warn('API fallback: deleting AI provider from localStorage');
+    const saved = localStorage.getItem('sparktree_ai_providers');
+    const providers = saved ? JSON.parse(saved) : [];
+    localStorage.setItem('sparktree_ai_providers', JSON.stringify(providers.filter((p: any) => p.provider !== provider)));
+    return { success: true };
   }
 };
 

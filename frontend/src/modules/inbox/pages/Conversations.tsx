@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getConversations, getConversationMessages, deleteConversation, deleteUser, getCatalogs } from '../../../services/api';
 import api from '../../../services/api';
 import {
-  Check, Send, Search, Filter, Users, MoreVertical, Smile, Paperclip, Mic, Star, MessageCircle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Store, Package, X
+  Check, Send, Search, Filter, Users, MoreVertical, Smile, Paperclip, Mic, Star, MessageCircle, Trash2, ChevronLeft, ChevronRight, ChevronDown, Store, Package, X, Bell, Shield
 } from 'lucide-react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
 import { PageLoader } from '../../../components/layout/PageLoader';
@@ -35,6 +35,7 @@ export const Conversations = () => {
   const [filterChannel, setFilterChannel] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isChatMenuOpen, setIsChatMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -46,21 +47,48 @@ export const Conversations = () => {
   // Assignment state (mock)
   const [assignedAgents, setAssignedAgents] = useState<Record<string, string>>({});
   const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [showMobileChat, setShowMobileChat] = useState(false);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const lastMessagesLength = useRef(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [mutedConversations, setMutedConversations] = useState<Set<string>>(new Set());
+  const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
+  const [chatSearchTerm, setChatSearchTerm] = useState('');
+  const [chatSearchIndex, setChatSearchIndex] = useState(0);
+  const chatSearchRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  const isNearBottom = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+  };
 
   useEffect(() => {
-    if (messagesContainerRef.current && messages.length > 0) {
-      if (messages.length > lastMessagesLength.current) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      }
-      lastMessagesLength.current = messages.length;
+    if (messages.length > lastMessagesLength.current || isNearBottom()) {
+      scrollToBottom();
     }
+    lastMessagesLength.current = messages.length;
   }, [messages]);
 
   useEffect(() => {
     lastMessagesLength.current = 0;
+    setChatSearchTerm('');
+    setChatSearchIndex(0);
+    setIsChatSearchOpen(false);
   }, [selectedConv]);
 
   useEffect(() => {
@@ -108,6 +136,7 @@ export const Conversations = () => {
       const conv = conversations.find(c => c._id === id);
       if (conv) {
         setSelectedConv(conv);
+        setShowMobileChat(true);
       }
     }
   }, [id, conversations]);
@@ -199,6 +228,232 @@ export const Conversations = () => {
     }
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (audioBlob.size === 0 || !selectedConv) return;
+
+        const formData = new FormData();
+        formData.append('audio', audioBlob, `audio-${Date.now()}.webm`);
+        if (selectedConnectionId) formData.append('whatsapp_connection_id', selectedConnectionId);
+
+        const optimistic = {
+          _id: `tmp-${Date.now()}`,
+          direction: 'outbound',
+          content: JSON.stringify({ url: URL.createObjectURL(audioBlob), type: 'audio' }),
+          createdAt: new Date().toISOString(),
+          type: 'audio',
+          status: 'sending'
+        };
+        setMessages(prev => [...prev, optimistic]);
+
+        try {
+          const response = await api.post(`/conversations/${selectedConv._id}/send`, { audio: audioBlob, whatsapp_connection_id: selectedConnectionId || undefined }, { headers: { 'Content-Type': 'multipart/form-data' } });
+          setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
+        } catch {
+          setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+          addNotification({ type: 'error', title: 'Error', message: 'Error al enviar el audio.' });
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+    } catch {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo acceder al micrófono.' });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    audioChunksRef.current = [];
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const getTagColor = (tag: string) => {
+    const colors = [
+      'bg-accent-500/10 text-accent-600 dark:text-accent-400',
+      'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+      'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+      'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+      'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+      'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+    ];
+    let hash = 0;
+    for (let i = 0; i < tag.length; i++) hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const EMOJIS = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✌️','🤞','🤟','🤘','👌','💪','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','🔥','⭐','✨','💯','🎉','🎊','🥳','🎈','🎁','💡','📌','📍','💀','☠️','👋','🤚','🖐️','✋','🖖','🖕','🤙','💅'];
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const handleEmojiSelect = (emoji: string) => {
+    setMessageText(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleAttachFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isMuted = mutedConversations.has(convId);
+    setMutedConversations(prev => {
+      const next = new Set(prev);
+      if (next.has(convId)) next.delete(convId);
+      else next.add(convId);
+      return next;
+    });
+    setIsChatMenuOpen(false);
+    setIsMenuOpen(false);
+    addNotification({ type: 'success', title: isMuted ? 'Silencio desactivado' : 'Conversación silenciada', message: '' });
+  };
+
+  const [blockedContacts, setBlockedContacts] = useState<Set<string>>(new Set());
+
+  const handleBlockContact = (contactId?: string) => {
+    if (!contactId) return;
+    setBlockedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(contactId)) {
+        next.delete(contactId);
+        return next;
+      }
+      next.add(contactId);
+      return next;
+    });
+    setIsChatMenuOpen(false);
+    setIsMenuOpen(false);
+    const isBlocked = blockedContacts.has(contactId || '');
+    addNotification({ type: 'success', title: isBlocked ? 'Contacto desbloqueado' : 'Contacto bloqueado', message: '' });
+  };
+
+  const handleSearchInChat = () => {
+    setIsChatSearchOpen(true);
+    setChatSearchTerm('');
+    setChatSearchIndex(0);
+    setIsChatMenuOpen(false);
+    setIsMenuOpen(false);
+    setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('input[placeholder="Buscar en conversación..."]');
+      input?.focus();
+    }, 100);
+  };
+
+  const parseMessage = (content: any): string => {
+    if (!content) return '';
+    try {
+      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      const body = parsed.body ||
+        parsed.text?.body ||
+        parsed.text ||
+        parsed.conversation ||
+        parsed.caption ||
+        parsed.extendedTextMessage?.text ||
+        parsed.interactive?.button_reply?.title ||
+        parsed.interactive?.list_reply?.title ||
+        parsed.message?.conversation ||
+        parsed.message?.extendedTextMessage?.text;
+
+      if (body) return body;
+      if (parsed.url || parsed.imageMessage || parsed.videoMessage || parsed.documentMessage || parsed.media) return '';
+      return '';
+    } catch {
+      return '';
+    }
+  };
+
+  const getMessageMedia = (content: any): { url: string; type: 'image' | 'video' | 'document' | 'audio' } | null => {
+    if (!content) return null;
+    try {
+      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      const media =
+        parsed.imageMessage ||
+        parsed.videoMessage ||
+        parsed.documentMessage ||
+        parsed.media;
+      if (media?.url) return { url: media.url, type: media.mimetype?.startsWith('video') ? 'video' : media.mimetype?.startsWith('image') ? 'image' : media.mimetype?.startsWith('audio') ? 'audio' : 'document' };
+      if (parsed.url) {
+        if (parsed.type === 'audio') return { url: parsed.url, type: 'audio' };
+        return { url: parsed.url, type: 'image' };
+      }
+      if (typeof content === 'string' && (content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i))) {
+        const match = content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i);
+        return match ? { url: match[0], type: 'image' } : null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const filteredMessages = messages.filter(m => {
+    if (!chatSearchTerm) return true;
+    const body = parseMessage(m.content);
+    return body?.toLowerCase().includes(chatSearchTerm.toLowerCase());
+  });
+
+  const chatSearchResults = !chatSearchTerm ? [] : messages
+    .map((m, i) => ({ m, i, body: parseMessage(m.content) }))
+    .filter(({ body }) => body?.toLowerCase().includes(chatSearchTerm.toLowerCase()));
+
+  const goToChatSearchResult = (dir: 'next' | 'prev') => {
+    if (chatSearchResults.length === 0) return;
+    const next = dir === 'next'
+      ? (chatSearchIndex + 1) % chatSearchResults.length
+      : (chatSearchIndex - 1 + chatSearchResults.length) % chatSearchResults.length;
+    setChatSearchIndex(next);
+    const idx = chatSearchResults[next]?.i;
+    if (idx !== undefined && chatSearchRefs.current[idx]) {
+      chatSearchRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  useEffect(() => {
+    chatSearchRefs.current = chatSearchRefs.current.slice(0, messages.length);
+  }, [messages]);
+
   const handleSendMessage = async () => {
     if (!messageText.trim() || !selectedConv || sending) return;
     const text = messageText.trim();
@@ -244,29 +499,6 @@ export const Conversations = () => {
     }
   };
 
-  const parseMessage = (content: any): string => {
-    if (!content) return '';
-    try {
-      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-      const body = parsed.body ||
-        parsed.text?.body ||
-        parsed.text ||
-        parsed.conversation ||
-        parsed.extendedTextMessage?.text ||
-        parsed.interactive?.button_reply?.title ||
-        parsed.interactive?.list_reply?.title ||
-        parsed.message?.conversation ||
-        parsed.message?.extendedTextMessage?.text;
-
-      if (body) return body;
-      if (parsed.type === 'media' || parsed.media || parsed.imageMessage || parsed.videoMessage) {
-        return 'ðŸ“· Archivo multimedia';
-      }
-      return typeof content === 'string' ? content : 'Mensaje';
-    } catch {
-      return typeof content === 'string' ? content : 'Mensaje';
-    }
-  };
 
   const formatTime = (dateString: string) => {
     if (!dateString) return '';
@@ -310,13 +542,13 @@ export const Conversations = () => {
   if (loading) return <PageLoader sectionName="Conversaciones" />;
 
   return (
-    <div className="flex-1 flex overflow-hidden antialiased h-full">
+    <div className="flex-1 flex overflow-hidden antialiased">
 
       {/* --- SIDEBAR: Chat List --- */}
-      <div className="w-[340px] lg:w-[380px] h-full flex flex-col bg-white dark:bg-dark-card border-r border-gray-100 dark:border-white/5 z-20 shadow-2xl relative transition-all duration-500">
+      <div className={`w-[340px] lg:w-[420px] xl:w-[460px] h-full flex flex-col bg-white dark:bg-dark-card border-r border-gray-100 dark:border-white/5 z-20 shadow-2xl relative transition-all duration-500 ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Sidebar Header */}
-        <div className="pt-6 px-5 pb-3">
+        <div className="pt-6 px-5 md:px-6 pb-3">
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Conversaciones</h1>
             <div className="flex items-center gap-1">
@@ -401,7 +633,7 @@ export const Conversations = () => {
         </div>
 
         {/* Chat Items List */}
-        <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 pb-4 space-y-3 custom-scrollbar">
           {paginatedConversations.map((conv) => {
             const isSelected = selectedConv?._id === conv._id;
             const contact = conv.contactId || {};
@@ -416,12 +648,13 @@ export const Conversations = () => {
                   if (selectedConv?._id !== conv._id) {
                     setMessages([]);
                     setMessageText('');
+                    setShowMobileChat(true);
                     navigate(`/conversations/${conv._id}`);
                   }
                 }}
-                className={`flex items-start gap-3 p-3.5 cursor-pointer rounded-2xl transition-all duration-300 relative group border ${isSelected
+                className={`flex items-start gap-3 md:gap-4 p-3 md:p-4 cursor-pointer transition-all duration-300 relative group rounded-2xl border ${isSelected
                   ? 'bg-white dark:bg-dark-card border-accent-500/10 shadow-lg scale-[1.01] z-10'
-                  : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5'
+                  : 'bg-white dark:bg-dark-card border-gray-100 dark:border-white/5 md:bg-transparent md:border-transparent shadow-sm md:shadow-none hover:shadow-md md:hover:shadow-none hover:border-gray-200 dark:hover:border-white/10 md:hover:bg-gray-50 dark:hover:bg-white/5'
                   }`}
               >
                 {/* Active Indicator */}
@@ -440,14 +673,24 @@ export const Conversations = () => {
                 {/* Info Container */}
                 <div className="flex-1 min-w-0 pt-0.5">
                   <div className="flex justify-between items-center mb-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <span className="font-bold text-gray-900 dark:text-gray-100 truncate text-[13px] tracking-tight">
                         {contact.name || contact.phoneNumber}
                       </span>
-                      <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider text-white flex items-center gap-1 ${channelBadge.color}`}>
+                      <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider text-white flex items-center gap-1 shrink-0 ${channelBadge.color}`}>
                         {ChannelIcon ? <ChannelIcon className="w-3 h-3" /> : <span className="w-3 h-3 flex items-center justify-center text-[8px] font-bold">T</span>}
                         {channelBadge.label}
                       </div>
+                      {conv.tags?.map((tag: string, i: number) => (
+                        <span key={i} className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider shrink-0 ${getTagColor(tag)}`}>
+                          {tag}
+                        </span>
+                      ))}
+                      {contact.tags?.map((tag: string, i: number) => (
+                        <span key={`c-${i}`} className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider shrink-0 ${getTagColor(tag)}`}>
+                          {tag}
+                        </span>
+                      ))}
                     </div>
                     <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase">
                       {formatTime(conv.lastMessageAt)}
@@ -468,7 +711,7 @@ export const Conversations = () => {
 
                       <button
                         onClick={(e) => handleDeleteConversation(e, conv._id, conv.contactId?._id)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                        className="md:opacity-0 md:group-hover:opacity-100 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -484,7 +727,7 @@ export const Conversations = () => {
         {totalPages > 1 && (
           <div className="p-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between">
             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              PÃ¡g {currentPage} / {totalPages}
+              P\u00E1g {currentPage} / {totalPages}
             </div>
             <div className="flex items-center gap-1.5">
               <button
@@ -507,79 +750,147 @@ export const Conversations = () => {
       </div>
 
       {/* --- MAIN PANE --- */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden h-full relative">
+      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden h-full relative bg-gray-50/50 dark:bg-[#1a1a1a] ${showMobileChat ? 'flex' : 'hidden md:flex'}`}>
 
         {/* Modern Top Info Bar */}
 
 
         {selectedConv ? (
           <>
-            {/* Conversation Header Card */}
-            <div className="px-8 py-4">
-              <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-lg flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md ${generateAvatar(selectedConv.contactId).bgColor}`}>
-                    {selectedConv.contactId?.isGroup ? <Users className="w-7 h-7" /> : generateAvatar(selectedConv.contactId).content}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-0.5">
-                      <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
-                        {selectedConv.contactId?.name || selectedConv.contactId?.phoneNumber}
-                      </h3>
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                    </div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedConv.contactId?.phoneNumber}</span>
-                  </div>
+            {/* Conversation Header */}
+            <div className="shrink-0">
+              {/* Mobile header (WhatsApp style) */}
+              <div className="md:hidden flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-dark-card border-b border-gray-100 dark:border-white/5">
+                <button
+                  onClick={() => { setSelectedConv(null); setShowMobileChat(false); navigate('/conversations'); }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm ${generateAvatar(selectedConv.contactId).bgColor}`}>
+                  {selectedConv.contactId?.isGroup ? <Users className="w-4 h-4" /> : generateAvatar(selectedConv.contactId).content}
                 </div>
-                <div className="flex flex-col items-end gap-2 relative">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Siendo atendida por:</span>
-                    <div className="relative">
-                      <button
-                        onClick={() => setIsAssignOpen(!isAssignOpen)}
-                        className="flex items-center gap-2 text-xs font-bold text-gray-900 dark:text-white dark:bg-white/5 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-white/10 hover:border-accent-500/50 hover:bg-white dark:hover:bg-white/10 transition-all shadow-sm"
-                      >
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        {assignedAgents[selectedConv._id] ? MOCK_AGENTS.find(a => a.id === assignedAgents[selectedConv._id])?.name : 'Sin asignar'}
-                        <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-                      </button>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                    {selectedConv.contactId?.name || selectedConv.contactId?.phoneNumber}
+                  </h3>
+                  <span className="text-[10px] text-gray-400 font-semibold">En línea</span>
+                </div>
+                <div className="relative">
+                  <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-gray-400 hover:text-accent-500 rounded-xl transition-all">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                  {isMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-dark-card border border-gray-100 dark:border-white/5 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <button onClick={handleSearchInChat} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <Search className="w-4 h-4 text-gray-400" /> Buscar
+                        </button>
+                        <button onClick={() => handleMuteConversation(selectedConv._id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <Bell className={`w-4 h-4 ${mutedConversations.has(selectedConv._id) ? 'text-accent-500' : 'text-gray-400'}`} /> {mutedConversations.has(selectedConv._id) ? 'Silenciado' : 'Silenciar'}
+                        </button>
+                        <button onClick={() => handleBlockContact(selectedConv.contactId?._id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <Shield className={`w-4 h-4 ${blockedContacts.has(selectedConv.contactId?._id || '') ? 'text-red-500' : 'text-gray-400'}`} /> {blockedContacts.has(selectedConv.contactId?._id || '') ? 'Bloqueado' : 'Bloquear'}
+                        </button>
+                        <div className="border-t border-gray-100 dark:border-white/5" />
+                        <button onClick={(e) => { setIsMenuOpen(false); handleDeleteConversation(e as any, selectedConv._id, selectedConv.contactId?._id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                          <Trash2 className="w-4 h-4" /> Eliminar
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
 
-                      {isAssignOpen && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setIsAssignOpen(false)}></div>
-                          <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-dark-card border border-gray-100 dark:border-white/5 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                            <div className="px-3 py-2 border-b border-gray-100 dark:border-white/5 dark:bg-white/5">
-                              <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Asignar a:</span>
-                            </div>
-                            <div className="py-1">
-                              {MOCK_AGENTS.map(agent => (
-                                <button
-                                  key={agent.id}
-                                  onClick={() => {
-                                    setAssignedAgents(prev => ({ ...prev, [selectedConv._id]: agent.id }));
-                                    setIsAssignOpen(false);
-                                  }}
-                                  className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors font-bold ${assignedAgents[selectedConv._id] === agent.id
-                                    ? 'text-accent-500 bg-accent-500/5'
-                                    : 'text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                  {agent.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
+              {/* Desktop header (card style) */}
+              <div className="hidden md:block px-4 md:px-8 py-4">
+                <div className="bg-white/60 dark:bg-white/5 backdrop-blur-2xl p-5 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-lg flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md ${generateAvatar(selectedConv.contactId).bgColor}`}>
+                      {selectedConv.contactId?.isGroup ? <Users className="w-7 h-7" /> : generateAvatar(selectedConv.contactId).content}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-0.5">
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                          {selectedConv.contactId?.name || selectedConv.contactId?.phoneNumber}
+                        </h3>
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                      </div>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedConv.contactId?.phoneNumber}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button className="p-2 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
-                      <Search className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                  <div className="flex flex-col items-end gap-2 relative">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Siendo atendida por:</span>
+                      <div className="relative">
+                        <button
+                          onClick={() => setIsAssignOpen(!isAssignOpen)}
+                          className="flex items-center gap-2 text-xs font-bold text-gray-900 dark:text-white dark:bg-white/5 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-white/10 hover:border-accent-500/50 hover:bg-white dark:hover:bg-white/10 transition-all shadow-sm"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          {assignedAgents[selectedConv._id] ? MOCK_AGENTS.find(a => a.id === assignedAgents[selectedConv._id])?.name : 'Sin asignar'}
+                          <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                        </button>
+                        {isAssignOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsAssignOpen(false)}></div>
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-dark-card border border-gray-100 dark:border-white/5 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                              <div className="px-3 py-2 border-b border-gray-100 dark:border-white/5 dark:bg-white/5">
+                                <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Asignar a:</span>
+                              </div>
+                              <div className="py-1">
+                                {MOCK_AGENTS.map(agent => (
+                                  <button
+                                    key={agent.id}
+                                    onClick={() => {
+                                      setAssignedAgents(prev => ({ ...prev, [selectedConv._id]: agent.id }));
+                                      setIsAssignOpen(false);
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors font-bold ${assignedAgents[selectedConv._id] === agent.id
+                                      ? 'text-accent-500 bg-accent-500/5'
+                                      : 'text-gray-700 dark:text-gray-300'
+                                      }`}
+                                  >
+                                    {agent.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button className="p-2 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
+                        <Search className="w-4 h-4" />
+                      </button>
+                      <div className="relative">
+                        <button onClick={() => setIsChatMenuOpen(!isChatMenuOpen)} className="p-2 text-gray-400 hover:text-accent-500 hover:bg-accent-500/5 rounded-xl transition-all">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        {isChatMenuOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsChatMenuOpen(false)} />
+                            <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-dark-card border border-gray-100 dark:border-white/5 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                              <button onClick={handleSearchInChat} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <Search className="w-4 h-4 text-gray-400" /> Buscar
+                              </button>
+                              <button onClick={() => handleMuteConversation(selectedConv._id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <Bell className={`w-4 h-4 ${mutedConversations.has(selectedConv._id) ? 'text-accent-500' : 'text-gray-400'}`} /> {mutedConversations.has(selectedConv._id) ? 'Silenciado' : 'Silenciar'}
+                              </button>
+                              <button onClick={() => handleBlockContact(selectedConv.contactId?._id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <Shield className={`w-4 h-4 ${blockedContacts.has(selectedConv.contactId?._id || '') ? 'text-red-500' : 'text-gray-400'}`} /> {blockedContacts.has(selectedConv.contactId?._id || '') ? 'Bloqueado' : 'Bloquear'}
+                              </button>
+                              <div className="border-t border-gray-100 dark:border-white/5" />
+                              <button onClick={(e) => { setIsChatMenuOpen(false); handleDeleteConversation(e as any, selectedConv._id, selectedConv.contactId?._id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                                <Trash2 className="w-4 h-4" /> Eliminar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -588,16 +899,78 @@ export const Conversations = () => {
             {/* Chat Body */}
             <div
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto px-8 pb-4 space-y-4 custom-scrollbar relative z-10"
+              className="flex-1 overflow-y-auto px-4 md:px-8 pt-4 pb-4 space-y-4 custom-scrollbar relative z-10"
             >
-              {messages.map((m) => {
+              {/* In-chat search bar */}
+              {isChatSearchOpen && (
+                <div className="sticky top-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-2 bg-white/95 dark:bg-dark-card/95 backdrop-blur-sm border-b border-gray-100 dark:border-white/5 mb-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={chatSearchTerm}
+                        onChange={(e) => { setChatSearchTerm(e.target.value); setChatSearchIndex(0); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') goToChatSearchResult('next'); }}
+                        placeholder="Buscar en conversación..."
+                        className="w-full h-9 pl-9 pr-3 bg-gray-100 dark:bg-white/10 border border-transparent focus:border-accent-500/30 rounded-xl outline-none text-xs font-semibold text-gray-900 dark:text-white placeholder:text-gray-400 transition-all"
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 tabular-nums whitespace-nowrap">
+                      {chatSearchTerm ? `${chatSearchIndex + 1}/${chatSearchResults.length}` : ''}
+                    </span>
+                    <button onClick={() => goToChatSearchResult('prev')} disabled={!chatSearchTerm || chatSearchResults.length === 0}
+                      className="p-1.5 text-gray-400 hover:text-accent-500 disabled:opacity-30 transition-all">
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => goToChatSearchResult('next')} disabled={!chatSearchTerm || chatSearchResults.length === 0}
+                      className="p-1.5 text-gray-400 hover:text-accent-500 disabled:opacity-30 transition-all">
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => { setIsChatSearchOpen(false); setChatSearchTerm(''); }}
+                      className="p-1.5 text-gray-400 hover:text-red-500 transition-all">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {messages.map((m, msgIdx) => {
                 const isMe = m.direction === 'outbound';
                 const body = parseMessage(m.content);
-                if (!body && m.direction === 'inbound') return null;
+                const media = getMessageMedia(m.content);
+                const isCurrentSearch = chatSearchResults[chatSearchIndex]?.i === msgIdx;
+                const searchKey = chatSearchTerm || '';
+
+                const highlightText = (text: string) => {
+                  if (!chatSearchTerm) {
+                    return text
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/\*\*(.+?)\*\*/g, '<strong class="font-extrabold">$1</strong>')
+                      .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
+                      .replace(/~~(.+?)~~/g, '<span class="line-through">$1</span>')
+                      .replace(/`(.+?)`/g, '<code class="bg-black/10 dark:bg-white/10 px-1 rounded text-[11px] font-mono">$1</code>')
+                      .replace(/\n/g, '<br />');
+                  }
+                  const parts = text.split(new RegExp(`(${chatSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+                  const html = parts.map(part =>
+                    part.toLowerCase() === chatSearchTerm.toLowerCase()
+                      ? `<mark class="bg-amber-300 dark:bg-amber-600/60 text-inherit rounded-sm px-0.5">${part}</mark>`
+                      : part
+                  ).join('');
+                  return html
+                    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-extrabold">$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
+                    .replace(/~~(.+?)~~/g, '<span class="line-through">$1</span>')
+                    .replace(/`(.+?)`/g, '<code class="bg-black/10 dark:bg-white/10 px-1 rounded text-[11px] font-mono">$1</code>')
+                    .replace(/\n/g, '<br />');
+                };
 
                 return (
-                  <div key={m._id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
-                    <div className="flex items-end gap-2 max-w-[80%] lg:max-w-[60%]">
+                  <div key={`${m._id}-${searchKey}`} ref={el => { chatSearchRefs.current[msgIdx] = el; }}
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-500 ${isCurrentSearch ? 'ring-2 ring-amber-400 dark:ring-amber-500 rounded-2xl scale-[1.02] transition-all duration-300' : ''}`}>
+                    <div className="flex items-end gap-2 max-w-[90%] md:max-w-[80%] lg:max-w-[70%] xl:max-w-[60%]">
                       {!isMe && (
                         <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 mb-1">
                           <Users className="w-3 h-3 text-gray-400" />
@@ -607,8 +980,27 @@ export const Conversations = () => {
                         ? 'bg-gradient-to-br from-accent-400 to-accent-600 text-white dark:text-black rounded-br-none'
                         : 'bg-white dark:bg-dark-card text-gray-900 dark:text-white rounded-bl-none border border-gray-100 dark:border-white/5'
                         }`}>
-                        <p className="text-[13px] font-medium leading-relaxed whitespace-pre-wrap tracking-wide">{body}</p>
-                        <div className={`flex justify-end items-center gap-1.5 mt-2 ${isMe ? 'text-white/70 dark:text-black/60' : 'text-gray-400 dark:text-gray-500'}`}>
+                        {media ? (
+                          <div className="-mx-5 -mt-3 mb-2 rounded-t-2xl overflow-hidden">
+                            {media.type === 'image' ? (
+                              <img src={media.url} alt="Imagen" className="w-full h-auto object-contain bg-black/5" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            ) : media.type === 'video' ? (
+                              <video src={media.url} controls className="w-full max-h-64" />
+                            ) : media.type === 'audio' ? (
+                              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-white/5">
+                                <Mic className="w-5 h-5 text-accent-500" />
+                                <audio src={media.url} controls className="flex-1 h-8" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-white/5">
+                                <Paperclip className="w-5 h-5 text-gray-400" />
+                                <span className="text-xs font-semibold text-gray-500 truncate">Documento</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                        {body && <p className="text-[13px] font-medium leading-relaxed whitespace-pre-wrap tracking-wide" dangerouslySetInnerHTML={{ __html: highlightText(body) }} />}
+                        <div className={`flex justify-end items-center gap-1.5 ${body || media ? 'mt-2' : ''} ${isMe ? 'text-white/70 dark:text-black/60' : 'text-gray-400 dark:text-gray-500'}`}>
                           <span className="text-[9px] font-black uppercase tracking-widest">
                             {formatTime(m.createdAt)}
                           </span>
@@ -622,10 +1014,10 @@ export const Conversations = () => {
             </div>
 
             {/* Input Footer Area */}
-            <div className="px-8 pb-8 pt-2 z-20 relative">
+            <div className="px-4 md:px-8 pb-4 md:pb-8 pt-2 z-20 relative">
               {/* Catalog Popover */}
               {isCatalogOpen && (
-                <div className="absolute bottom-full left-8 mb-4 w-[360px] bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300 z-50">
+                <div className="absolute bottom-full left-4 md:left-8 mb-4 w-[calc(100vw-32px)] md:w-[360px] bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-gray-100 dark:border-white/5 overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300 z-50">
                   <div className="px-4 py-3 dark:bg-dark-card border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
                     <h4 className="text-sm font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
                       <Store className="w-4 h-4 text-accent-500" />
@@ -688,44 +1080,81 @@ export const Conversations = () => {
                   />
                 </div>
               )}
-              <div className="bg-white dark:bg-dark-card rounded-[1.5rem] p-2 pl-6 shadow-xl border border-gray-100 dark:border-white/5 flex items-center gap-4 transition-all focus-within:ring-4 focus-within:ring-accent-500/5 group border-b-2 border-accent-500/10">
+              <input type="file" ref={fileInputRef} onChange={handleFileSelected} accept="image/*,.pdf,.doc,.docx" className="hidden" />
+              {isRecording ? (
+                <div className="bg-white dark:bg-dark-card rounded-[1.5rem] shadow-xl border border-red-200 dark:border-red-500/30 flex items-center px-4 md:px-6 py-2.5 md:py-3 gap-3 animate-in fade-in duration-200">
+                  <button onClick={cancelRecording} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{formatDuration(recordingDuration)}</span>
+                  <div className="flex-1 h-1 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-red-500 rounded-full animate-pulse" style={{ width: `${Math.min(100, (recordingDuration / 60) * 100)}%` }} />
+                  </div>
+                  <button onClick={stopRecording} className="p-2.5 md:p-3 rounded-2xl bg-red-500 text-white hover:bg-red-600 transition-all shadow-lg flex items-center justify-center">
+                    <Send className="w-4 h-4 md:w-5 md:h-5" />
+                  </button>
+                </div>
+              ) : (
+              <div className="bg-white dark:bg-dark-card rounded-[1.5rem] pl-4 md:pl-6 shadow-xl border border-gray-100 dark:border-white/5 flex items-center transition-all focus-within:ring-4 focus-within:ring-accent-500/5 group border-b-2 border-accent-500/10">
                 <input
                   type="text"
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Responder..."
-                  className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-400 font-bold text-base"
+                  placeholder="Escribe un mensaje..."
+                  className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-400 font-bold text-sm md:text-base py-3 md:py-3.5 min-w-0"
                 />
-                <div className="flex items-center gap-1">
-                  <button onClick={toggleCatalog} className={`p-2 transition-all relative group/catalog ${isCatalogOpen ? 'text-accent-500 bg-accent-500/10 rounded-lg' : 'text-gray-400 hover:text-accent-500'}`}>
-                    <Store className="w-5 h-5" />
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover/catalog:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                <div className="flex items-center md:gap-0.5 shrink-0 pr-1.5 md:pr-2">
+                  <button onClick={toggleCatalog} className={`p-1.5 md:p-2 transition-all relative group/catalog ${isCatalogOpen ? 'text-accent-500 bg-accent-500/10 rounded-lg' : 'text-gray-400 hover:text-accent-500'}`}>
+                    <Store className="w-4 h-4 md:w-5 md:h-5" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover/catalog:opacity-100 transition-opacity whitespace-nowrap pointer-events-none hidden md:block">
                       Catálogo
                     </div>
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
-                    <Paperclip className="w-5 h-5" />
+                  <button onClick={handleAttachFile} className="p-1.5 md:p-2 text-gray-400 hover:text-accent-500 transition-all">
+                    <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-all">
-                    <Smile className="w-5 h-5" />
-                  </button>
+                  <div className="relative">
+                    <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1.5 md:p-2 text-gray-400 hover:text-accent-500 transition-all">
+                      <Smile className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                    {showEmojiPicker && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
+                        <div className="absolute bottom-full right-0 mb-2 w-72 md:w-80 bg-white dark:bg-dark-card border border-gray-100 dark:border-white/5 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                          <div className="p-3 border-b border-gray-100 dark:border-white/5">
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Emojis</span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto p-3 grid grid-cols-8 gap-1">
+                            {EMOJIS.map((emoji, i) => (
+                              <button key={i} onClick={() => handleEmojiSelect(emoji)}
+                                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all hover:scale-110">
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <button
                     onClick={handleSendMessage}
                     disabled={sending || !messageText.trim()}
-                    className={`p-3 rounded-2xl transition-all flex items-center justify-center ${messageText.trim()
+                    className={`p-2 md:p-3 rounded-2xl transition-all flex items-center justify-center ml-1 ${messageText.trim()
                       ? 'bg-black dark:bg-accent-500 text-white dark:text-black shadow-lg shadow-accent-500/20 scale-105'
                       : 'bg-gray-50 dark:bg-white/5 text-gray-300 dark:text-gray-600'
                       }`}
                   >
-                    <Send className={messageText.trim() ? "w-5 h-5" : "w-4 h-4"} />
+                    <Send className={messageText.trim() ? "w-4 h-4 md:w-5 md:h-5" : "w-3.5 h-3.5 md:w-4 md:h-4"} />
                   </button>
-                  <div className="w-[1px] h-6 bg-gray-100 dark:bg-white/5 mx-1" />
-                  <button className="p-2 text-gray-400 hover:text-accent-500 transition-colors">
-                    <Mic className="w-5 h-5" />
+                  <div className="w-px h-5 md:h-6 bg-gray-100 dark:bg-white/5 mx-0.5 md:mx-1.5" />
+                  <button onClick={startRecording} className="p-1.5 md:p-2 text-gray-400 hover:text-accent-500 transition-colors">
+                    <Mic className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                 </div>
               </div>
+              )}
             </div>
           </>
         ) : (

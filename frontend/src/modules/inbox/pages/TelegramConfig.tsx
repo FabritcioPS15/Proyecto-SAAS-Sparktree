@@ -158,7 +158,7 @@ export const TelegramConfig = () => {
             <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl flex items-start gap-3">
               <MessageSquare className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Tu bot está activo y puede recibir mensajes. Los flujos de automatización creados en el Constructor de Bots funcionarán automáticamente con esta conexión.
+                Bot activo recibiendo mensajes. Los flujos del Constructor funcionan automáticamente.
               </p>
             </div>
 
@@ -294,7 +294,7 @@ export const TelegramConfig = () => {
             <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl flex items-start gap-3">
               <Shield className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                El bot debe tener los mensajes directos habilitados y no debe estar restringido por privacidad de grupo. Usa <span className="font-bold text-slate-900 dark:text-white">/setprivacy</span> con @BotFather para deshabilitar el modo privado si es necesario.
+                Requiere mensajes directos sin restricción de grupo. Usa <span className="font-bold text-slate-900 dark:text-white">/setprivacy</span> con @BotFather.
               </p>
             </div>
           </>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, User, Trash2, Phone, UserCheck, CheckSquare, Square, MessageSquare, Zap, UserPlus, Eye, Mail } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Trash2, Phone, UserCheck, CheckSquare, Square, MessageSquare, Zap, UserPlus, Eye, Mail, Cpu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getUsers, deleteUser, deleteUsersBulk } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
@@ -242,7 +242,7 @@ export const Clients = () => {
             <div className="bg-gray-50 dark:bg-dark-card px-4 h-10 flex items-center gap-3 rounded-lg border border-gray-200 dark:border-white/5">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total: {users.length}</p>
             </div>
-            <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95">
+            <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
               <UserPlus className="w-4 h-4" />
               Nuevo Cliente
             </button>
@@ -409,7 +409,7 @@ export const Clients = () => {
           <input type="text" name="name" placeholder="Nombre del cliente" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="email" name="email" placeholder="Correo electrónico" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="tel" name="phone" placeholder="Teléfono" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
-          <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-emerald-600 transition-all shadow-md">Crear Cliente</button>
+          <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md">Crear Cliente</button>
         </form>
       </Modal>
     </PageContainer>

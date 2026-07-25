@@ -1,21 +1,71 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+
+export const STATUS_KEYS = [
+  'pending', 'paid', 'cancelled', 'refunded', 'overdue',
+  'sent', 'delivered', 'processing', 'returned',
+  'active', 'inactive', 'error', 'success', 'warning', 'info',
+  'connected', 'connecting', 'disconnected',
+  'draft', 'accepted', 'rejected', 'expired',
+] as const;
+
+export const STATUS_GROUPS: { name: string; keys: typeof STATUS_KEYS[number][] }[] = [
+  { name: 'Pagos', keys: ['pending', 'paid', 'cancelled', 'refunded', 'overdue'] },
+  { name: 'Pedidos / Envíos', keys: ['pending', 'processing', 'sent', 'delivered', 'returned'] },
+  { name: 'General', keys: ['active', 'inactive', 'error', 'success', 'warning', 'info'] },
+  { name: 'Conexión', keys: ['connected', 'connecting', 'disconnected'] },
+  { name: 'Cotizaciones', keys: ['draft', 'sent', 'accepted', 'rejected', 'expired'] },
+];
+export const BADGE_VARIANTS = ['primary', 'success', 'warning', 'danger', 'info', 'default'] as const;
 
 interface CustomizationContextType {
   accentColor: string;
+  customAccentHex: string;
   tableDensity: string;
   layoutMode: string;
   cardStyle: string;
   fontSize: string;
+  fontFamily: string;
   radiusSize: string;
+  statusColors: Record<string, string>;
   setAccentColor: (v: string) => void;
+  setCustomAccentHex: (v: string) => void;
   setTableDensity: (v: string) => void;
   setLayoutMode: (v: string) => void;
   setCardStyle: (v: string) => void;
   setFontSize: (v: string) => void;
+  setFontFamily: (v: string) => void;
   setRadiusSize: (v: string) => void;
+  setStatusColor: (status: string, variant: string) => void;
 }
 
 const CustomizationContext = createContext<CustomizationContextType>(null!);
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const clean = hex.replace('#', '');
+  if (clean.length !== 6) return null;
+  const num = parseInt(clean, 16);
+  if (isNaN(num)) return null;
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function generateShadesFromHex(hex: string): Record<string, string> {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return accentShades.emerald;
+  const { r, g, b } = rgb;
+  return {
+    '50': `${Math.round(r + (255 - r) * 0.85)} ${Math.round(g + (255 - g) * 0.85)} ${Math.round(b + (255 - b) * 0.85)}`,
+    '100': `${Math.round(r + (255 - r) * 0.7)} ${Math.round(g + (255 - g) * 0.7)} ${Math.round(b + (255 - b) * 0.7)}`,
+    '200': `${Math.round(r + (255 - r) * 0.5)} ${Math.round(g + (255 - g) * 0.5)} ${Math.round(b + (255 - b) * 0.5)}`,
+    '300': `${Math.round(r + (255 - r) * 0.3)} ${Math.round(g + (255 - g) * 0.3)} ${Math.round(b + (255 - b) * 0.3)}`,
+    '400': `${Math.round(r + (255 - r) * 0.1)} ${Math.round(g + (255 - g) * 0.1)} ${Math.round(b + (255 - b) * 0.1)}`,
+    '500': `${r} ${g} ${b}`,
+    '600': `${Math.round(r * 0.8)} ${Math.round(g * 0.8)} ${Math.round(b * 0.8)}`,
+    '700': `${Math.round(r * 0.6)} ${Math.round(g * 0.6)} ${Math.round(b * 0.6)}`,
+    '800': `${Math.round(r * 0.4)} ${Math.round(g * 0.4)} ${Math.round(b * 0.4)}`,
+    '900': `${Math.round(r * 0.25)} ${Math.round(g * 0.25)} ${Math.round(b * 0.25)}`,
+    '950': `${Math.round(r * 0.1)} ${Math.round(g * 0.1)} ${Math.round(b * 0.1)}`,
+  };
+}
 
 const accentShades: Record<string, Record<string, string>> = {
   emerald: {
@@ -68,17 +118,45 @@ const densityPaddingMap: Record<string, string> = {
   spacious: '20px 24px',
 };
 
+const defaultStatusColors: Record<string, string> = {
+  pending: 'warning', paid: 'success', cancelled: 'danger', refunded: 'info', overdue: 'danger',
+  sent: 'info', delivered: 'success', processing: 'warning', returned: 'danger',
+  active: 'primary', inactive: 'default', error: 'danger', success: 'success', warning: 'warning', info: 'info',
+  connected: 'success', connecting: 'warning', disconnected: 'danger',
+  draft: 'default', accepted: 'success', rejected: 'danger', expired: 'warning',
+};
+
 export const CustomizationProvider = ({ children }: { children: ReactNode }) => {
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent-color') || 'emerald');
+  const [customAccentHex, setCustomAccentHex] = useState(() => localStorage.getItem('custom-accent-hex') || '#10b981');
   const [tableDensity, setTableDensity] = useState(() => localStorage.getItem('table-density') || 'normal');
   const [layoutMode, setLayoutMode] = useState(() => localStorage.getItem('layout-mode') || 'fluid');
   const [cardStyle, setCardStyle] = useState(() => localStorage.getItem('card-style') || 'bordered');
   const [fontSize, setFontSize] = useState(() => localStorage.getItem('font-size') || 'normal');
+  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('font-family') || 'inter');
   const [radiusSize, setRadiusSize] = useState(() => localStorage.getItem('radius-size') || 'normal');
+  const [statusColors, setStatusColors] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem('status-colors') || 'null') || defaultStatusColors; }
+    catch { return defaultStatusColors; }
+  });
+
+  const fontFamilyMap: Record<string, string> = {
+    inter: "'Inter', sans-serif",
+    system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    mono: "'JetBrains Mono', 'Fira Code', monospace",
+    sans: "'Open Sans', 'Noto Sans', sans-serif",
+    serif: "'Merriweather', 'Georgia', serif",
+  };
 
   useEffect(() => {
     const root = document.documentElement;
-    const shades = accentShades[accentColor] || accentShades.emerald;
+    let shades: Record<string, string>;
+
+    if (accentColor === 'custom') {
+      shades = generateShadesFromHex(customAccentHex);
+    } else {
+      shades = accentShades[accentColor] || accentShades.emerald;
+    }
 
     Object.entries(shades).forEach(([shade, rgb]) => {
       root.style.setProperty(`--accent-${shade}`, rgb);
@@ -86,36 +164,52 @@ export const CustomizationProvider = ({ children }: { children: ReactNode }) => 
 
     root.style.setProperty('--radius', radiusMap[radiusSize] || radiusMap.normal);
     root.style.setProperty('--table-cell-padding', densityPaddingMap[tableDensity] || densityPaddingMap.normal);
+    root.style.setProperty('--font-family', fontFamilyMap[fontFamily] || fontFamilyMap.inter);
 
     root.setAttribute('data-accent', accentColor);
     root.setAttribute('data-density', tableDensity);
     root.setAttribute('data-layout', layoutMode);
     root.setAttribute('data-card-style', cardStyle);
+    root.setAttribute('data-font-family', fontFamily);
 
     if (fontSize === 'small') root.style.fontSize = '13px';
     else if (fontSize === 'large') root.style.fontSize = '16px';
     else root.style.fontSize = '';
-  }, [accentColor, tableDensity, layoutMode, cardStyle, fontSize, radiusSize]);
+  }, [accentColor, customAccentHex, tableDensity, layoutMode, cardStyle, fontSize, fontFamily, radiusSize]);
 
   const update = (key: string, value: string, setter: (v: string) => void) => {
     setter(value);
     localStorage.setItem(key, value);
   };
 
+  const setStatusColor = (status: string, variant: string) => {
+    setStatusColors(prev => {
+      const next = { ...prev, [status]: variant };
+      localStorage.setItem('status-colors', JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
     <CustomizationContext.Provider value={{
       accentColor,
+      customAccentHex,
       tableDensity,
       layoutMode,
       cardStyle,
       fontSize,
+      fontFamily,
       radiusSize,
+      statusColors,
       setAccentColor: (v) => update('accent-color', v, setAccentColor),
+      setCustomAccentHex: (v) => update('custom-accent-hex', v, setCustomAccentHex),
       setTableDensity: (v) => update('table-density', v, setTableDensity),
       setLayoutMode: (v) => update('layout-mode', v, setLayoutMode),
       setCardStyle: (v) => update('card-style', v, setCardStyle),
       setFontSize: (v) => update('font-size', v, setFontSize),
+      setFontFamily: (v) => update('font-family', v, setFontFamily),
       setRadiusSize: (v) => update('radius-size', v, setRadiusSize),
+      setStatusColor,
     }}>
       {children}
     </CustomizationContext.Provider>

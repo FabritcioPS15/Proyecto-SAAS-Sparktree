@@ -75,7 +75,7 @@ export const Reports = () => {
               />
             </div>
             
-            <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95">
+            <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
               <Plus className="w-4 h-4" />
               Nuevo Reporte
             </button>
@@ -124,8 +124,38 @@ export const Reports = () => {
             </button>
           </div>
 
-          {/* Sample Report Table */}
-          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+          {/* Sample Report Table - Mobile */}
+          <div className="md:hidden space-y-3">
+            {[
+              { fecha: '2024-01-15', tipo: 'Conversación', desc: 'Cliente interesado en producto premium', estado: 'Completado', color: 'accent' },
+              { fecha: '2024-01-14', tipo: 'Lead', desc: 'Nuevo lead potencial identificado', estado: 'En proceso', color: 'amber' },
+            ].map((item, i) => (
+              <div key={i} className="bg-white dark:bg-dark-card border border-gray-100 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0 min-w-[80px]">Fecha</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{item.fecha}</span>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0 min-w-[80px]">Tipo</span>
+                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-[11px] font-bold uppercase">{item.tipo}</span>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0 min-w-[80px]">Descripción</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400 text-right">{item.desc}</span>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0 min-w-[80px]">Estado</span>
+                  <span className={`px-2 py-0.5 bg-${item.color}-100 dark:bg-${item.color}-900/20 text-${item.color}-600 dark:text-${item.color}-400 rounded-full text-[11px] font-bold uppercase`}>{item.estado}</span>
+                </div>
+                <div className="flex justify-end pt-1 border-t border-gray-100 dark:border-white/5">
+                  <button className="text-accent-600 dark:text-accent-400 hover:text-accent-800 font-black text-xs uppercase tracking-wider">Ver detalles</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Sample Report Table - Desktop */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
             <table className="w-full">
               <thead className="bg-slate-50 dark:bg-slate-800/50">
                 <tr className="border-b border-gray-200 dark:border-gray-700">
@@ -213,7 +243,7 @@ export const Reports = () => {
               sx={{ width: '100%' }}
             />
           </div>
-          <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-emerald-600 transition-all shadow-md">Crear Reporte</button>
+          <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md">Crear Reporte</button>
         </form>
       </Modal>
     </PageContainer>

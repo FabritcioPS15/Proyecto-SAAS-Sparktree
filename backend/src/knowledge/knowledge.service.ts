@@ -224,21 +224,26 @@ export class KnowledgeService {
       return [];
     }
 
-    // Fetch document details for each chunk
+    // Fetch document details for each chunk — batched to avoid N+1
     const results: SearchResult[] = [];
-    for (const match of data || []) {
-      const { data: document } = await supabase
+    if (data && data.length > 0) {
+      const documentIds = [...new Set(data.map((m: any) => m.document_id))];
+      const { data: documents } = await supabase
         .from('knowledge_documents')
-        .select('*')
-        .eq('id', match.document_id)
-        .single();
+        .select('id, title, content, content_type, status, chunk_count, created_at')
+        .in('id', documentIds);
 
-      if (document) {
-        results.push({
-          chunk: this.mapKnowledgeChunk(match),
-          document: this.mapKnowledgeDocument(document),
-          similarity: match.similarity,
-        });
+      const docMap = new Map((documents || []).map((d: any) => [d.id, d]));
+
+      for (const match of data) {
+        const document = docMap.get(match.document_id);
+        if (document) {
+          results.push({
+            chunk: this.mapKnowledgeChunk(match),
+            document: this.mapKnowledgeDocument(document),
+            similarity: match.similarity,
+          });
+        }
       }
     }
 

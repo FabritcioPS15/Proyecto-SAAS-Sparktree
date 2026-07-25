@@ -74,7 +74,7 @@ export function DataTable<T extends Record<string, any>>({
                 onClick={() => onRowClick?.(row)}
                 className={cn(
                   'border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors',
-                  index % 2 === 0 && 'bg-emerald-50/40 dark:bg-emerald-900/5',
+                  index % 2 === 0 && 'bg-accent-50/30 dark:bg-accent-950/20',
                   onRowClick && 'cursor-pointer'
                 )}
               >

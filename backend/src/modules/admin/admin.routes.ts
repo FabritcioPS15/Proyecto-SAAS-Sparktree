@@ -116,4 +116,40 @@ router.delete('/users/:id', isSuperAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/admin/organizations/:id/payment
+router.put('/organizations/:id/payment', isSuperAdmin, async (req, res) => {
+  try {
+    const { paymentStatus } = req.body;
+    const org = await adminService.updateOrganizationPayment(req.params.id, paymentStatus);
+    res.json(org);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/admin/organizations/:id/notification
+router.put('/organizations/:id/notification', isSuperAdmin, async (req, res) => {
+  try {
+    const { notification, showPopup } = req.body;
+    const org = await adminService.updateOrganizationNotification(
+      req.params.id,
+      notification || null,
+      showPopup || false
+    );
+    res.json(org);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/organizations/notifications
+router.get('/organizations/notifications', isSuperAdmin, async (req, res) => {
+  try {
+    const notifications = await adminService.getOrganizationNotifications();
+    res.json(notifications);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

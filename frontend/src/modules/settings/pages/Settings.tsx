@@ -5,6 +5,11 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { Settings as SettingsIcon, Save, CheckCircle, User, Lock, Bell, Globe } from 'lucide-react';
 import { Dropdown } from '../../../components/ui/Dropdown';
 
+const SECTION_COLORS = {
+  wrapper: 'p-2 bg-accent-500/10 rounded-lg text-accent-500',
+  checkbox: 'peer-checked:bg-accent-500',
+};
+
 export const Settings = () => {
   const { user } = useAuth();
   
@@ -63,7 +68,7 @@ export const Settings = () => {
             {/* Información Personal */}
             <div className="bg-white dark:bg-dark-card/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                <div className="p-2 bg-accent-500/10 rounded-lg text-accent-500">
                   <User size={20} />
                 </div>
                 <div>
@@ -121,7 +126,7 @@ export const Settings = () => {
             {/* Preferencias Globales */}
             <div className="bg-white dark:bg-dark-card/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+                <div className="p-2 bg-accent-500/10 rounded-lg text-accent-500">
                   <Globe size={20} />
                 </div>
                 <div>
@@ -165,7 +170,7 @@ export const Settings = () => {
                 className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
                   saved 
                   ? 'bg-emerald-500 text-white shadow-emerald-500/20 cursor-default' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-500/20 active:scale-95'
+                  : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 hover:shadow-xl hover:shadow-accent-500/20 active:scale-95'
                 }`}
               >
                 {saved ? <CheckCircle size={18} /> : <Save size={18} />}
@@ -179,7 +184,7 @@ export const Settings = () => {
             {/* Seguridad */}
             <div className="bg-white dark:bg-dark-card/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500">
+                <div className="p-2 bg-accent-500/10 rounded-lg text-accent-500">
                   <Lock size={20} />
                 </div>
                 <div>
@@ -207,7 +212,7 @@ export const Settings = () => {
             {/* Notificaciones */}
             <div className="bg-white dark:bg-dark-card/50 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-800/50">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
+                <div className="p-2 bg-accent-500/10 rounded-lg text-accent-500">
                   <Bell size={20} />
                 </div>
                 <div>
@@ -227,8 +232,8 @@ export const Settings = () => {
                       checked={profile.emailNotifications}
                       onChange={handleChange}
                     />
-                    <div className="block bg-slate-200 dark:bg-slate-700 w-10 h-6 rounded-full transition-colors peer-checked:bg-purple-500"></div>
-                    <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4"></div>
+              <div className="block bg-slate-200 dark:bg-slate-700 w-10 h-6 rounded-full transition-colors peer-checked:bg-accent-500"></div>
+                      <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4"></div>
                   </div>
                 </label>
                 
@@ -242,8 +247,8 @@ export const Settings = () => {
                       checked={profile.pushNotifications}
                       onChange={handleChange}
                     />
-                    <div className="block bg-slate-200 dark:bg-slate-700 w-10 h-6 rounded-full transition-colors peer-checked:bg-purple-500"></div>
-                    <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4"></div>
+              <div className="block bg-slate-200 dark:bg-slate-700 w-10 h-6 rounded-full transition-colors peer-checked:bg-accent-500"></div>
+                      <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4"></div>
                   </div>
                 </label>
               </div>

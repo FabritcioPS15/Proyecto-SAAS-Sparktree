@@ -33,9 +33,12 @@ const NODE_LABELS: Record<string, string> = {
   interactive: 'Botones',
   media:       'Media',
   capture:     'Captura',
+  condition:   'Condición',
   delay:       'Espera',
   webhook:     'Webhook',
   handoff:     'Agente',
+  llm:         'IA Completa',
+  knowledge_retrieval: 'Base Conocimiento',
 };
 
 export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matchingStrategy = 'strict', onClose }) => {
@@ -147,6 +150,34 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matc
           }
         }, 1000);
 
+      } else if (node.type === 'condition') {
+        const varName = node.data.variable;
+        const operator = node.data.operator || 'exists';
+        const compValue = node.data.value || '';
+        const capturedValue = varName ? capturedVars[varName] : undefined;
+        let result = false;
+
+        switch (operator) {
+          case 'exists': result = capturedValue !== undefined && capturedValue !== ''; break;
+          case 'empty': result = capturedValue === undefined || capturedValue === ''; break;
+          case 'equals': result = capturedValue === compValue; break;
+          case 'notEquals': result = capturedValue !== compValue; break;
+          case 'contains': result = capturedValue?.includes(compValue) || false; break;
+          case 'greaterThan': result = parseFloat(capturedValue || '0') > parseFloat(compValue); break;
+          case 'lessThan': result = parseFloat(capturedValue || '0') < parseFloat(compValue); break;
+        }
+
+        addMessage({
+          text: `🧪 Condición: @${varName} ${operator} ${compValue ? `"${compValue}"` : ''} → ${result ? '✅ Sí' : '❌ No'}`,
+          sender: 'system',
+          type: 'text',
+          timestamp: ts,
+        });
+
+        const nextEdge = edges.find(e => e.source === nodeId && e.sourceHandle === (result ? 'true' : 'false'));
+        if (nextEdge?.target) setTimeout(() => executeNode(nextEdge.target), 800);
+        else setActiveNodeId(null);
+
       } else if (node.type === 'webhook') {
         addMessage({
           text: `Llamando a ${node.data.url || 'tu API'}...`,
@@ -179,6 +210,80 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matc
           });
           setActiveNodeId(null);
         }, 900);
+
+      } else if (node.type === 'knowledge_retrieval') {
+        const kbId = node.data.knowledgeBaseId || 'default';
+        const queryTemplate = node.data.queryTemplate || '{{message}}';
+        const query = queryTemplate.replace(/\{\{message\}\}/g, 'consulta general')
+          .replace(/\{\{(\w+)\}\}/g, (_, v) => capturedVars[v] || `@${v}`);
+
+        addMessage({
+          text: `🔍 Buscando en base de conocimiento "${kbId}": "${query}"`,
+          sender: 'system',
+          type: 'text',
+          timestamp: ts,
+        });
+
+        setTimeout(() => {
+          const mockContext = [
+            { content: 'Nuestros productos incluyen camisetas, tazas y gorras personalizadas.', similarity: 0.92, title: 'Catálogo' },
+            { content: 'Los precios van desde $9.99 para planes básicos hasta $29.99 para premium.', similarity: 0.78, title: 'Precios' },
+          ];
+
+          const contextStr = mockContext.map(s => s.content).join('\n');
+          const sourcesStr = mockContext.map(s => `- ${s.title} (${Math.round(s.similarity * 100)}%)`).join('\n');
+
+          setCapturedVars(prev => ({
+            ...prev,
+            rag_context: contextStr,
+            rag_sources: sourcesStr,
+          }));
+
+          addMessage({
+            text: `✅ Base de conocimiento consultada: ${mockContext.length} resultados encontrados`,
+            sender: 'system',
+            type: 'text',
+            timestamp: now(),
+          });
+
+          const next = edges.find(e => e.source === nodeId);
+          if (next?.target) setTimeout(() => executeNode(next.target), 800);
+          else setActiveNodeId(null);
+        }, 1200);
+
+      } else if (node.type === 'llm') {
+        const provider = node.data.provider || 'openai';
+        const model = node.data.model || 'gpt-4o-mini';
+        const systemPrompt = (node.data.systemPrompt || 'Eres un asistente útil.').replace(/\{\{(\w+)\}\}/g, (_, v) => capturedVars[v] || `@${v}`);
+        const userPrompt = (node.data.userPrompt || '{{message}}').replace(/\{\{(\w+)\}\}/g, (_, v) => capturedVars[v] || `@${v}`);
+
+        addMessage({
+          text: `🤖 Consultando ${provider}/${model}...`,
+          sender: 'system',
+          type: 'text',
+          timestamp: ts,
+        });
+
+        setTimeout(() => {
+          const mockResponse = `[Simulación ${provider}/${model}]\n\n` +
+            (capturedVars.rag_context
+              ? `Basado en la información recuperada:\n${capturedVars.rag_context.substring(0, 200)}...\n\n`
+              : '') +
+            `Esta es una respuesta simulada del LLM. En producción, se enviaría a la API de ${provider} con el prompt del sistema y del usuario configurados.`;
+
+          addMessage({
+            text: mockResponse,
+            sender: 'bot',
+            type: 'text',
+            timestamp: now(),
+          });
+
+          setCapturedVars(prev => ({ ...prev, llm_response: mockResponse }));
+
+          const next = edges.find(e => e.source === nodeId);
+          if (next?.target) setTimeout(() => executeNode(next.target), 800);
+          else setActiveNodeId(null);
+        }, 2000);
       }
     }, delayForTyping);
   }, [nodes, edges]);

@@ -9,6 +9,7 @@ import { FilterSelect } from '../../../components/ui/FilterSelect';
 import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { TableCard } from '../../../components/ui/TableCard';
 import { GridCard } from '../../../components/ui/GridCard';
+import { Badge } from '../../../components/ui/Badge';
 
 interface AuditLog {
   id: string;
@@ -27,11 +28,11 @@ const mockLogs: AuditLog[] = [
   { id: 'LOG-004', user: 'admin@sparktree.io', action: 'LOGIN', resource: 'Auth', details: 'User logged in', timestamp: '2024-01-15 08:00:00', ip: '192.168.1.100' },
 ];
 
-const ACTION_COLORS: Record<string, string> = {
-  CREATE: 'bg-emerald-500/10 text-emerald-500',
-  UPDATE: 'bg-blue-500/10 text-blue-500',
-  DELETE: 'bg-red-500/10 text-red-500',
-  LOGIN: 'bg-slate-500/10 text-slate-500',
+const ACTION_VARIANTS: Record<string, 'success' | 'info' | 'danger' | 'default'> = {
+  CREATE: 'success',
+  UPDATE: 'info',
+  DELETE: 'danger',
+  LOGIN: 'default',
 };
 
 export const AuditLogs = () => {
@@ -93,9 +94,9 @@ export const AuditLogs = () => {
                   title={log.resource}
                   subtitle={log.details}
                   status={
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${ACTION_COLORS[log.action] || 'bg-slate-100 text-slate-500'}`}>
+                    <Badge variant={ACTION_VARIANTS[log.action] || 'default'} size="xs">
                       {log.action}
-                    </span>
+                    </Badge>
                   }
                   actions={
                     <>

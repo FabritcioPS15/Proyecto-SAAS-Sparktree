@@ -3,7 +3,7 @@ import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { UserCheck, Bot, ArrowRight } from 'lucide-react';
+import { UserCheck, Bot, ArrowRight, Headphones } from 'lucide-react';
 
 export const Support = () => {
   const modules = [
@@ -28,6 +28,7 @@ export const Support = () => {
       <PageHeader
         title="Atención"
         description="Gestión de agentes y base de conocimiento"
+        icon={Headphones}
       />
       <PageBody>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

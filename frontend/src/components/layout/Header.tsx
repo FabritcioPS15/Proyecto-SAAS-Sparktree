@@ -9,7 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { NotificationBell } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConnections } from '../../contexts/ConnectionsContext';
-import { useCustomization } from '../../contexts/CustomizationContext';
+import { useCustomization, STATUS_KEYS, STATUS_GROUPS, BADGE_VARIANTS } from '../../contexts/CustomizationContext';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
 import { Modal } from '../ui/Modal';
@@ -29,15 +29,19 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isSocialOpen, setIsSocialOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [customizeTab, setCustomizeTab] = useState('accent');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const location = useLocation();
   const {
     accentColor, setAccentColor,
+    customAccentHex, setCustomAccentHex,
     tableDensity, setTableDensity,
     layoutMode, setLayoutMode,
     cardStyle, setCardStyle,
     fontSize, setFontSize,
+    fontFamily, setFontFamily,
     radiusSize, setRadiusSize,
+    statusColors, setStatusColor,
   } = useCustomization();
   const navigate = useNavigate();
 
@@ -355,7 +359,9 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                     <MenuItem icon={<User className="w-4 h-4" />} label="Mi Perfil y Ajustes" onClick={() => { navigate('/settings'); setIsProfileOpen(false); }} />
                     <MenuItem icon={theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />} label={theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'} onClick={(e) => { e.stopPropagation(); toggleTheme(); }} />
                     <MenuItem icon={<CreditCard className="w-4 h-4" />} label="Facturación" onClick={() => { navigate('/billing'); setIsProfileOpen(false); }} />
-                    <MenuItem icon={<Palette className="w-4 h-4" />} label="Personalizar" onClick={() => { setIsCustomizeOpen(true); setIsProfileOpen(false); }} />
+                    {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                      <MenuItem icon={<Palette className="w-4 h-4" />} label="Personalizar" onClick={() => { setIsCustomizeOpen(true); setIsProfileOpen(false); }} />
+                    )}
 
                     {(user?.role === 'admin' || user?.role === 'super_admin') && (
                       <>
@@ -394,203 +400,406 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
         icon={<Palette className="w-5 h-5 text-accent-500" />}
         size="md"
       >
-        <div className="space-y-6">
-
-          {/* Section: Color */}
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-              COLOR DE ACENTO
-            </p>
-            <div className="grid grid-cols-6 gap-2">
-              {[
-                { key: 'emerald', class: 'bg-emerald-500', label: 'Esmeralda' },
-                { key: 'blue', class: 'bg-blue-500', label: 'Azul' },
-                { key: 'violet', class: 'bg-violet-500', label: 'Violeta' },
-                { key: 'rose', class: 'bg-rose-500', label: 'Rosa' },
-                { key: 'amber', class: 'bg-amber-500', label: 'Ámbar' },
-                { key: 'cyan', class: 'bg-cyan-500', label: 'Cian' },
-              ].map(({ key, className: bgClass, label }) => (
+        <div className="flex flex-col h-[580px]">
+          {/* Tab bar */}
+          <div className="flex gap-1 px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-white/[0.02]">
+            {[
+              { key: 'accent', label: 'Color Acento', icon: '🎨' },
+              { key: 'status', label: 'Estados', icon: '🏷️' },
+              { key: 'appearance', label: 'Apariencia', icon: '✨' },
+              { key: 'preview', label: 'Vista Previa', icon: '👁️' },
+            ].map((tab) => {
+              const isActive = customizeTab === tab.key;
+              return (
                 <button
-                  key={key}
-                  onClick={() => setAccentColor(key)}
-                  title={label}
-                  className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${
-                    accentColor === key
-                      ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
-                      : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                  key={tab.key}
+                  onClick={() => setCustomizeTab(tab.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
+                    isActive
+                      ? 'bg-slate-900 dark:bg-white text-white dark:text-black shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-accent-300 hover:bg-slate-100 dark:hover:bg-white/5'
                   }`}
                 >
-                  <span className={`w-8 h-8 rounded-xl ${bgClass} shadow-sm transition-transform ${accentColor === key ? 'scale-110' : ''}`} />
-                  <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400 truncate w-full text-center">{label}</span>
+                  {tab.label}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          {/* Section: Layout */}
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-              LAYOUT
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { key: 'fluid', label: 'Fluido', desc: 'Ancho completo' },
-                { key: 'boxed', label: 'Centrado', desc: 'Máximo 1400px' },
-              ].map(({ key, label, desc }) => (
-                <button
-                  key={key}
-                  onClick={() => setLayoutMode(key)}
-                  className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all ${
-                    layoutMode === key
-                      ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
-                      : 'bg-slate-100/50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'
-                  }`}
-                >
-                  <div className="w-full h-6 rounded-md border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                    <div className={`h-1 rounded-full bg-slate-300 dark:bg-slate-600 ${key === 'boxed' ? 'w-3/5' : 'w-full mx-1'}`} />
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{label}</span>
-                  <span className="text-[8px] text-slate-400 dark:text-slate-500 -mt-1">{desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Section: Densidad y Fuente */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                DENSIDAD
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {['compact', 'normal', 'spacious'].map((key) => {
-                  const labels: Record<string, string> = { compact: 'Compacta', normal: 'Normal', spacious: 'Espaciosa' };
-                  return (
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            {/* TAB: Color Acento */}
+            {customizeTab === 'accent' && (
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                  COLOR PRINCIPAL
+                </p>
+                <div className="grid grid-cols-6 gap-2">
+                  {[
+                    { key: 'emerald', class: 'bg-emerald-500', label: 'Esmeralda' },
+                    { key: 'blue', class: 'bg-blue-500', label: 'Azul' },
+                    { key: 'violet', class: 'bg-violet-500', label: 'Violeta' },
+                    { key: 'rose', class: 'bg-rose-500', label: 'Rosa' },
+                    { key: 'amber', class: 'bg-amber-500', label: 'Ámbar' },
+                    { key: 'cyan', class: 'bg-cyan-500', label: 'Cian' },
+                  ].map(({ key, className: bgClass, label }) => (
                     <button
                       key={key}
-                      onClick={() => setTableDensity(key)}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                        tableDensity === key
-                          ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
-                          : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
+                      onClick={() => setAccentColor(key)}
+                      title={label}
+                      className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${
+                        accentColor === key
+                          ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/5'
                       }`}
                     >
-                      <span className={`w-3 h-3 rounded ${key === 'compact' ? 'bg-slate-400' : key === 'normal' ? 'bg-slate-500' : 'bg-slate-600'} ${tableDensity === key ? 'bg-white dark:bg-black' : ''}`} />
-                      {labels[key]}
+                      <span className={`w-8 h-8 rounded-xl ${bgClass} shadow-sm transition-transform ${accentColor === key ? 'scale-110' : ''}`} />
+                      <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400 truncate w-full text-center">{label}</span>
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                FUENTE
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {[
-                  { key: 'small', label: 'Pequeña', sample: 'Aa' },
-                  { key: 'normal', label: 'Normal', sample: 'Aa' },
-                  { key: 'large', label: 'Grande', sample: 'Aa' },
-                ].map(({ key, label, sample }) => (
-                  <button
-                    key={key}
-                    onClick={() => setFontSize(key)}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                      fontSize === key
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="relative cursor-pointer">
+                    <input
+                      type="color"
+                      value={accentColor === 'custom' ? customAccentHex : '#10b981'}
+                      onChange={(e) => { setCustomAccentHex(e.target.value); setAccentColor('custom'); }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <span className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                      accentColor === 'custom'
+                        ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
                         : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
-                    }`}
-                  >
-                    <span className={`font-black ${key === 'small' ? 'text-xs' : key === 'normal' ? 'text-sm' : 'text-base'} ${fontSize === key ? 'text-white dark:text-black' : 'text-slate-500 dark:text-slate-400'}`}>
-                      {sample}
+                    }`}>
+                      <span className="w-5 h-5 rounded" style={{ backgroundColor: accentColor === 'custom' ? customAccentHex : '#10b981' }} />
+                      Personalizado
                     </span>
-                    {label}
-                  </button>
+                  </label>
+                  {accentColor === 'custom' && (
+                    <span className="text-[9px] font-mono text-slate-400">{customAccentHex}</span>
+                  )}
+                </div>
+
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mt-6">
+                  <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                  MUESTRA DE TONOS
+                </p>
+                <div className="flex gap-1.5">
+                  {['50','100','200','300','400','500','600','700','800','900'].map((shade) => (
+                    <div
+                      key={shade}
+                      className="flex-1 h-8 rounded-lg"
+                      style={{ backgroundColor: `rgb(var(--accent-${shade}) / 1)` }}
+                      title={`${shade}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: Estados */}
+            {customizeTab === 'status' && (
+              <div className="space-y-4">
+                {STATUS_GROUPS.map((group) => (
+                  <div key={group.name}>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                      {group.name}
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {group.keys.map((status) => {
+                        const labels: Record<string, string> = {
+                          pending: 'Pendiente', paid: 'Pagado', cancelled: 'Cancelado', refunded: 'Reembolsado', overdue: 'Vencido',
+                          processing: 'Procesando', sent: 'Enviado', delivered: 'Entregado', returned: 'Devuelto',
+                          active: 'Activo', inactive: 'Inactivo', error: 'Error', success: 'Éxito', warning: 'Advertencia', info: 'Info',
+                          connected: 'Conectado', connecting: 'Conectando', disconnected: 'Desconectado',
+                          draft: 'Borrador', accepted: 'Aceptado', rejected: 'Rechazado', expired: 'Expirado',
+                        };
+                        const currentVariant = statusColors[status] || 'warning';
+                        return (
+                          <div key={status} className="flex items-center gap-2 px-1">
+                            <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 w-24 shrink-0">{labels[status] || status}</span>
+                            <div className="flex gap-1">
+                              {BADGE_VARIANTS.map((v) => {
+                                const colorMap: Record<string, string> = {
+                                  primary: 'bg-accent-500', success: 'bg-emerald-500', warning: 'bg-amber-500',
+                                  danger: 'bg-red-500', info: 'bg-sky-500', default: 'bg-slate-400',
+                                };
+                                return (
+                                  <button
+                                    key={v}
+                                    onClick={() => setStatusColor(status, v)}
+                                    className={`w-5 h-5 rounded-full ${colorMap[v]} transition-all ${
+                                      currentVariant === v ? 'ring-2 ring-offset-1 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white scale-110' : 'opacity-40 hover:opacity-80'
+                                    }`}
+                                    title={v}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
+            )}
+
+            {/* TAB: Apariencia */}
+            {customizeTab === 'appearance' && (
+              <div className="space-y-5">
+                {/* Layout */}
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                    LAYOUT
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: 'fluid', label: 'Fluido', desc: 'Ancho completo' },
+                      { key: 'boxed', label: 'Centrado', desc: 'Máximo 1400px' },
+                    ].map(({ key, label, desc }) => (
+                      <button
+                        key={key}
+                        onClick={() => setLayoutMode(key)}
+                        className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all ${
+                          layoutMode === key
+                            ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
+                            : 'bg-slate-100/50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="w-full h-6 rounded-md border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                          <div className={`h-1 rounded-full bg-slate-300 dark:bg-slate-600 ${key === 'boxed' ? 'w-3/5' : 'w-full mx-1'}`} />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{label}</span>
+                        <span className="text-[8px] text-slate-400 dark:text-slate-500 -mt-1">{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Densidad + Fuente */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                      DENSIDAD
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {['compact', 'normal', 'spacious'].map((key) => {
+                        const labels: Record<string, string> = { compact: 'Compacta', normal: 'Normal', spacious: 'Espaciosa' };
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setTableDensity(key)}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                              tableDensity === key
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
+                                : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
+                            }`}
+                          >
+                            <span className={`w-3 h-3 rounded ${key === 'compact' ? 'bg-slate-400' : key === 'normal' ? 'bg-slate-500' : 'bg-slate-600'} ${tableDensity === key ? 'bg-white dark:bg-black' : ''}`} />
+                            {labels[key]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                      TAMAÑO FUENTE
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {[
+                        { key: 'small', label: 'Pequeña', sample: 'Aa' },
+                        { key: 'normal', label: 'Normal', sample: 'Aa' },
+                        { key: 'large', label: 'Grande', sample: 'Aa' },
+                      ].map(({ key, label, sample }) => (
+                        <button
+                          key={key}
+                          onClick={() => setFontSize(key)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            fontSize === key
+                              ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
+                              : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
+                          }`}
+                        >
+                          <span className={`font-black ${key === 'small' ? 'text-xs' : key === 'normal' ? 'text-sm' : 'text-base'} ${fontSize === key ? 'text-white dark:text-black' : 'text-slate-500 dark:text-slate-400'}`}>
+                            {sample}
+                          </span>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tarjetas + Redondeo */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                      TARJETAS
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {[
+                        { key: 'bordered', label: 'Con borde', klass: 'border border-slate-300 dark:border-slate-600' },
+                        { key: 'flat', label: 'Sin borde', klass: 'shadow-sm' },
+                        { key: 'glass', label: 'Vidrio', klass: 'bg-white/50 dark:bg-white/5 backdrop-blur' },
+                      ].map(({ key, label, klass }) => (
+                        <button
+                          key={key}
+                          onClick={() => setCardStyle(key)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            cardStyle === key
+                              ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
+                              : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
+                          }`}
+                        >
+                          <span className={`w-4 h-3 rounded ${klass} ${cardStyle === key ? 'border-white dark:border-black' : ''}`} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                      REDONDEO
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {[
+                        { key: 'small', label: 'Pequeño', klass: 'rounded-md' },
+                        { key: 'normal', label: 'Normal', klass: 'rounded-xl' },
+                        { key: 'large', label: 'Grande', klass: 'rounded-3xl' },
+                      ].map(({ key, label, klass }) => (
+                        <button
+                          key={key}
+                          onClick={() => setRadiusSize(key)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            radiusSize === key
+                              ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
+                              : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
+                          }`}
+                        >
+                          <span className={`w-4 h-3 bg-slate-400 ${klass} ${radiusSize === key ? 'bg-white dark:bg-black' : ''}`} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tipografía */}
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                    TIPOGRAFÍA
+                  </p>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { key: 'inter', label: 'Inter', sample: 'Aa' },
+                      { key: 'system', label: 'System', sample: 'Aa' },
+                      { key: 'mono', label: 'Mono', sample: 'Aa' },
+                      { key: 'sans', label: 'Sans', sample: 'Aa' },
+                      { key: 'serif', label: 'Serif', sample: 'Aa' },
+                    ].map(({ key, label, sample }) => (
+                      <button
+                        key={key}
+                        onClick={() => setFontFamily(key)}
+                        className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${
+                          fontFamily === key
+                            ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
+                            : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        <span className={`text-lg font-black transition-transform ${fontFamily === key ? 'scale-110' : ''} ${
+                          key === 'mono' ? 'font-mono' : key === 'sans' ? 'font-sans' : key === 'serif' ? 'font-serif' : ''
+                        } ${fontFamily === key ? 'text-accent-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                          {sample}
+                        </span>
+                        <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400 truncate w-full text-center">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: Vista Previa */}
+            {customizeTab === 'preview' && (
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
+                  VISTA PREVIA EN VIVO
+                </p>
+
+                {/* Card preview */}
+                <div className={`p-4 ${cardStyle === 'bordered' ? 'border border-slate-300 dark:border-slate-600' : cardStyle === 'flat' ? 'shadow-sm' : 'bg-white/50 dark:bg-white/5 backdrop-blur'} rounded-xl`}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="w-10 h-10 rounded-xl bg-accent-500 flex items-center justify-center text-black font-black text-sm">SP</span>
+                    <div className="flex-1 min-w-0">
+                      <div className={`h-2.5 rounded-full bg-slate-300 dark:bg-slate-600 ${tableDensity === 'compact' ? 'w-1/2' : tableDensity === 'spacious' ? 'w-3/4' : 'w-2/3'}`} />
+                      <div className={`h-2 rounded-full bg-slate-200 dark:bg-slate-700 mt-1.5 ${tableDensity === 'compact' ? 'w-1/3' : tableDensity === 'spacious' ? 'w-full' : 'w-1/2'}`} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-accent-500">Preview</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-600 text-[10px] font-bold">Activo</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 text-[10px] font-bold">Pagado</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 text-[10px] font-bold">Pendiente</span>
+                    <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-600 text-[10px] font-bold">Error</span>
+                  </div>
+                </div>
+
+                {/* Table preview */}
+                <div className={`overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/50`}>
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                      <tr>
+                        <th className="px-3 py-2">Cliente</th>
+                        <th className="px-3 py-2">Estado</th>
+                        <th className="px-3 py-2">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {[
+                        { name: 'Tech Solutions', status: 'paid', total: '$3,025' },
+                        { name: 'Digital Agency', status: 'pending', total: '$2,178' },
+                        { name: 'Global Trade', status: 'cancelled', total: '$6,292' },
+                      ].map((row, i) => (
+                        <tr key={i} className={`${i % 2 === 0 ? 'bg-accent-50/30' : ''} transition-colors`}>
+                          <td className={`px-3 py-2 text-slate-700 dark:text-slate-300`}>{row.name}</td>
+                          <td className="px-3 py-2"><StatusBadge status={row.status} size="xs" /></td>
+                          <td className="px-3 py-2 font-semibold text-slate-900 dark:text-white">{row.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Button preview */}
+                <div className="flex gap-2">
+                  <button className="px-4 py-2 bg-accent-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl">Botón</button>
+                  <button className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-widest rounded-xl">Secundario</button>
+                  <button className="px-4 py-2 border-2 border-red-500 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl">Peligro</button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Section: Tarjetas y Redondeo */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                TARJETAS
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {[
-                  { key: 'bordered', label: 'Con borde', klass: 'border border-slate-300 dark:border-slate-600' },
-                  { key: 'flat', label: 'Sin borde', klass: 'shadow-sm' },
-                  { key: 'glass', label: 'Vidrio', klass: 'bg-white/50 dark:bg-white/5 backdrop-blur' },
-                ].map(({ key, label, klass }) => (
-                  <button
-                    key={key}
-                    onClick={() => setCardStyle(key)}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                      cardStyle === key
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
-                        : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
-                    }`}
-                  >
-                    <span className={`w-4 h-3 rounded ${klass} ${cardStyle === key ? 'border-white dark:border-black' : ''}`} />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                REDONDEO
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {[
-                  { key: 'small', label: 'Pequeño', klass: 'rounded-md' },
-                  { key: 'normal', label: 'Normal', klass: 'rounded-xl' },
-                  { key: 'large', label: 'Grande', klass: 'rounded-3xl' },
-                ].map(({ key, label, klass }) => (
-                  <button
-                    key={key}
-                    onClick={() => setRadiusSize(key)}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                      radiusSize === key
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
-                        : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
-                    }`}
-                  >
-                    <span className={`w-4 h-3 bg-slate-400 ${klass} ${radiusSize === key ? 'bg-white dark:bg-black' : ''}`} />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Footer */}
+          <div className="border-t border-slate-200 dark:border-slate-700/50 px-4 py-3 bg-slate-50/50 dark:bg-white/[0.02]">
+            <button
+              onClick={() => setIsCustomizeOpen(false)}
+              className="w-full py-2.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-md"
+            >
+              Hecho
+            </button>
           </div>
-
-          {/* Previsualización */}
-          <div className="p-3 rounded-xl bg-slate-100/50 dark:bg-white/5 border border-slate-200 dark:border-slate-700/50">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Vista previa</p>
-            <div className="flex items-center gap-3">
-              <span className="w-6 h-6 rounded-full bg-accent-500" />
-              <div className="flex-1 space-y-1.5">
-                <div className={`h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 ${tableDensity === 'compact' ? 'w-1/2' : tableDensity === 'spacious' ? 'w-3/4' : 'w-2/3'}`} />
-                <div className={`h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 ${tableDensity === 'compact' ? 'w-1/3' : tableDensity === 'spacious' ? 'w-full' : 'w-1/2'}`} />
-              </div>
-              <span className="font-black uppercase tracking-widest text-[10px] text-accent-500">Preview</span>
-            </div>
-          </div>
-
-          {/* Apply button */}
-          <button
-            onClick={() => setIsCustomizeOpen(false)}
-            className="w-full py-3 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-md"
-          >
-            Hecho
-          </button>
         </div>
       </Modal>
     </header>

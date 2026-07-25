@@ -19,7 +19,7 @@ export const ViewToggle = ({ value, onChange, className }: ViewToggleProps) => {
         className={cn(
           "p-1.5 rounded-lg transition-all",
           value === 'table'
-            ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400'
+            ? 'bg-white dark:bg-white/10 shadow-sm text-accent-500'
             : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
         )}
         title="Vista de Tabla"
@@ -32,7 +32,7 @@ export const ViewToggle = ({ value, onChange, className }: ViewToggleProps) => {
         className={cn(
           "p-1.5 rounded-lg transition-all",
           value === 'grid'
-            ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400'
+            ? 'bg-white dark:bg-white/10 shadow-sm text-accent-500'
             : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
         )}
         title="Vista de Cuadrícula"

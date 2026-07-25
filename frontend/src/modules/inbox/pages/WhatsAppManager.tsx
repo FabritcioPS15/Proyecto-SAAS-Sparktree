@@ -217,7 +217,7 @@ export const WhatsAppManager = () => {
         <div className="mx-3 md:mx-4 mb-1 p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
           <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-            Has alcanzado el límite máximo de {MAX_CONNECTIONS} conexiones. Elimina una conexión existente para crear una nueva.
+            Máximo de {MAX_CONNECTIONS} alcanzado. Elimina una conexión y crea otra.
           </p>
         </div>
       )}
@@ -319,7 +319,7 @@ export const WhatsAppManager = () => {
           </button>
           <button
             onClick={createConnection}
-            className="flex-1 py-3.5 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-emerald-600 transition-all shadow-md"
+            className="flex-1 py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md"
           >
             Crear
           </button>
@@ -341,7 +341,7 @@ export const WhatsAppManager = () => {
         )}
         <button
           onClick={() => setQrModal(null)}
-          className="w-full py-3 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-emerald-600 transition-all shadow-md"
+          className="w-full py-3 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md"
         >
           Cerrar
         </button>
@@ -395,7 +395,7 @@ export const WhatsAppManager = () => {
                 <button
                   onClick={() => sendTestMessage(selectedConnection.id)}
                   disabled={selectedConnection.status !== 'connected'}
-                  className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-emerald-600 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Enviar Mensaje de Prueba
                 </button>

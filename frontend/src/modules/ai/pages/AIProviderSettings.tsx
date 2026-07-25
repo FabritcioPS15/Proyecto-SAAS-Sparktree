@@ -208,8 +208,7 @@ export const AIProviderSettings = () => {
             <div>
               <p className="text-xs font-bold text-slate-900 dark:text-white mb-1">Configuración de Proveedores LLM</p>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Conecta tu cuenta de OpenAI o Anthropic para usar modelos de lenguaje en los nodos de IA del Constructor de Bots.
-                Las API Keys se almacenan de forma segura y se usan exclusivamente para tu tenant.
+                Conecta OpenAI o Anthropic para usar LLMs. API Keys cifradas y exclusivas para tu tenant.
               </p>
             </div>
           </div>
@@ -357,7 +356,7 @@ export const AIProviderSettings = () => {
 
                         <div className="flex gap-2">
                           <button onClick={() => handleSave(key)} disabled={saving === key}
-                            className="flex-1 h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 shadow-md">
+                            className="flex-1 h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 shadow-md">
                             {saving === key ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</> : 'Guardar Configuración'}
                           </button>
                           {isEditing && (

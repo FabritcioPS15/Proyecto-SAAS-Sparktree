@@ -32,8 +32,8 @@ export const adminService = {
 
   async updateOrganization(id: string, name?: string, plan?: string) {
     const updateData: any = {};
-    if (name) updateData.name = name;
-    if (plan) updateData.plan = plan;
+    if (name !== undefined) updateData.name = name;
+    if (plan !== undefined) updateData.plan = plan;
 
     const { data: org, error } = await supabase
       .from('organizations')
@@ -44,6 +44,44 @@ export const adminService = {
 
     if (error) throw error;
     return org;
+  },
+
+  async updateOrganizationPayment(id: string, paymentStatus: string) {
+    const { data: org, error } = await supabase
+      .from('organizations')
+      .update({ payment_status: paymentStatus })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return org;
+  },
+
+  async updateOrganizationNotification(id: string, notification: string | null, showPopup: boolean) {
+    const { data: org, error } = await supabase
+      .from('organizations')
+      .update({
+        admin_notification: notification,
+        show_overdue_popup: showPopup,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return org;
+  },
+
+  async getOrganizationNotifications() {
+    const { data: orgs, error } = await supabase
+      .from('organizations')
+      .select('id, name, admin_notification, show_overdue_popup, payment_status, plan')
+      .not('admin_notification', 'is', null)
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+    return orgs || [];
   },
 
   async deleteOrganization(id: string) {

@@ -7,6 +7,8 @@ import { PageLoader } from '../../../components/layout/PageLoader';
 import { DataTable } from '../../../components/ui/DataTable';
 import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
+import { Badge } from '../../../components/ui/Badge';
+import { TagChip } from '../../../components/ui/TagChip';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { adminService } from '../../../services/adminService';
 import { SystemUser, Organization, CreateUserDTO, UserRole } from '../../../types/admin';
@@ -190,12 +192,22 @@ export const StaffManagement = () => {
     {
       key: 'role',
       header: 'Rol',
-      render: (_: any, user: SystemUser) => (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${getUserRoleColor(getUserRole(user))}`}>
-          <Crown className="w-2.5 h-2.5" />
-          {getUserRole(user)}
-        </span>
-      )
+      render: (_: any, user: SystemUser) => {
+        const roleMap: Record<string, { variant: 'primary' | 'success' | 'info' | 'default' | 'danger'; label: string }> = {
+          'super_admin': { variant: 'danger', label: 'Super Admin' },
+          'admin': { variant: 'primary', label: 'Admin' },
+          'empresa': { variant: 'success', label: 'Empresa' },
+          'staff': { variant: 'info', label: 'Staff' },
+          'agent': { variant: 'default', label: 'Agente' },
+        };
+        const role = getUserRole(user)?.toLowerCase() || 'agent';
+        const cfg = roleMap[role] || roleMap.agent;
+        return (
+          <Badge variant={cfg.variant} size="xs" shape="rounded" icon={<Crown className="w-2.5 h-2.5" />}>
+            {cfg.label}
+          </Badge>
+        );
+      }
     },
     {
       key: 'org',
@@ -266,7 +278,7 @@ export const StaffManagement = () => {
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold transition-all shadow-lg hover:scale-105 active:scale-95"
+              className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95"
             >
               <UserPlus className="w-4 h-4" />
               Nuevo Usuario
@@ -322,7 +334,7 @@ export const StaffManagement = () => {
         open={isModalOpen || !!editingUser}
         onClose={() => { setIsModalOpen(false); setEditingUser(null); }}
         title={editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
-        icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">{editingUser ? <SettingsIcon className="w-5 h-5 text-white" /> : <UserPlus className="w-5 h-5 text-white" />}</div>}
+        icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg">{editingUser ? <SettingsIcon className="w-5 h-5 text-white" /> : <UserPlus className="w-5 h-5 text-white" />}</div>}
         footer={
           <div className="flex gap-3">
             <button type="button" onClick={() => { setIsModalOpen(false); setEditingUser(null); }}
@@ -330,7 +342,7 @@ export const StaffManagement = () => {
               Cancelar
             </button>
             <button type="submit" form="staff-form"
-              className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
+              className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
               {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
             </button>
           </div>
@@ -403,10 +415,10 @@ export const StaffManagement = () => {
         onClose={() => setShowRolesInfo(false)}
         title="Roles del Sistema"
         size="lg"
-        icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg"><Info className="w-5 h-5 text-black" /></div>}
+        icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg"><Info className="w-5 h-5 text-black" /></div>}
         footer={
           <button onClick={() => setShowRolesInfo(false)}
-            className="w-full h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
+            className="w-full h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
             Entendido
           </button>
         }
@@ -421,7 +433,7 @@ export const StaffManagement = () => {
           ].map((roleInfo) => (
             <div key={roleInfo.role} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50">
               <div className="flex items-start gap-3">
-                <div className={`shrink-0 w-10 h-10 flex items-center justify-center rounded-xl text-white text-xs font-black uppercase tracking-widest ${getRoleColor(roleInfo.role)}`}>
+                <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl text-xs font-black uppercase tracking-widest bg-accent-500/10 text-accent-600 dark:text-accent-400 border border-accent-500/20">
                   {roleInfo.title.slice(0, 3)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -429,9 +441,9 @@ export const StaffManagement = () => {
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{roleInfo.desc}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {roleInfo.perms.map((perm, idx) => (
-                      <span key={idx} className="text-[9px] px-2 py-0.5 bg-white dark:bg-slate-800 rounded-md text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium">
+                      <TagChip key={idx} color="default" size="xs">
                         {perm}
-                      </span>
+                      </TagChip>
                     ))}
                   </div>
                 </div>

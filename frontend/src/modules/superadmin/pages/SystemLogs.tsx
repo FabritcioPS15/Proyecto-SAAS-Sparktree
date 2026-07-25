@@ -7,6 +7,7 @@ import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { DataTable } from '../../../components/ui/DataTable';
 import { SearchBar } from '../../../components/ui/SearchBar';
+import { Badge } from '../../../components/ui/Badge';
 
 interface SystemLog {
   id: string;
@@ -35,18 +36,17 @@ export const SystemLogs = () => {
       key: 'level',
       header: 'Nivel',
       render: (value: string) => {
-        const config = {
-          error: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-500/10' },
-          warning: { icon: AlertTriangle, color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-500/10' },
-          info: { icon: Info, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-500/10' },
-          success: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-500/10' },
+        const config: Record<string, { variant: 'danger' | 'warning' | 'info' | 'success'; icon: any }> = {
+          error: { variant: 'danger', icon: XCircle },
+          warning: { variant: 'warning', icon: AlertTriangle },
+          info: { variant: 'info', icon: Info },
+          success: { variant: 'success', icon: CheckCircle },
         };
-        const { icon: Icon, color, bg } = config[value as keyof typeof config] || config.info;
+        const { variant, icon: Icon } = config[value as keyof typeof config] || config.info;
         return (
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${bg} ${color}`}>
-            <Icon className="w-3 h-3" />
+          <Badge variant={variant} size="sm" icon={<Icon className="w-3 h-3" />}>
             {value}
-          </span>
+          </Badge>
         );
       }
     },

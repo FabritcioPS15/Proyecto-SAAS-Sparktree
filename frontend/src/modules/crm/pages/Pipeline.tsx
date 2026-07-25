@@ -244,7 +244,7 @@ export const Pipeline = () => {
           open={showModal}
           onClose={() => { setShowModal(false); setEditingDeal(null); setFormData({ client_id: '', name: '', value: 0, stage: 'prospecting', probability: 10, expected_close_date: '', notes: '' }); }}
           title={editingDeal ? 'Editar Deal' : 'Nuevo Deal'}
-          icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg"><Goal className="w-5 h-5 text-black" /></div>}
+          icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg"><Goal className="w-5 h-5 text-black" /></div>}
           footer={
             <div className="flex gap-3">
               <button type="button" onClick={() => { setShowModal(false); setEditingDeal(null); setFormData({ client_id: '', name: '', value: 0, stage: 'prospecting', probability: 10, expected_close_date: '', notes: '' }); }}
@@ -252,7 +252,7 @@ export const Pipeline = () => {
                 Cancelar
               </button>
               <button type="submit" form="deal-form"
-                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
+                className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
                 {editingDeal ? 'Actualizar' : 'Crear'}
               </button>
             </div>

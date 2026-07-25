@@ -142,39 +142,18 @@ export const Analytics = () => {
   const safeDailyFlowSummary = Array.isArray(dailyFlowSummary) ? dailyFlowSummary : [];
 
   const statCards = [
-    {
-      label: 'Tiempo Respuesta',
-      value: `${safeStats.avgResponseTime}s`,
-      icon: Clock,
-      gradient: 'from-blue-500/20 to-cyan-500/10',
-      iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-      trend: 12
-    },
-    {
-      label: 'Satisfacción',
-      value: `${safeStats.satisfactionRate}%`,
-      icon: Target,
-      gradient: 'from-emerald-500/20 to-green-500/10',
-      iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-      trend: 8
-    },
-    {
-      label: 'Finalización',
-      value: `${safeStats.completionRate}%`,
-      icon: CheckCircle,
-      gradient: 'from-violet-500/20 to-purple-500/10',
-      iconBg: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-      trend: -3
-    },
-    {
-      label: 'Usuarios Activos',
-      value: safeStats.totalUsers.toLocaleString(),
-      icon: Users,
-      gradient: 'from-amber-500/20 to-orange-500/10',
-      iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-      trend: 24
-    }
+    { label: 'Tiempo Respuesta', value: `${safeStats.avgResponseTime}s`, icon: Clock, color: 'blue', trend: 12 },
+    { label: 'Satisfacción', value: `${safeStats.satisfactionRate}%`, icon: Target, color: 'emerald', trend: 8 },
+    { label: 'Finalización', value: `${safeStats.completionRate}%`, icon: CheckCircle, color: 'violet', trend: -3 },
+    { label: 'Usuarios Activos', value: safeStats.totalUsers.toLocaleString(), icon: Users, color: 'amber', trend: 24 },
   ];
+
+  const cardColors: Record<string, { gradient: string; iconBg: string }> = {
+    blue: { gradient: 'from-blue-500/20 to-cyan-500/10', iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+    emerald: { gradient: 'from-emerald-500/20 to-green-500/10', iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    violet: { gradient: 'from-violet-500/20 to-purple-500/10', iconBg: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+    amber: { gradient: 'from-amber-500/20 to-orange-500/10', iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  };
 
   return (
     <PageContainer>
@@ -208,11 +187,11 @@ export const Analytics = () => {
               key={idx}
               className="relative bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group overflow-hidden"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${cardColors[item.color]?.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
               <div className="absolute -right-6 -top-6 w-20 h-20 bg-white/5 dark:bg-white/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
 
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className={`p-3 rounded-xl ${item.iconBg} border border-white/20`}>
+                <div className={`p-3 rounded-xl ${cardColors[item.color]?.iconBg} border border-white/20`}>
                   <item.icon className="w-5 h-5" />
                 </div>
                 <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${

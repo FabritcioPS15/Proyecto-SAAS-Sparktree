@@ -117,7 +117,7 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
   return (
     <div className="p-6 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2.5 bg-gradient-to-br from-accent-500 to-emerald-500 rounded-xl shadow-lg shadow-accent-500/20">
+        <div className="p-2.5 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl shadow-lg shadow-accent-500/20">
           <Activity className="w-4 h-4 text-white" />
         </div>
         <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Estado del Ecosistema</h4>
@@ -159,7 +159,7 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
       {flows.length === 0 && !flowsLoading && (
         <div className="space-y-3 mb-4">
           <div className="flex items-start gap-3 p-3.5 bg-accent-500/5 rounded-xl border border-accent-500/10">
-            <div className="w-6 h-6 shrink-0 bg-gradient-to-br from-accent-500 to-emerald-500 text-white text-[10px] font-black rounded-lg flex items-center justify-center">01</div>
+            <div className="w-6 h-6 shrink-0 bg-gradient-to-br from-accent-500 to-accent-600 text-white text-[10px] font-black rounded-lg flex items-center justify-center">01</div>
             <div>
               <p className="font-black text-slate-900 dark:text-white text-xs uppercase mb-0.5">Sin flujos activos</p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">Crea un flujo en el Constructor para activar esta conexión.</p>
@@ -169,7 +169,7 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
       )}
 
       <Link to="/builder"
-        className="flex items-center justify-center gap-2 w-full h-10 bg-gradient-to-r from-accent-500 to-emerald-500 hover:from-accent-600 hover:to-emerald-600 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99]"
+        className="flex items-center justify-center gap-2 w-full h-10 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99]"
       >
         Ir al Constructor
         <ArrowUpRight className="w-3.5 h-3.5" />

@@ -1,52 +1,41 @@
-import { cn } from '../../utils/cn';
+import { Badge } from './Badge';
+import { useCustomization } from '../../contexts/CustomizationContext';
 
 export interface StatusBadgeProps {
   status: string;
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
-  size?: 'sm' | 'md';
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  size?: 'xs' | 'sm' | 'md';
+  dot?: boolean;
 }
 
-const statusConfig: Record<string, { variant: StatusBadgeProps['variant']; label: string }> = {
-  pending: { variant: 'warning', label: 'Pendiente' },
-  paid: { variant: 'success', label: 'Pagado' },
-  sent: { variant: 'info', label: 'Enviado' },
-  delivered: { variant: 'success', label: 'Entregado' },
-  cancelled: { variant: 'danger', label: 'Cancelado' },
-  active: { variant: 'success', label: 'Activo' },
-  inactive: { variant: 'default', label: 'Inactivo' },
-  available: { variant: 'success', label: 'Disponible' },
-  busy: { variant: 'warning', label: 'Ocupado' },
-  offline: { variant: 'default', label: 'Offline' },
+const statusLabels: Record<string, string> = {
+  pending: 'Pendiente', paid: 'Pagado', sent: 'Enviado', delivered: 'Entregado',
+  cancelled: 'Cancelado', active: 'Activo', inactive: 'Inactivo',
+  available: 'Disponible', busy: 'Ocupado', offline: 'Offline',
+  error: 'Error', success: 'Éxito', warning: 'Advertencia', info: 'Info',
+  connected: 'Conectado', connecting: 'Conectando', disconnected: 'Desconectado',
+  draft: 'Borrador', accepted: 'Aceptado', rejected: 'Rechazado', expired: 'Vencido',
 };
 
-const variantStyles = {
-  default: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  success: 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
-  warning: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400',
-  danger: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400',
-  info: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
+const defaultVariants: Record<string, string> = {
+  pending: 'warning', paid: 'success', sent: 'info', delivered: 'success',
+  cancelled: 'danger', active: 'primary', inactive: 'default',
+  available: 'success', busy: 'warning', offline: 'default',
+  error: 'danger', success: 'success', warning: 'warning', info: 'info',
+  connected: 'success', connecting: 'warning', disconnected: 'danger',
+  draft: 'default', accepted: 'success', rejected: 'danger', expired: 'warning',
 };
 
-const sizeStyles = {
-  sm: 'text-xs px-2 py-0.5',
-  md: 'text-sm px-2.5 py-1',
-};
-
-export const StatusBadge = ({ status, variant, size = 'md' }: StatusBadgeProps) => {
+export const StatusBadge = ({ status, variant, size = 'sm', dot = true }: StatusBadgeProps) => {
+  const customization = useCustomization();
   const statusKey = status?.toLowerCase() || 'default';
-  const config = statusConfig[statusKey] || { variant: 'default' as const, label: status || 'Desconocido' };
-  const badgeVariant = variant || config.variant || 'default';
-  const label = config.label;
+  const customVariant = customization?.statusColors?.[statusKey];
+  const badgeVariant = variant || customVariant || defaultVariants[statusKey] || 'default';
+  const label = statusLabels[statusKey] || status || 'Desconocido';
 
   return (
-    <span
-      className={cn(
-        'inline-flex items-center font-medium rounded-full',
-        variantStyles[badgeVariant],
-        sizeStyles[size]
-      )}
-    >
+    <Badge variant={badgeVariant as any} size={size} dot={dot}>
       {label}
-    </span>
+    </Badge>
   );
 };

@@ -154,7 +154,7 @@ export const FacebookConfig = () => {
             <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl flex items-start gap-3">
               <FaInstagram className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                <span className="font-bold text-slate-900 dark:text-white">Ya conectaste Instagram</span> con esta misma cuenta de Facebook — puedes reutilizar la sesión sin volver a autorizar.
+                <span className="font-bold text-slate-900 dark:text-white">Instagram ya conectado</span> con Facebook. Reutiliza la sesión sin re-autorizar.
               </p>
             </div>
           )}
@@ -219,7 +219,7 @@ export const FacebookConfig = () => {
               <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl flex items-start gap-3">
                 <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Los mensajes fuera de una ventana de 24 horas requieren usar plantillas aprobadas (Message Tags) por Meta.
+                  Mensajes fuera de 24h requieren plantillas aprobadas por Meta.
                 </p>
               </div>
             </div>
@@ -347,7 +347,7 @@ export const FacebookConfig = () => {
               <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl flex items-start gap-3">
                 <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Los mensajes fuera de una ventana de 24 horas requieren usar plantillas aprobadas (Message Tags) por Meta.
+                  Mensajes fuera de 24h requieren plantillas aprobadas por Meta.
                 </p>
               </div>
             </>
