@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { MessageCircle, Mail, Lock, ArrowRight, Loader2, Info, ChevronDown, ChevronUp, Sparkles, CheckCircle2, Shield, UserPlus } from 'lucide-react';
+import { FaWhatsapp, FaFacebook, FaInstagram, FaGoogle, FaTelegram, FaTiktok } from 'react-icons/fa';
 import { login, adminLogin } from '../../../services/api';
 
 export const Login = () => {
@@ -48,6 +49,13 @@ export const Login = () => {
   const setTestAccount = (e: string, p: string) => {
     setEmail(e);
     setPassword(p);
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    // Aquí se implementaría la lógica de autenticación social
+    // Por ahora mostramos un mensaje informativo
+    console.log(`Login con ${provider} - Próximamente disponible`);
+    setError(`Inicio de sesión con ${provider} estará disponible próximamente.`);
   };
 
   return (
@@ -188,6 +196,59 @@ export const Login = () => {
               <span>Acceso Admin Local (Un Click)</span>
             </button>
           </form>
+
+          {/* Social Login Divider */}
+          <div className="flex items-center gap-4 my-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">O continúa con</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          {/* Social Login Buttons */}
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={() => handleSocialLogin('WhatsApp')}
+              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-green-500/30 transition-all group"
+            >
+              <FaWhatsapp className="w-6 h-6 text-green-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">WhatsApp</span>
+            </button>
+            <button
+              onClick={() => handleSocialLogin('Facebook')}
+              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-blue-500/30 transition-all group"
+            >
+              <FaFacebook className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Facebook</span>
+            </button>
+            <button
+              onClick={() => handleSocialLogin('Google')}
+              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-red-500/30 transition-all group"
+            >
+              <FaGoogle className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Google</span>
+            </button>
+            <button
+              onClick={() => handleSocialLogin('Instagram')}
+              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-pink-500/30 transition-all group"
+            >
+              <FaInstagram className="w-6 h-6 text-pink-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Instagram</span>
+            </button>
+            <button
+              onClick={() => handleSocialLogin('Telegram')}
+              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-blue-400/30 transition-all group"
+            >
+              <FaTelegram className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Telegram</span>
+            </button>
+            <button
+              onClick={() => handleSocialLogin('TikTok')}
+              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-black/30 transition-all group"
+            >
+              <FaTiktok className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">TikTok</span>
+            </button>
+          </div>
 
           {/* Register Link */}
           <div className="mt-6 text-center">

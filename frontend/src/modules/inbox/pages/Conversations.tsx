@@ -11,7 +11,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { useNotifications } from '../../../contexts/NotificationContext';
 const MOCK_AGENTS = [
-  { id: '1', name: 'Ana GÃ³mez' },
+  { id: '1', name: 'Ana Gómez' },
   { id: '2', name: 'Carlos Ruiz' },
   { id: '3', name: 'Maria Torres' },
   { id: '4', name: 'David Silva' },
@@ -77,6 +77,94 @@ export const Conversations = () => {
     return el.scrollHeight - el.scrollTop - el.clientHeight < 100;
   };
 
+  const formatPhoneNumber = (phone: string) => {
+    if (!phone) return { prefix: '', number: '' };
+    
+    // Convertir a string y limpiar espacios y caracteres especiales
+    let cleanPhone = String(phone).trim();
+    
+    // Eliminar caracteres comunes de WhatsApp (como @c.us, @s.whatsapp.net, etc.)
+    cleanPhone = cleanPhone.replace(/@c\.us$/i, '');
+    cleanPhone = cleanPhone.replace(/@s\.whatsapp\.net$/i, '');
+    cleanPhone = cleanPhone.replace(/@g\.us$/i, '');
+    cleanPhone = cleanPhone.replace(/@whatsapp\.net$/i, '');
+    
+    // Eliminar cualquier otro carácter no numérico excepto el +
+    cleanPhone = cleanPhone.replace(/[^\d+]/g, '');
+    
+    // Si el número está vacío después de limpiar
+    if (!cleanPhone) return { prefix: '', number: '' };
+    
+    // Códigos de país comunes (ISO 3166-1)
+    const countryCodes = ['1', '7', '20', '27', '30', '31', '32', '33', '34', '36', '39', '40', '41', '43', '44', '45', '46', '47', '48', '49', '51', '52', '53', '54', '55', '56', '57', '58', '60', '61', '62', '63', '64', '65', '66', '81', '82', '84', '86', '88', '91', '92', '93', '94', '95', '98'];
+    
+    // Detectar si tiene prefijo internacional (+)
+    if (cleanPhone.startsWith('+')) {
+      const match = cleanPhone.match(/^\+(\d{1,3})(.*)$/);
+      if (match) {
+        const potentialPrefix = match[1];
+        // Verificar si es un código de país válido
+        if (countryCodes.includes(potentialPrefix)) {
+          return {
+            prefix: '+' + potentialPrefix,
+            number: match[2].trim()
+          };
+        }
+        // Si no es código de país conocido, intentar con 2 dígitos
+        if (potentialPrefix.length === 3) {
+          const twoDigitPrefix = potentialPrefix.substring(0, 2);
+          if (countryCodes.includes(twoDigitPrefix)) {
+            return {
+              prefix: '+' + twoDigitPrefix,
+              number: potentialPrefix.substring(2) + match[2].trim()
+            };
+          }
+        }
+      }
+    }
+    
+    // Intentar detectar prefijo sin + (ej: 51 para Perú, 1 para USA, etc.)
+    const digitsOnly = cleanPhone.replace(/\D/g, '');
+    if (digitsOnly.length >= 10) {
+      // Intentar coincidir con códigos de país conocidos
+      for (const code of countryCodes.sort((a, b) => b.length - a.length)) {
+        if (digitsOnly.startsWith(code)) {
+          const remainingLength = digitsOnly.length - code.length;
+          // Verificar que el número restante tenga longitud razonable (8-10 dígitos)
+          if (remainingLength >= 8 && remainingLength <= 10) {
+            return {
+              prefix: '+' + code,
+              number: digitsOnly.substring(code.length)
+            };
+          }
+        }
+      }
+    }
+    
+    // Si no tiene prefijo detectado, asumir formato local
+    return {
+      prefix: '',
+      number: cleanPhone
+    };
+  };
+
+  const getRealPhoneNumber = (contact: any) => {
+    // Intentar obtener el número real de múltiples campos posibles
+    let realPhone = contact.phoneNumber;
+    
+    // Si phoneNumber parece un ID (muy largo), buscar en otros campos
+    if (!realPhone || realPhone.length > 15) {
+      realPhone = contact.phone || contact.contactPhone || contact.mobile || contact.cell || contact.whatsappNumber || contact.waNumber;
+    }
+    
+    // Si aún no hay número válido, usar el ID como fallback
+    if (!realPhone) {
+      realPhone = contact.phoneNumber || contact.id;
+    }
+    
+    return realPhone;
+  };
+
   useEffect(() => {
     if (messages.length > lastMessagesLength.current || isNearBottom()) {
       scrollToBottom();
@@ -99,10 +187,11 @@ export const Conversations = () => {
 
         let filtered = conversationsArray;
         if (searchTerm) {
-          filtered = filtered.filter(conv =>
-            (conv.contactId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (conv.contactId?.phoneNumber || '').includes(searchTerm)
-          );
+          filtered = filtered.filter(conv => {
+            const realPhone = getRealPhoneNumber(conv.contactId);
+            return (conv.contactId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   (realPhone || '').includes(searchTerm);
+          });
         }
 
         if (filterStatus !== 'all') {
@@ -338,6 +427,45 @@ export const Conversations = () => {
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConv || sending) return;
+
+    const localUrl = URL.createObjectURL(file);
+    const isImage = file.type.startsWith('image/');
+    const mediaType = isImage ? 'image' : 'document';
+
+    setSending(true);
+
+    const optimistic = {
+      _id: `tmp-${Date.now()}`,
+      direction: 'outbound',
+      content: JSON.stringify({ url: localUrl, type: mediaType, filename: file.name }),
+      createdAt: new Date().toISOString(),
+      type: mediaType,
+      status: 'sending'
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (selectedConnectionId) formData.append('whatsapp_connection_id', selectedConnectionId);
+
+      const response = await api.post(`/conversations/${selectedConv._id}/send`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
+    } catch (err: any) {
+      setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+      const errMsg = err.response?.data?.error || 'Error al enviar el archivo. Verifica la conexión.';
+      addNotification({ type: 'error', title: 'Error', message: errMsg });
+    } finally {
+      setSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleMuteConversation = (convId: string) => {
     const isMuted = mutedConversations.has(convId);
     setMutedConversations(prev => {
       const next = new Set(prev);
@@ -494,7 +622,7 @@ export const Conversations = () => {
         if (selectedConv?._id === conversationId) setSelectedConv(null);
       } catch (err) {
         console.error('Failed to delete', err);
-        alert('Error al eliminar. IntÃ©ntelo de nuevo.');
+        alert('Error al eliminar. Inténtelo de nuevo.');
       }
     }
   };
@@ -513,7 +641,7 @@ export const Conversations = () => {
     } else if (diffDays === 1 || (diffDays === 0 && date.getDate() !== now.getDate())) {
       return `Ayer ${timeStr}`;
     } else if (diffDays < 7) {
-      const days = ['Dom', 'Lun', 'Mar', 'MiÃ©', 'Jue', 'Vie', 'SÃ¡b'];
+      const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
       return `${days[date.getDay()]} ${timeStr}`;
     } else {
       return `${date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${timeStr}`;
@@ -577,7 +705,7 @@ export const Conversations = () => {
                     </div>
                     {[
                       { id: 'all', label: 'Todos', icon: MessageCircle },
-                      { id: 'unread', label: 'No leÃ­dos', icon: Star },
+                      { id: 'unread', label: 'No leídos', icon: Star },
                       { id: 'groups', label: 'Grupos', icon: Users }
                     ].map(f => (
                       <button
@@ -675,7 +803,11 @@ export const Conversations = () => {
                   <div className="flex justify-between items-center mb-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-bold text-gray-900 dark:text-gray-100 truncate text-[13px] tracking-tight">
-                        {contact.name || contact.phoneNumber}
+                        {contact.name || (() => {
+                          const realPhone = getRealPhoneNumber(contact);
+                          const { prefix, number } = formatPhoneNumber(realPhone);
+                          return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                        })()}
                       </span>
                       <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider text-white flex items-center gap-1 shrink-0 ${channelBadge.color}`}>
                         {ChannelIcon ? <ChannelIcon className="w-3 h-3" /> : <span className="w-3 h-3 flex items-center justify-center text-[8px] font-bold">T</span>}
@@ -727,7 +859,7 @@ export const Conversations = () => {
         {totalPages > 1 && (
           <div className="p-4 border-t border-gray-50 dark:border-white/5 flex items-center justify-between">
             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              P\u00E1g {currentPage} / {totalPages}
+              Pág {currentPage} / {totalPages}
             </div>
             <div className="flex items-center gap-1.5">
               <button
@@ -772,7 +904,11 @@ export const Conversations = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                    {selectedConv.contactId?.name || selectedConv.contactId?.phoneNumber}
+                    {selectedConv.contactId?.name || (() => {
+                      const realPhone = getRealPhoneNumber(selectedConv.contactId);
+                      const { prefix, number } = formatPhoneNumber(realPhone);
+                      return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                    })()}
                   </h3>
                   <span className="text-[10px] text-gray-400 font-semibold">En línea</span>
                 </div>
@@ -813,11 +949,19 @@ export const Conversations = () => {
                     <div>
                       <div className="flex items-center gap-3 mb-0.5">
                         <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
-                          {selectedConv.contactId?.name || selectedConv.contactId?.phoneNumber}
+                          {selectedConv.contactId?.name || (() => {
+                            const realPhone = getRealPhoneNumber(selectedConv.contactId);
+                            const { prefix, number } = formatPhoneNumber(realPhone);
+                            return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                          })()}
                         </h3>
                         <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                       </div>
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedConv.contactId?.phoneNumber}</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{(() => {
+                        const realPhone = getRealPhoneNumber(selectedConv.contactId);
+                        const { prefix, number } = formatPhoneNumber(realPhone);
+                        return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                      })()}</span>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 relative">
@@ -1060,7 +1204,7 @@ export const Conversations = () => {
                               </button>
                             ))}
                             {(!catalog.items || catalog.items.length === 0) && (
-                              <p className="text-[10px] font-bold text-gray-400 px-2">Catálogoo vacÃ­o</p>
+                              <p className="text-[10px] font-bold text-gray-400 px-2">Catálogo vacío</p>
                             )}
                           </div>
                         </div>
@@ -1199,4 +1343,3 @@ export const Conversations = () => {
 };
 
 export default Conversations;
-

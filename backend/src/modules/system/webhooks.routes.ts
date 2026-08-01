@@ -3,6 +3,15 @@ import { multiPlatformService } from '../integrations/platform/multiPlatformServ
 
 const router = Router();
 
+// WhatsApp (Meta Cloud API) webhook
+router.get('/whatsapp', async (req, res: Response) => {
+  await multiPlatformService.verifyWebhook('whatsapp', req, res);
+});
+
+router.post('/whatsapp', async (req, res: Response) => {
+  await multiPlatformService.handleWebhook('whatsapp', req, res);
+});
+
 // Telegram webhook
 router.get('/telegram', async (req, res: Response) => {
   await multiPlatformService.verifyWebhook('telegram', req, res);

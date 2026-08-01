@@ -16,18 +16,23 @@ export class WhatsAppCloudService extends BasePlatformService {
   }
 
   async initializeConnection(connectionData: any): Promise<void> {
+    const config = connectionData.config || {};
+    const phoneNumberId = connectionData.platform_account_id || connectionData.phone_number_id || config.phone_number_id;
+    const accessToken = connectionData.access_token || config.access_token;
+    const webhookVerifyToken = connectionData.webhook_verify_token || config.webhook_verify_token;
+
     const connection: PlatformConnection = {
       id: connectionData.id,
       userId: connectionData.user_id,
       organizationId: connectionData.organization_id,
       platformType: 'whatsapp',
       displayName: connectionData.display_name,
-      platformAccountId: connectionData.phone_number_id,
+      platformAccountId: phoneNumberId,
       status: connectionData.status || 'disconnected',
       config: {
-        phoneNumberId: connectionData.phone_number_id,
-        accessToken: connectionData.access_token,
-        webhookVerifyToken: connectionData.webhook_verify_token,
+        phoneNumberId,
+        accessToken,
+        webhookVerifyToken,
       },
       lastConnectedAt: connectionData.last_connected_at ? new Date(connectionData.last_connected_at) : undefined,
     };

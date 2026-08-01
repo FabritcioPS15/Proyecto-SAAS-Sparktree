@@ -40,6 +40,81 @@ export const getUsers = async () => {
   }
 };
 
+export const getClients = async () => {
+  try {
+    const response = await api.get('/crm/clients');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    throw error;
+  }
+};
+
+export const getContacts = async () => {
+  try {
+    // Usar el endpoint de conversaciones que ya funciona y devuelve contactos
+    const response = await api.get('/conversations');
+    console.log('Conversations response:', response.data);
+    
+    // Extraer los contactos únicos de las conversaciones
+    const conversations = Array.isArray(response.data) ? response.data : [];
+    console.log('Conversations array:', conversations);
+    console.log('Conversations length:', conversations.length);
+    
+    // Obtener el número de WhatsApp de la conexión activa
+    let whatsappLineNumber = '';
+    try {
+      const connectionsResponse = await api.get('/whatsapp-connections');
+      const connections = Array.isArray(connectionsResponse.data) ? connectionsResponse.data : [];
+      const activeConnection = connections.find((c: any) => c.status === 'connected');
+      if (activeConnection && activeConnection.phone_number) {
+        whatsappLineNumber = activeConnection.phone_number;
+        console.log('WhatsApp line number:', whatsappLineNumber);
+      }
+    } catch (e) {
+      console.log('Could not fetch WhatsApp connections:', e);
+    }
+    
+    const contactsMap = new Map();
+    
+    conversations.forEach((conv: any) => {
+      console.log('Processing conversation:', conv);
+      if (conv.contactId && conv.contactId.phoneNumber) {
+        const key = conv.contactId.phoneNumber;
+        console.log('Contact found:', conv.contactId);
+        
+        // Usar el phoneNumber directamente (el backend está enviando IDs internos)
+        let realPhoneNumber = conv.contactId.phoneNumber;
+        
+        if (!contactsMap.has(key)) {
+          contactsMap.set(key, {
+            id: conv.contactId.id || conv.contactId._id,
+            phone_number: realPhoneNumber,
+            profile_name: conv.contactId.name,
+            profile_picture: conv.contactId.profilePicture,
+            platform_type: 'whatsapp', // Asumir whatsapp por ahora
+            last_active_at: conv.lastMessageAt,
+            whatsapp_line_number: whatsappLineNumber, // Número de la conexión activa
+            custom_attributes: {
+              whatsapp_jid: conv.contactId.phoneNumber,
+              real_phone_number: realPhoneNumber !== conv.contactId.phoneNumber ? realPhoneNumber : undefined
+            }
+          });
+        }
+      }
+    });
+    
+    const contacts = Array.from(contactsMap.values());
+    console.log('Final contacts:', contacts);
+    console.log('Contacts length:', contacts.length);
+    
+    return contacts;
+  } catch (error) {
+    console.error('Error fetching contacts:', error);
+    throw error;
+  }
+};
+
 export const deleteUser = async (id: string) => {
   try {
     const response = await api.delete(`/users/${id}`);

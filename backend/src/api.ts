@@ -29,6 +29,9 @@ import assignmentRoutes from './modules/chat/assignment.routes';
 import internalNotesRoutes from './modules/chat/internalNotes.routes';
 import inboxRoutes from './modules/chat/inbox.routes';
 import catalogsRoutes from './modules/catalogs/catalogs.routes';
+import knowledgeRoutes from './modules/knowledge/knowledge.routes';
+import billingRoutes from './modules/billing/billing.routes';
+import aiRoutes from './modules/ai/ai.routes';
 
 // Load environment variables
 dotenv.config();
@@ -111,6 +114,13 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true
 }));
+
+// Initialize request start time BEFORE body parsing so that errors raised
+// by express.json (e.g. malformed JSON) still have a valid startTime.
+app.use((req, res, next) => {
+  if (!(req as any).startTime) (req as any).startTime = Date.now();
+  next();
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -237,13 +247,16 @@ app.use('/api/assignment', assignmentRoutes);
 app.use('/api/internal-notes', internalNotesRoutes);
 app.use('/api/inbox', inboxRoutes);
 app.use('/api/catalogs', catalogsRoutes);
+app.use('/api/knowledge', knowledgeRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Middleware to record metrics for all successful responses
 app.use((req: Request, res: Response, next: NextFunction) => {
   const originalJson = res.json;
   res.json = function(data) {
     // Record metrics for successful responses
-    const duration = (Date.now() - (req as any).startTime) / 1000;
+    const duration = (Date.now() - ((req as any).startTime || Date.now())) / 1000;
     const statusCode = res.statusCode;
     httpRequestDuration.observe(
       { method: req.method, route: req.route?.path || req.path, status_code: statusCode },
@@ -267,14 +280,14 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   }
 
   // Record metrics for error responses
-  const duration = (Date.now() - (req as any).startTime) / 1000;
+  const duration = (Date.now() - ((req as any).startTime || Date.now())) / 1000;
   httpRequestDuration.observe(
     { method: req.method, route: req.route?.path || req.path, status_code: 500 },
     duration
   );
   httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: 500 });
   
-  res.status(500).json({
+  res.status(err.status || err.statusCode || 500).json({
     error: 'Internal Server Error',
     message: err.message,
     timestamp: new Date().toISOString()
@@ -284,7 +297,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // 404 handler
 app.use('*', (req: Request, res: Response) => {
   // Record metrics for 404 responses
-  const duration = (Date.now() - (req as any).startTime) / 1000;
+  const duration = (Date.now() - ((req as any).startTime || Date.now())) / 1000;
   httpRequestDuration.observe(
     { method: req.method, route: req.route?.path || req.path, status_code: 404 },
     duration

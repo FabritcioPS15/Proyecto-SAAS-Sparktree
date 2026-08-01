@@ -31,44 +31,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>({
-    id: 'b97c9ebb-5dda-4234-9588-5ddd46c1478e',
-    email: 'admin@sparktree.io',
-    full_name: 'Super Administrador',
-    role: 'admin',
-    organization_id: '7170954e-da49-4c74-acf7-b22aa5b44cb4'
-  });
-  const [organizationId, setOrganizationId] = useState<string | null>('7170954e-da49-4c74-acf7-b22aa5b44cb4');
+  const [user, setUser] = useState<User | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Restore session from localStorage
-    /*
     const savedSession = localStorage.getItem('sparktree_session');
     if (savedSession) {
       try {
-        const { user, organizationId, activeProfile } = JSON.parse(savedSession);
-        setUser(user);
-        setOrganizationId(organizationId);
-        if (activeProfile) setActiveProfile(activeProfile);
+        const { user: savedUser, organizationId: savedOrgId, activeProfile: savedProfile } = JSON.parse(savedSession);
+        if (savedUser && savedUser.id) {
+          setUser(savedUser);
+          setOrganizationId(savedOrgId || savedUser.organization_id || null);
+          if (savedProfile) setActiveProfile(savedProfile);
+        } else {
+          localStorage.removeItem('sparktree_session');
+        }
       } catch (e) {
         console.error('Failed to restore session', e);
         localStorage.removeItem('sparktree_session');
       }
     }
-    */
-    localStorage.setItem('sparktree_session', JSON.stringify({ 
-      user: {
-        id: 'b97c9ebb-5dda-4234-9588-5ddd46c1478e',
-        email: 'admin@sparktree.io',
-        full_name: 'Super Administrador',
-        role: 'admin',
-        organization_id: '7170954e-da49-4c74-acf7-b22aa5b44cb4'
-      },
-      organizationId: '7170954e-da49-4c74-acf7-b22aa5b44cb4',
-      activeProfile: null
-    }));
     setLoading(false);
   }, []);
 

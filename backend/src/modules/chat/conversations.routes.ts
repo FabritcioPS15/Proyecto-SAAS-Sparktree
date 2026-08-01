@@ -238,6 +238,39 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /api/contacts - Get all contacts with platform info
+router.get('/contacts', async (req, res) => {
+  try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const { data: contacts, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('organization_id', orgId)
+      .order('last_active_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Error fetching contacts:', error);
+      return res.status(500).json({ error: 'Failed to fetch contacts' });
+    }
+
+    // Log para debug: ver qué datos están llegando
+    if (contacts && contacts.length > 0) {
+      console.log('[Contacts API] First contact:', contacts[0]);
+    }
+
+    res.json(contacts || []);
+  } catch (error) {
+    console.error('Error fetching contacts:', error);
+    res.status(500).json({ error: 'Failed to fetch contacts' });
+  }
+});
+
 export default router;
 
 

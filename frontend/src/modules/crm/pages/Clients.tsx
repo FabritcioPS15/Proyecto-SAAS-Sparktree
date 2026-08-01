@@ -1,19 +1,17 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, User, Trash2, Phone, UserCheck, CheckSquare, Square, MessageSquare, Zap, UserPlus, Eye, Mail, Cpu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getUsers, deleteUser, deleteUsersBulk } from '../../../services/api';
+import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User } from 'lucide-react';
+import { getContacts, deleteUser, deleteUsersBulk } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
-import { DataTable, Column } from '../../../components/ui/DataTable';
+import { ResponsiveList, ResponsiveColumn } from '../../../components/ui/ResponsiveList';
 import { SearchBar } from '../../../components/ui/SearchBar';
 import { FilterSelect } from '../../../components/ui/FilterSelect';
-import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
-import { TableCard } from '../../../components/ui/TableCard';
-import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
-import { TableActions } from '../../../components/ui/TableActions';
 import { Modal } from '../../../components/ui/Modal';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { TableCard } from '../../../components/ui/TableCard';
 import { useNotifications } from '../../../contexts/NotificationContext';
 
 type SortField = 'phoneNumber' | 'firstInteraction' | 'lastInteraction' | 'totalMessages' | 'attendedBy' | 'usageTime';
@@ -24,12 +22,11 @@ export const Clients = () => {
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<SortField>('lastInteraction');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sortField] = useState<SortField>('lastInteraction');
+  const [sortOrder] = useState<SortOrder>('desc');
   const [users, setUsers] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [filterChannel, setFilterChannel] = useState('all');
   const [confirmDelete, setConfirmDelete] = useState<{ id: string } | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
@@ -42,12 +39,19 @@ export const Clients = () => {
 
   const fetchClients = () => {
     setLoading(true);
-    getUsers()
+    getContacts()
       .then(data => {
-        setUsers(Array.isArray(data) ? data : []);
+        const usersArray = Array.isArray(data) ? data : [];
+        console.log('Datos de contactos recibidos:', usersArray);
+        console.log('Cantidad de contactos:', usersArray.length);
+        if (usersArray.length > 0) {
+          console.log('Primer contacto:', usersArray[0]);
+        }
+        setUsers(usersArray);
       })
       .catch(err => {
-        console.error('Failed to fetch users', err);
+        console.error('Failed to fetch contacts', err);
+        console.error('Error details:', err.response?.data || err.message);
         setUsers([]);
       })
       .finally(() => setLoading(false));
@@ -94,27 +98,10 @@ export const Clients = () => {
     });
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === paginatedUsers.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(paginatedUsers.map(u => u.id)));
-    }
-  };
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
-  };
-
   const filteredUsers = (users || []).filter(user => {
-    const matchesSearch = user.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.attendedBy?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesChannel = filterChannel === 'all' || (user.channels && Object.keys(user.channels).includes(filterChannel));
+    const matchesSearch = user.phone_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.profile_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesChannel = filterChannel === 'all' || user.platform_type === filterChannel;
     return matchesSearch && matchesChannel;
   });
 
@@ -132,91 +119,272 @@ export const Clients = () => {
   const paginatedUsers = sortedUsers.slice(startIndex, startIndex + itemsPerPage);
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('es-ES', {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
   };
 
+  const getChannelColor = (channel: string) => {
+    const channelLower = channel.toLowerCase();
+    switch (channelLower) {
+      case 'whatsapp':
+        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+      case 'instagram':
+        return 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20';
+      case 'tiktok':
+        return 'bg-slate-900/10 text-slate-800 dark:text-slate-200 border-slate-900/20';
+      case 'telegram':
+        return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+      case 'messenger':
+        return 'bg-blue-600/10 text-blue-700 dark:text-blue-300 border-blue-600/20';
+      case 'email':
+        return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20';
+      default:
+        return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    }
+  };
+
+  const formatPhoneNumber = (phone: string) => {
+    if (!phone) return { prefix: '', number: '' };
+    
+    // Convertir a string y limpiar espacios y caracteres especiales
+    let cleanPhone = String(phone).trim();
+    
+    // Eliminar caracteres comunes de WhatsApp (como @c.us, @s.whatsapp.net, etc.)
+    cleanPhone = cleanPhone.replace(/@c\.us$/i, '');
+    cleanPhone = cleanPhone.replace(/@s\.whatsapp\.net$/i, '');
+    cleanPhone = cleanPhone.replace(/@g\.us$/i, '');
+    cleanPhone = cleanPhone.replace(/@whatsapp\.net$/i, '');
+    
+    // Eliminar cualquier otro carácter no numérico excepto el +
+    cleanPhone = cleanPhone.replace(/[^\d+]/g, '');
+    
+    // Si el número está vacío después de limpiar
+    if (!cleanPhone) return { prefix: '', number: '' };
+    
+    // Códigos de país comunes (ISO 3166-1)
+    const countryCodes = ['1', '7', '20', '27', '30', '31', '32', '33', '34', '36', '39', '40', '41', '43', '44', '45', '46', '47', '48', '49', '51', '52', '53', '54', '55', '56', '57', '58', '60', '61', '62', '63', '64', '65', '66', '81', '82', '84', '86', '88', '91', '92', '93', '94', '95', '98'];
+    
+    // Detectar si tiene prefijo internacional (+)
+    if (cleanPhone.startsWith('+')) {
+      const match = cleanPhone.match(/^\+(\d{1,3})(.*)$/);
+      if (match) {
+        const potentialPrefix = match[1];
+        // Verificar si es un código de país válido
+        if (countryCodes.includes(potentialPrefix)) {
+          return {
+            prefix: '+' + potentialPrefix,
+            number: match[2].trim()
+          };
+        }
+        // Si no es código de país conocido, intentar con 2 dígitos
+        if (potentialPrefix.length === 3) {
+          const twoDigitPrefix = potentialPrefix.substring(0, 2);
+          if (countryCodes.includes(twoDigitPrefix)) {
+            return {
+              prefix: '+' + twoDigitPrefix,
+              number: potentialPrefix.substring(2) + match[2].trim()
+            };
+          }
+        }
+      }
+    }
+    
+    // Intentar detectar prefijo sin + (ej: 51 para Perú, 1 para USA, etc.)
+    const digitsOnly = cleanPhone.replace(/\D/g, '');
+    if (digitsOnly.length >= 10) {
+      // Intentar coincidir con códigos de país conocidos
+      for (const code of countryCodes.sort((a, b) => b.length - a.length)) {
+        if (digitsOnly.startsWith(code)) {
+          const remainingLength = digitsOnly.length - code.length;
+          // Verificar que el número restante tenga longitud razonable (8-10 dígitos)
+          if (remainingLength >= 8 && remainingLength <= 10) {
+            return {
+              prefix: '+' + code,
+              number: digitsOnly.substring(code.length)
+            };
+          }
+        }
+      }
+    }
+    
+    // Si no tiene prefijo detectado, asumir formato local
+    return {
+      prefix: '',
+      number: cleanPhone
+    };
+  };
+
   if (loading) return <PageLoader sectionName="Directorio" />;
 
-  const columns: Column<any>[] = [
+  const responsiveColumns: ResponsiveColumn<any>[] = [
     {
       key: 'phoneNumber',
-      header: 'Cliente',
-      render: (_: any, user: any) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-accent-500/10 text-accent-500 flex items-center justify-center font-black text-[10px]">
-            {user.phoneNumber.slice(-2)}
+      header: 'Teléfono',
+      mobilePriority: 'high',
+      render: (_: any, user: any) => {
+        // Intentar obtener el número real de múltiples fuentes
+        let realPhone = user.phone_number;
+        
+        // Si phone_number parece un ID (muy largo), buscar en custom_attributes
+        if (!realPhone || realPhone.length > 15) {
+          // Revisar custom_attributes donde podría estar el número real
+          if (user.custom_attributes) {
+            const attrs = user.custom_attributes;
+            realPhone = attrs.real_phone_number || attrs.whatsapp_jid || attrs.whatsapp_number || attrs.phone || attrs.phoneNumber;
+          }
+        }
+        
+        // Si aún no hay número válido, usar el phone_number original como fallback
+        if (!realPhone) {
+          realPhone = user.phone_number;
+        }
+        
+        const { prefix, number } = formatPhoneNumber(realPhone);
+        const displayNumber = number || realPhone;
+        
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent-500/10 text-accent-500 flex items-center justify-center font-black text-sm">
+              {displayNumber.slice(-2)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                {prefix && <span className="font-bold text-accent-500 text-sm">{prefix}</span>}
+                <span className="font-bold text-slate-900 dark:text-white text-base">{displayNumber}</span>
+              </div>
+              <span className="text-xs text-accent-500 flex items-center gap-1 mt-1 font-medium">
+                <MessageSquare className="w-3 h-3" /> Ir al chat
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="font-bold text-slate-900 dark:text-white block leading-none">{user.phoneNumber}</span>
-            <span className="text-[10px] text-accent-500 flex items-center gap-1 mt-1">
-              <MessageSquare className="w-2.5 h-2.5" /> Ir al chat
-            </span>
-          </div>
-        </div>
-      )
+        );
+      }
     },
     {
       key: 'attendedBy',
-      header: 'Atendido por',
+      header: 'Estado',
+      mobilePriority: 'high',
       render: (_: any, user: any) => (
-        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-          {user.botState === 'handoff' ? (
-            <UserCheck className="w-3.5 h-3.5 text-amber-500" />
+        <div className="flex items-center gap-2">
+          {user.bot_state === 'handoff' ? (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg text-xs font-bold">
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Humano</span>
+            </div>
           ) : (
-            <Cpu className="w-3.5 h-3.5 text-emerald-500" />
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold">
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Bot</span>
+            </div>
           )}
-          <span className="font-medium">{user.attendedBy}</span>
+          <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">{user.bot_state || 'main_menu'}</span>
         </div>
       )
     },
     {
       key: 'channels',
-      header: 'Canales',
-      render: (_: any, user: any) => (
-        <div className="flex gap-1">
-          {user.channels && Object.keys(user.channels).length > 0 ? (
-            Object.keys(user.channels).map((channel) => (
-              <span key={channel} className="px-2 py-1 bg-slate-100 dark:bg-dark-card text-slate-600 dark:text-slate-300 rounded text-[9px] font-bold uppercase">
-                {channel}
-              </span>
-            ))
-          ) : (
-            <span className="text-slate-400 text-[10px]">-</span>
-          )}
-        </div>
-      )
+      header: 'Canal',
+      mobilePriority: 'high',
+      render: (_: any, user: any) => {
+        // Intentar detectar el canal de múltiples formas (basado en esquema de BD)
+        let channel = null;
+        
+        // 1. Desde user.platform_type (campo correcto según esquema BD)
+        if (user.platform_type) {
+          channel = user.platform_type;
+        }
+        
+        // 2. Desde user.channels (objeto)
+        if (!channel && user.channels && Object.keys(user.channels).length > 0) {
+          channel = Object.keys(user.channels)[0];
+        }
+        
+        // 3. Desde user.channel (string directo - como en Conversations.tsx)
+        if (!channel && user.channel) {
+          channel = user.channel;
+        }
+        
+        // 4. Desde user.source (campo alternativo)
+        if (!channel && user.source) {
+          channel = user.source;
+        }
+        
+        // 5. Desde user.platform (campo alternativo)
+        if (!channel && user.platform) {
+          channel = user.platform;
+        }
+        
+        // 6. Desde user.lastChannel (último canal usado)
+        if (!channel && user.lastChannel) {
+          channel = user.lastChannel;
+        }
+        
+        // 7. Desde user.conversationChannel (canal de la conversación)
+        if (!channel && user.conversationChannel) {
+          channel = user.conversationChannel;
+        }
+        
+        // 8. Desde user.origin (origen del mensaje)
+        if (!channel && user.origin) {
+          channel = user.origin;
+        }
+        
+        // Normalizar el nombre del canal
+        if (channel) {
+          const normalizedChannel = String(channel).toLowerCase().trim();
+          // Mapeo de nombres alternativos a nombres estándar
+          const channelMapping: Record<string, string> = {
+            'whatsapp': 'whatsapp',
+            'wa': 'whatsapp',
+            'wsp': 'whatsapp',
+            'instagram': 'instagram',
+            'ig': 'instagram',
+            'tiktok': 'tiktok',
+            'telegram': 'telegram',
+            'tg': 'telegram',
+            'messenger': 'messenger',
+            'facebook_messenger': 'messenger',
+            'fb': 'messenger',
+            'facebook': 'messenger',
+            'email': 'email',
+            'mail': 'email',
+            'correo': 'email'
+          };
+          channel = channelMapping[normalizedChannel] || normalizedChannel;
+        }
+        
+        return channel ? (
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase border ${getChannelColor(channel)}`}>
+            <span>{channel}</span>
+          </div>
+        ) : (
+          <span className="text-slate-400 text-xs">Sin canal</span>
+        );
+      }
     },
     {
       key: 'serviceNumber',
       header: 'Línea',
-      render: (_: any, user: any) => (
-        <div className="flex items-center gap-2 text-slate-500 uppercase text-[10px] font-bold">
-          <Phone className="w-3.5 h-3.5 opacity-50" />
-          <span>{user.serviceNumber || 'N/A'}</span>
-        </div>
-      )
+      mobilePriority: 'high',
+      render: (_: any, user: any) => {
+        // Usar whatsapp_line_number (número de la conexión WhatsApp activa)
+        const lineNumber = user.whatsapp_line_number || user.phone_number;
+        const { prefix, number } = formatPhoneNumber(lineNumber);
+        return (
+          <div className="flex items-center justify-end gap-2 text-slate-600 dark:text-slate-300 text-sm">
+            {prefix && <span className="font-bold text-accent-500 text-sm">{prefix}</span>}
+            <span className="font-medium">{number || 'Sin línea'}</span>
+          </div>
+        );
+      }
     },
     {
       key: 'lastInteraction',
-      header: 'Última vez',
+      header: 'Última interacción',
+      mobilePriority: 'medium',
       render: (_: any, user: any) => (
-        <span className="text-slate-500 text-xs">{formatDate(user.lastInteraction)}</span>
-      )
-    },
-    {
-      key: 'actions',
-      header: 'Acciones',
-      className: 'text-center',
-      render: (_: any, user: any) => (
-        <TableActions
-          actions={[
-            { icon: <Eye className="w-4 h-4" />, label: 'Ver Chat', onClick: (e) => { e.stopPropagation(); navigate('/conversations'); }, tooltip: 'Ver Chat' },
-            { icon: <Trash2 className="w-4 h-4" />, label: 'Eliminar', onClick: (e) => { e.stopPropagation(); setConfirmDelete({ id: user.id }); }, variant: 'danger', tooltip: 'Eliminar Cliente' },
-          ]}
-        />
+        <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{formatDate(user.last_active_at)}</span>
       )
     }
   ];
@@ -271,111 +439,26 @@ export const Clients = () => {
                   { value: 'messenger', label: 'Messenger' },
                 ]}
               />
-              <ViewToggle value={viewMode} onChange={setViewMode} />
             </div>
           </div>
 
-          {viewMode === 'table' ? (
-            <DataTable
-              columns={columns}
-              data={paginatedUsers}
-              onRowClick={() => navigate('/conversations')}
-              pagination={{
-                currentPage,
-                totalPages,
-                onPageChange: setCurrentPage
-              }}
-            />
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {paginatedUsers.map((user) => (
-                  <div key={user.id} className={`group bg-white dark:bg-dark-card p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col ${selectedIds.has(user.id) ? 'ring-2 ring-accent-500' : ''}`}>
-                    <div className="flex items-center gap-2 mb-4">
-                      {user.botState === 'handoff' ? (
-                        <div className="bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-500/20 flex items-center gap-1">
-                          <UserCheck className="w-2.5 h-2.5" /> Agente Humano
-                        </div>
-                      ) : (
-                        <div className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/20 flex items-center gap-1">
-                          <Cpu className="w-2.5 h-2.5" /> Bot Activo
-                        </div>
-                      )}
-                      {user.totalMessages > 0 && (
-                        <div className="ml-auto bg-slate-100 dark:bg-dark-card text-slate-400 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest">
-                          {user.totalMessages} Msg
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-accent-500/10 rounded-xl flex items-center justify-center text-accent-500 font-black text-sm">
-                          {user.phoneNumber.slice(-2)}
-                        </div>
-                        <div>
-                          <h3 className="text-base font-black text-slate-900 dark:text-white truncate">{user.phoneNumber}</h3>
-                          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs mt-1">
-                            <Phone className="w-3 h-3" />
-                            <span>{user.serviceNumber || 'Sin línea'}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={(e) => toggleSelect(user.id, e)}
-                          className={`p-1.5 rounded-lg transition-all ${selectedIds.has(user.id) ? 'text-accent-500 bg-accent-500/10' : 'text-slate-400 hover:text-accent-500'}`}
-                        >
-                          {selectedIds.has(user.id) ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: user.id }); }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-3 flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Conexión</span>
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                          <Zap className="w-3.5 h-3.5 text-accent-500" />
-                          <span className="font-medium text-sm">{user.attendedBy}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Última vez</span>
-                        <span className="text-xs text-slate-500">{formatDate(user.lastInteraction)}</span>
-                      </div>
-                      <button
-                        onClick={() => navigate(`/conversations`)}
-                        className="w-full mt-3 py-2 bg-accent-500/10 text-accent-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-accent-500 hover:text-black transition-all flex items-center justify-center gap-2"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Ver Chat
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {totalPages > 1 && (
-                <div className="px-5 py-3 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between dark:bg-transparent mt-4">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Mostrando {startIndex + 1} - {Math.min(startIndex + itemsPerPage, sortedUsers.length)}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-black">{currentPage}</span>
-                      <span className="text-[10px] font-black opacity-30 uppercase">/ {totalPages || 1}</span>
-                    </div>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+          <ResponsiveList
+            columns={responsiveColumns}
+            data={paginatedUsers}
+            onRowClick={() => navigate('/conversations')}
+            onRowSelect={(user) => toggleSelect(user.id, { stopPropagation: () => {} } as any)}
+            selectedIds={selectedIds}
+            getId={(user) => user.id}
+            actions={(user) => [
+              { icon: <Eye className="w-4 h-4" />, label: 'Ver Chat', onClick: (e) => { e.stopPropagation(); navigate('/conversations'); }, tooltip: 'Ver Chat' },
+              { icon: <Trash2 className="w-4 h-4" />, label: 'Eliminar', onClick: (e) => { e.stopPropagation(); setConfirmDelete({ id: user.id }); }, variant: 'danger', tooltip: 'Eliminar Cliente' },
+            ]}
+            pagination={{
+              currentPage,
+              totalPages,
+              onPageChange: setCurrentPage
+            }}
+          />
         </TableCard>
       </PageBody>
 
@@ -405,7 +488,7 @@ export const Clients = () => {
         title="Nuevo Cliente"
         icon={<UserPlus className="w-5 h-5 text-accent-500" />}
       >
-        <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget; const name = (form.elements.namedItem('name') as HTMLInputElement).value; const email = (form.elements.namedItem('email') as HTMLInputElement).value; const phone = (form.elements.namedItem('phone') as HTMLInputElement).value; addNotification({ type: 'success', title: 'Cliente creado', message: `Se ha creado el cliente ${name}` }); setShowCreateModal(false); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget; const name = (form.elements.namedItem('name') as HTMLInputElement).value; addNotification({ type: 'success', title: 'Cliente creado', message: `Se ha creado el cliente ${name}` }); setShowCreateModal(false); }} className="space-y-4">
           <input type="text" name="name" placeholder="Nombre del cliente" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="email" name="email" placeholder="Correo electrónico" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="tel" name="phone" placeholder="Teléfono" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />

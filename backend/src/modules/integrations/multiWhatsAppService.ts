@@ -246,10 +246,11 @@ export class MultiWhatsAppService {
         }
 
         if (connStatus === 'close') {
-          const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-          connection.status = 'error';
+          const isLoggedOut = (lastDisconnect?.error as Boom)?.output?.statusCode === DisconnectReason.loggedOut;
+          const shouldReconnect = !isLoggedOut;
+          connection.status = isLoggedOut ? 'disconnected' : 'error';
           connection.qr = undefined;
-          this.updateConnectionStatus(connection.id, 'error');
+          this.updateConnectionStatus(connection.id, isLoggedOut ? 'disconnected' : 'error');
           
           if (shouldReconnect) {
             setTimeout(() => this.connectSocket(connection), 5000);
@@ -373,14 +374,59 @@ export class MultiWhatsAppService {
     const messageContent = msg.message;
     const senderPn = (messageContent as any)?.senderPn || (messageContent as any)?.protocolMessage?.senderPn;
 
+    let extractedNumber = '';
+
     if (remoteJidAlt && remoteJidAlt.includes('@s.whatsapp.net')) {
-      return remoteJidAlt.split('@')[0];
+      extractedNumber = remoteJidAlt.split('@')[0];
     } else if (senderPn) {
-      return senderPn.split('@')[0];
+      extractedNumber = senderPn.split('@')[0];
     } else if (remoteJid && !remoteJid.endsWith('@lid')) {
-      return remoteJid.split('@')[0].split(':')[0];
+      extractedNumber = remoteJid.split('@')[0].split(':')[0];
+    } else {
+      extractedNumber = remoteJid ? remoteJid.split('@')[0] : '';
     }
-    return remoteJid ? remoteJid.split('@')[0] : '';
+
+    // Si el número extraído parece un ID largo (más de 15 dígitos), intentar obtener el número real de otras fuentes
+    if (extractedNumber.length > 15) {
+      console.log(`[MultiWhatsApp] Extracted number looks like ID: ${extractedNumber}, trying to get real phone number`);
+      
+      // Intentar obtener el número del participant list si es un grupo
+      if (msg.key?.participant) {
+        const participantNumber = msg.key.participant.split('@')[0].split(':')[0];
+        if (participantNumber.length <= 15) {
+          console.log(`[MultiWhatsApp] Using participant number: ${participantNumber}`);
+          return participantNumber;
+        }
+      }
+
+      // Intentar obtener el número de otros campos del mensaje
+      const contextInfo = (messageContent as any)?.contextInfo;
+      if (contextInfo?.participant) {
+        const contextParticipant = contextInfo.participant.split('@')[0].split(':')[0];
+        if (contextParticipant.length <= 15) {
+          console.log(`[MultiWhatsApp] Using context participant number: ${contextParticipant}`);
+          return contextParticipant;
+        }
+      }
+
+      // Intentar obtener el número de quoted messages
+      const quotedMessage = (messageContent as any)?.extendedTextMessage?.contextInfo?.quotedMessage;
+      if (quotedMessage) {
+        const quotedParticipant = (messageContent as any)?.extendedTextMessage?.contextInfo?.participant;
+        if (quotedParticipant) {
+          const quotedNumber = quotedParticipant.split('@')[0].split(':')[0];
+          if (quotedNumber.length <= 15) {
+            console.log(`[MultiWhatsApp] Using quoted participant number: ${quotedNumber}`);
+            return quotedNumber;
+          }
+        }
+      }
+
+      // Si no se puede obtener un número real, usar el ID como fallback pero loggear el problema
+      console.log(`[MultiWhatsApp] Could not extract real phone number, using ID: ${extractedNumber}`);
+    }
+
+    return extractedNumber;
   }
 
   private readAuthState(authPath: string): any {
@@ -472,6 +518,27 @@ export class MultiWhatsAppService {
     // Similar to existing logic but using connection-specific organization
     const isGroup = (message.jid || '').includes('@g.us');
     
+    // Obtener el contacto existente para preservar custom_attributes
+    const { data: existingContact } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('organization_id', connection.organizationId)
+      .eq('phone_number', senderPhone)
+      .single();
+    
+    // Construir custom_attributes preservando datos existentes
+    const existingAttrs = existingContact?.custom_attributes || {};
+    const newAttrs = {
+      ...existingAttrs,
+      whatsapp_jid: message.jid,
+      is_group: isGroup
+    };
+    
+    // Si senderPhone parece un ID largo, intentar guardar el número real si está disponible en attrs existentes
+    if (senderPhone.length > 15 && existingAttrs.real_phone_number) {
+      newAttrs.real_phone_number = existingAttrs.real_phone_number;
+    }
+    
     const { data: contact } = await supabase
       .from('contacts')
       .upsert({
@@ -479,10 +546,7 @@ export class MultiWhatsAppService {
         phone_number: senderPhone,
         profile_name: profileName, 
         last_active_at: new Date().toISOString(),
-        custom_attributes: {
-          whatsapp_jid: message.jid,
-          is_group: isGroup
-        }
+        custom_attributes: newAttrs
       }, { onConflict: 'organization_id,phone_number' })
       .select()
       .single();

@@ -54,9 +54,13 @@ router.post('/login', async (req, res) => {
 
     // Return user data (excluding password)
     const { password_hash, ...userWithoutPassword } = user;
+    const userWithFullName = {
+      ...userWithoutPassword,
+      full_name: user.name || user.full_name || null
+    };
     
     res.json({
-      user: userWithoutPassword,
+      user: userWithFullName,
       organizationId: user.organization_id
     });
   } catch (error: any) {
@@ -123,9 +127,13 @@ router.post('/register', async (req, res) => {
 
     // Return user data (excluding password)
     const { password_hash: _, ...userWithoutPassword } = user;
+    const userWithFullName = {
+      ...userWithoutPassword,
+      full_name: user.name || user.full_name || null
+    };
     
     res.status(201).json({
-      user: userWithoutPassword,
+      user: userWithFullName,
       organizationId: user.organization_id
     });
   } catch (error: any) {
@@ -293,9 +301,13 @@ router.post('/admin-login', async (req, res) => {
 
     // Return user data (excluding password)
     const { password_hash, ...userWithoutPassword } = adminUser;
+    const userWithFullName = {
+      ...userWithoutPassword,
+      full_name: adminUser.name || adminUser.full_name || null
+    };
     
     res.json({
-      user: userWithoutPassword,
+      user: userWithFullName,
       organizationId: adminUser.organization_id
     });
   } catch (error: any) {

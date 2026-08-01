@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Phone, Mail, MessageSquare, TrendingUp, User, Tag, Eye } from 'lucide-react';
+import { Phone, Mail, MessageSquare, TrendingUp, User, Eye, Tag } from 'lucide-react';
 import { getLeads } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
-import { DataTable, Column } from '../../../components/ui/DataTable';
+import { ResponsiveList, ResponsiveColumn } from '../../../components/ui/ResponsiveList';
 import { SearchBar } from '../../../components/ui/SearchBar';
 import { FilterSelect } from '../../../components/ui/FilterSelect';
 import { Badge } from '../../../components/ui/Badge';
 import { TagChip } from '../../../components/ui/TagChip';
 import { TableCard } from '../../../components/ui/TableCard';
-import { TableActions } from '../../../components/ui/TableActions';
 import { Modal } from '../../../components/ui/Modal';
 
 interface Lead {
@@ -143,10 +142,11 @@ export const Leads = () => {
     currentPage * itemsPerPage
   );
 
-  const columns: Column<Lead>[] = [
+  const responsiveColumns: ResponsiveColumn<Lead>[] = [
     {
       key: 'lead',
       header: 'Lead / Empresa',
+      mobilePriority: 'high',
       render: (lead) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center font-black text-accent-600 dark:text-accent-400 text-sm group-hover:scale-110 transition-transform">
@@ -169,6 +169,7 @@ export const Leads = () => {
     {
       key: 'contact',
       header: 'Contacto',
+      mobilePriority: 'high',
       render: (lead) => (
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -185,6 +186,7 @@ export const Leads = () => {
     {
       key: 'status',
       header: 'Estado & Score',
+      mobilePriority: 'medium',
       render: (lead) => (
         <div className="flex items-center gap-4">
           <div className="space-y-1">
@@ -204,19 +206,6 @@ export const Leads = () => {
             <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 mt-1 uppercase">Score</span>
           </div>
         </div>
-      )
-    },
-    {
-      key: 'actions',
-      header: 'Acciones',
-      className: 'text-center',
-      render: (lead) => (
-        <TableActions
-          actions={[
-            { icon: <Eye className="w-4 h-4" />, label: 'Ver Detalle', onClick: () => setSelectedLead(lead), variant: 'default', tooltip: 'Ver Detalle' },
-            { icon: <MessageSquare className="w-4 h-4" />, label: 'Enviar Mensaje', onClick: () => { }, variant: 'accent', tooltip: 'Enviar Mensaje' },
-          ]}
-        />
       )
     }
   ];
@@ -271,9 +260,15 @@ export const Leads = () => {
             </div>
           </div>
 
-          <DataTable
-            columns={columns}
+          <ResponsiveList
+            columns={responsiveColumns}
             data={paginatedLeads}
+            onRowClick={(lead) => setSelectedLead(lead)}
+            getId={(lead) => lead.id}
+            actions={(lead) => [
+              { icon: <Eye className="w-4 h-4" />, label: 'Ver Detalle', onClick: () => setSelectedLead(lead), tooltip: 'Ver Detalle' },
+              { icon: <MessageSquare className="w-4 h-4" />, label: 'Enviar Mensaje', onClick: () => { }, tooltip: 'Enviar Mensaje' },
+            ]}
             pagination={{
               currentPage,
               totalPages,

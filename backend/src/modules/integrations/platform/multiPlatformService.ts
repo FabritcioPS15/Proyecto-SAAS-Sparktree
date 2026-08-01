@@ -4,6 +4,7 @@ import { instagramService } from './instagramService';
 import { tiktokService } from './tiktokService';
 import { facebookMessengerService } from './facebookMessengerService';
 import { mercadolibreService } from './mercadolibreService';
+import { whatsappCloudService } from './whatsappCloudService';
 import { supabase } from '../../../core/config/supabase';
 
 export class MultiPlatformService {
@@ -16,6 +17,7 @@ export class MultiPlatformService {
     this.services.set('tiktok', tiktokService);
     this.services.set('facebook_messenger', facebookMessengerService);
     this.services.set('mercadolibre', mercadolibreService);
+    this.services.set('whatsapp', whatsappCloudService);
   }
 
   // Initialize all platform connections for an organization

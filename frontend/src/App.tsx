@@ -69,7 +69,7 @@ const Cotizaciones = lazy(() => import('./modules/crm/pages/Cotizaciones').then(
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, activeProfile } = useAuth();
   
-  if (loading) return <PageLoader isInitial />;
+  if (loading) return <PageLoader sectionName="Panel" isInitial />;
   if (!user) return <Navigate to="/login" />;
   
   // Si es rol empresa y no ha seleccionado perfil, obligar a seleccionar

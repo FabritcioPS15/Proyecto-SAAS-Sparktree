@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react';
 import {
-  Building2, Search, Filter, DollarSign, Users, CreditCard, AlertTriangle,
-  CheckCircle, XCircle, Clock, Send, Bell, Eye, MoreHorizontal, Crown,
-  Ban, RefreshCw, MessageSquare, Info, TrendingUp
+  Building2, Users, CreditCard, AlertTriangle,
+  CheckCircle, Clock, Bell, Eye, Crown, TrendingUp, Send
 } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
-import { DataTable } from '../../../components/ui/DataTable';
+import { ResponsiveList, ResponsiveColumn } from '../../../components/ui/ResponsiveList';
 import { SearchBar } from '../../../components/ui/SearchBar';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Badge } from '../../../components/ui/Badge';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
-import { getOrganizations, updateOrganization, updateOrganizationPayment, updateOrganizationNotification } from '../../../services/api';
+import { getOrganizations, updateOrganizationPayment, updateOrganizationNotification } from '../../../services/api';
 
 interface Company {
   id: string;
@@ -116,10 +114,11 @@ export const Companies = () => {
     return 'bg-slate-100 text-slate-500 dark:bg-slate-800';
   };
 
-  const columns = [
+  const responsiveColumns: ResponsiveColumn<Company>[] = [
     {
       key: 'name',
       header: 'Empresa',
+      mobilePriority: 'high',
       render: (_: any, org: Company) => (
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-accent-500/10 flex items-center justify-center font-black text-accent-600 dark:text-accent-400 text-sm">
@@ -135,6 +134,7 @@ export const Companies = () => {
     {
       key: 'plan',
       header: 'Plan',
+      mobilePriority: 'high',
       render: (_: any, org: Company) => (
         <Badge variant={planVariant(org.plan)} size="xs" shape="rounded" icon={<Crown className="w-2.5 h-2.5" />}>
           {planLabel(org.plan)}
@@ -144,6 +144,7 @@ export const Companies = () => {
     {
       key: 'payment_status',
       header: 'Pago',
+      mobilePriority: 'medium',
       render: (_: any, org: Company) => {
         const status = org.payment_status || 'unknown';
         return (
@@ -159,6 +160,7 @@ export const Companies = () => {
     {
       key: 'userCount',
       header: 'Usuarios',
+      mobilePriority: 'medium',
       render: (v: number) => (
         <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-bold text-sm">
           <Users className="w-3.5 h-3.5 text-slate-400" />
@@ -169,41 +171,11 @@ export const Companies = () => {
     {
       key: 'created_at',
       header: 'Creado',
+      mobilePriority: 'low',
       render: (v: string) => (
         <span className="text-xs text-slate-500 font-medium">{v ? new Date(v).toLocaleDateString() : '-'}</span>
       )
-    },
-    {
-      key: 'actions',
-      header: '',
-      className: 'text-right',
-      render: (_: any, org: Company) => (
-        <div className="flex items-center justify-end gap-1">
-          <button onClick={() => setSelectedCompany(org)} className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all" title="Ver detalle">
-            <Eye className="w-4 h-4" />
-          </button>
-          <button onClick={() => { setSelectedCompany(org); setNotificationMsg(org.admin_notification || ''); setShowPopup(org.show_overdue_popup || false); setShowNotifyModal(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all" title="Enviar notificación">
-            <Bell className="w-4 h-4" />
-          </button>
-          <div className="relative group">
-            <button className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-            <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1">
-              <button onClick={() => handlePaymentStatus(org, 'paid')} className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Marcar Pagado
-              </button>
-              <button onClick={() => handlePaymentStatus(org, 'pending')} className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                <Clock className="w-3.5 h-3.5 text-amber-500" /> Marcar Pendiente
-              </button>
-              <button onClick={() => handlePaymentStatus(org, 'overdue')} className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> Marcar Vencido
-              </button>
-            </div>
-          </div>
-        </div>
-      )
-    },
+    }
   ];
 
   const filterBtns = [
@@ -292,10 +264,16 @@ export const Companies = () => {
             </div>
           </div>
 
-          <DataTable
+          <ResponsiveList
             data={filtered}
-            columns={columns}
+            columns={responsiveColumns}
             loading={loading}
+            onRowClick={(org) => setSelectedCompany(org)}
+            getId={(org) => org.id}
+            actions={(org) => [
+              { icon: <Eye className="w-4 h-4" />, label: 'Ver detalle', onClick: () => setSelectedCompany(org), tooltip: 'Ver detalle' },
+              { icon: <Bell className="w-4 h-4" />, label: 'Enviar notificación', onClick: () => { setSelectedCompany(org); setNotificationMsg(org.admin_notification || ''); setShowPopup(org.show_overdue_popup || false); setShowNotifyModal(true); }, tooltip: 'Enviar notificación' },
+            ]}
             pagination={{ currentPage, totalPages: Math.ceil(filtered.length / 10), onPageChange: setCurrentPage }}
           />
         </Card>

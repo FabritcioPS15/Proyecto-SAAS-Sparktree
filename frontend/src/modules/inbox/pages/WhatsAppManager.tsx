@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { 
-  Smartphone, 
-  Plus, 
-  Trash2, 
-  QrCode, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  Smartphone,
+  Plus,
+  Trash2,
+  QrCode,
+  CheckCircle,
+  AlertCircle,  
   Clock,
   MessageSquare,
   Settings,

@@ -20,12 +20,68 @@ interface HeaderProps {
 
 const iconBtn = "p-2 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-[#242424] hover:text-slate-700 dark:hover:text-accent-300 transition-all";
 
+const getSearchResults = (query: string) => {
+  const q = query.trim().toLowerCase();
+  if (!q) return SEARCH_ITEMS;
+  return SEARCH_ITEMS.filter((item) =>
+    item.label.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q)
+  );
+};
+
+const SEARCH_ITEMS = [
+  { label: 'Dashboard', path: '/', keywords: 'inicio panel dashboard home' },
+  { label: 'Clientes', path: '/clients', keywords: 'clientes contactos directorio crm' },
+  { label: 'Conversaciones', path: '/conversations', keywords: 'conversaciones chats mensajes inbox whatsapp telegram instagram facebook tiktok' },
+  { label: 'Catálogos', path: '/catalogs', keywords: 'catalogos productos servicios' },
+  { label: 'Potenciales', path: '/leads', keywords: 'leads potenciales oportunidades ventas' },
+  { label: 'Analíticas', path: '/analytics', keywords: 'analiticas metricas graficos rendimiento' },
+  { label: 'Reportes', path: '/reports', keywords: 'reportes informes datos' },
+  { label: 'Flujos', path: '/flow-manager', keywords: 'flujos bots chatbot automatizacion flow' },
+  { label: 'Plantillas', path: '/message-templates', keywords: 'plantillas mensajes templates' },
+  { label: 'Reglas de Asignación', path: '/assignment-rules', keywords: 'reglas asignacion agentes' },
+  { label: 'Horarios de Atención', path: '/business-hours', keywords: 'horarios atencion disponibilidad' },
+  { label: 'Knowledge Bases', path: '/knowledge-bases', keywords: 'knowledge bases conocimiento' },
+  { label: 'Atención', path: '/support', keywords: 'soporte atencion central' },
+  { label: 'Agentes', path: '/agents', keywords: 'agentes soporte equipo' },
+  { label: 'Base de Conocimiento', path: '/knowledge-base', keywords: 'base conocimiento articulos guias' },
+  { label: 'Notificaciones', path: '/notifications', keywords: 'notificaciones alertas avisos' },
+  { label: 'Webhooks', path: '/webhooks', keywords: 'webhooks api integraciones' },
+  { label: 'Roles y Permisos', path: '/roles-permissions', keywords: 'roles permisos accesos' },
+  { label: 'Auditoría', path: '/audit-logs', keywords: 'auditoria logs registro' },
+  { label: 'Facturación', path: '/billing', keywords: 'facturacion billing' },
+  { label: 'Planes', path: '/billing/plans', keywords: 'planes precios suscripcion' },
+  { label: 'Pagos', path: '/billing/payments', keywords: 'pagos metodos facturas' },
+  { label: 'Uso', path: '/billing/usage', keywords: 'uso consumo recursos' },
+  { label: 'Ajustes', path: '/settings', keywords: 'ajustes configuracion settings' },
+  { label: 'Conexiones', path: '/connections', keywords: 'conexiones canales' },
+  { label: 'WhatsApp', path: '/whatsapp-qr', keywords: 'whatsapp qr escanear' },
+  { label: 'Multi WhatsApp', path: '/multi-whatsapp', keywords: 'multi whatsapp numeros lineas' },
+  { label: 'Telegram', path: '/telegram-config', keywords: 'telegram bot' },
+  { label: 'Instagram', path: '/instagram-config', keywords: 'instagram' },
+  { label: 'Facebook', path: '/facebook-config', keywords: 'facebook messenger' },
+  { label: 'TikTok', path: '/tiktok-config', keywords: 'tiktok' },
+  { label: 'CRM', path: '/crm', keywords: 'crm clientes relacion' },
+  { label: 'Pipeline', path: '/pipeline', keywords: 'pipeline kanban etapas ventas' },
+  { label: 'Email', path: '/email', keywords: 'correo email bandeja' },
+  { label: 'Calendario', path: '/calendar', keywords: 'calendario agenda citas eventos' },
+  { label: 'Pedidos', path: '/orders', keywords: 'pedidos ordenes compras' },
+  { label: 'Promociones', path: '/promotions', keywords: 'promociones descuentos campañas' },
+  { label: 'Cotizaciones', path: '/cotizaciones', keywords: 'cotizaciones presupuestos' },
+  { label: 'Organizaciones', path: '/admin/organizations', keywords: 'organizaciones empresas admin' },
+  { label: 'Personal', path: '/admin/staff', keywords: 'personal staff equipo' },
+  { label: 'Empresas', path: '/superadmin/companies', keywords: 'empresas superadmin' },
+  { label: 'Métricas del Negocio', path: '/superadmin/business-metrics', keywords: 'metricas negocio superadmin' },
+  { label: 'Logs del Sistema', path: '/superadmin/system-logs', keywords: 'logs sistema superadmin' },
+  { label: 'Proveedores LLM', path: '/ai/providers', keywords: 'ai proveedores llm inteligencia' },
+];
+
 export const Header = ({ onMenuClick }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout, activeProfile, clearProfile } = useAuth();
   const { connections } = useConnections();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [isSocialOpen, setIsSocialOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -115,7 +171,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
   return (
     <header className="sticky top-0 z-[70] bg-[#F8FAFC] dark:bg-[#1a1a1a] transition-colors duration-300 shadow-sm">
-      <div className="flex items-center justify-between h-14 px-6">
+      <div className="relative flex items-center justify-between h-14 px-6">
 
         {/* Left: mobile menu + search */}
         <div className="flex items-center gap-3">
@@ -127,22 +183,10 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             <Menu className="w-4 h-4 text-slate-600 dark:text-slate-400" />
           </button>
 
-          {/* Desktop search */}
-          <div className="hidden md:block">
-            <button
-              onClick={() => { setIsSearchOpen(false); setIsSocialOpen(false); setIsQuickActionsOpen(false); setIsProfileOpen(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#242424] border border-[#E5E7EB] dark:border-[#333333] rounded-lg text-sm font-medium text-slate-400 hover:text-slate-600 dark:hover:text-accent-300 hover:border-slate-300 dark:hover:border-slate-700 transition-all w-56"
-            >
-              <Search className="w-3.5 h-3.5 shrink-0" />
-              <span className="text-xs">Buscar...</span>
-              <span className="ml-auto text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-md">⌘K</span>
-            </button>
-          </div>
-
-          {/* Mobile search icon + dropdown */}
+          {/* Mobile search icon (icon next to menu, dropdown centered on screen) */}
           <div className="md:hidden relative">
             <button
-              onClick={() => { setIsSearchOpen(!isSearchOpen); setIsSocialOpen(false); setIsQuickActionsOpen(false); setIsProfileOpen(false); }}
+              onClick={() => { setIsSearchOpen(!isSearchOpen); setIsSocialOpen(false); setIsQuickActionsOpen(false); setIsProfileOpen(false); setIsHelpOpen(false); }}
               className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500"
               title="Buscar"
             >
@@ -151,13 +195,97 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             {isSearchOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsSearchOpen(false)} />
-                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 bg-white dark:bg-[#242424] border border-[#E5E7EB] dark:border-[#333333] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="fixed left-1/2 top-16 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-white dark:bg-[#242424] border border-[#E5E7EB] dark:border-[#333333] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <input
                     type="text"
-                    placeholder="Buscar..."
+                    placeholder="Buscar módulos..."
                     autoFocus
-                    className="w-full px-4 py-3 bg-transparent text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const results = getSearchResults(searchQuery);
+                        if (results.length > 0) {
+                          navigate(results[0].path);
+                          setIsSearchOpen(false);
+                          setSearchQuery('');
+                        }
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-transparent text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none border-b border-[#E5E7EB] dark:border-[#333333]"
                   />
+                  <div className="max-h-72 overflow-y-auto py-1.5">
+                    {getSearchResults(searchQuery).length === 0 ? (
+                      <div className="px-4 py-4 text-center text-xs text-slate-400">Sin resultados</div>
+                    ) : (
+                      getSearchResults(searchQuery).slice(0, 8).map((item) => (
+                        <button
+                          key={item.path}
+                          onClick={() => { navigate(item.path); setIsSearchOpen(false); setSearchQuery(''); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left"
+                        >
+                          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          {item.label}
+                          <span className="ml-auto text-[10px] text-slate-400">{item.path}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Desktop search */}
+          <div className="hidden md:block relative">
+            <button
+              onClick={() => { setIsSearchOpen(!isSearchOpen); setIsSocialOpen(false); setIsQuickActionsOpen(false); setIsProfileOpen(false); setIsHelpOpen(false); }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#242424] border border-[#E5E7EB] dark:border-[#333333] rounded-lg text-sm font-medium text-slate-400 hover:text-slate-600 dark:hover:text-accent-300 hover:border-slate-300 dark:hover:border-slate-700 transition-all w-56"
+            >
+              <Search className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-xs">Buscar...</span>
+              <span className="ml-auto text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-md">⌘K</span>
+            </button>
+
+            {isSearchOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsSearchOpen(false)} />
+                <div className="absolute left-0 top-full mt-2 w-80 bg-white dark:bg-[#242424] border border-[#E5E7EB] dark:border-[#333333] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <input
+                    type="text"
+                    placeholder="Buscar módulos..."
+                    autoFocus
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const results = getSearchResults(searchQuery);
+                        if (results.length > 0) {
+                          navigate(results[0].path);
+                          setIsSearchOpen(false);
+                          setSearchQuery('');
+                        }
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-transparent text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none border-b border-[#E5E7EB] dark:border-[#333333]"
+                  />
+                  <div className="max-h-72 overflow-y-auto py-1.5">
+                    {getSearchResults(searchQuery).length === 0 ? (
+                      <div className="px-4 py-4 text-center text-xs text-slate-400">Sin resultados</div>
+                    ) : (
+                      getSearchResults(searchQuery).slice(0, 8).map((item) => (
+                        <button
+                          key={item.path}
+                          onClick={() => { navigate(item.path); setIsSearchOpen(false); setSearchQuery(''); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left"
+                        >
+                          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          {item.label}
+                          <span className="ml-auto text-[10px] text-slate-400">{item.path}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
               </>
             )}
