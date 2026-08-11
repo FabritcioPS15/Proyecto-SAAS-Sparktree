@@ -77,7 +77,7 @@ const SEARCH_ITEMS = [
 
 export const Header = ({ onMenuClick }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
-  const { user, logout, activeProfile, clearProfile } = useAuth();
+  const { user, logout, activeProfile, clearProfile, organizationId, switchOrganization } = useAuth();
   const { connections } = useConnections();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -483,6 +483,9 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                   <div className="p-2 space-y-0.5">
                     {user?.role === 'empresa' && activeProfile && (
                       <MenuItem icon={<Users className="w-4 h-4" />} label="Cambiar Perfil" onClick={() => { clearProfile(); setIsProfileOpen(false); }} />
+                    )}
+                    {user?.role === 'super_admin' && organizationId !== user.organization_id && (
+                      <MenuItem icon={<Building2 className="w-4 h-4" />} label="Volver a mi empresa" onClick={() => { switchOrganization(user.organization_id); navigate('/'); setIsProfileOpen(false); }} />
                     )}
                     <MenuItem icon={<User className="w-4 h-4" />} label="Mi Perfil y Ajustes" onClick={() => { navigate('/settings'); setIsProfileOpen(false); }} />
                     <MenuItem icon={theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />} label={theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'} onClick={(e) => { e.stopPropagation(); toggleTheme(); }} />

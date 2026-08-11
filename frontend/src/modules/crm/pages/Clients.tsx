@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User } from 'lucide-react';
-import { getContacts, deleteUser, deleteUsersBulk } from '../../../services/api';
+import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User, Loader2 } from 'lucide-react';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
+import { SiTiktok } from 'react-icons/si';
+import { Mail } from 'lucide-react';
+import { getContacts, deleteUser, deleteUsersBulk, createCrmClient } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -31,6 +34,7 @@ export const Clients = () => {
   const [confirmDelete, setConfirmDelete] = useState<{ id: string } | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
   const itemsPerPage = 8;
 
   useEffect(() => {
@@ -88,6 +92,28 @@ export const Clients = () => {
     }
   };
 
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const name = (form.elements.namedItem('name') as HTMLInputElement).value;
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+    const phone = (form.elements.namedItem('phone') as HTMLInputElement).value;
+    const company = (form.elements.namedItem('company') as HTMLInputElement)?.value || '';
+
+    setCreating(true);
+    try {
+      await createCrmClient({ name, email, phone, company, status: 'lead', source: 'manual', notes: '' });
+      addNotification({ type: 'success', title: 'Cliente creado', message: `Se ha creado el cliente ${name}` });
+      setShowCreateModal(false);
+      fetchClients();
+    } catch (err: any) {
+      console.error('Error creating client:', err);
+      addNotification({ type: 'error', title: 'Error', message: err.response?.data?.error || 'No se pudo crear el cliente. Vuelve a intentarlo.' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedIds(prev => {
@@ -98,10 +124,78 @@ export const Clients = () => {
     });
   };
 
+  const detectChannel = (user: any) => {
+    let channel = null;
+
+    // 1. Desde user.platform_type (campo correcto según esquema BD)
+    if (user.platform_type) {
+      channel = user.platform_type;
+    }
+
+    // 2. Desde user.channels (objeto)
+    if (!channel && user.channels && Object.keys(user.channels).length > 0) {
+      channel = Object.keys(user.channels)[0];
+    }
+
+    // 3. Desde user.channel (string directo - como en Conversations.tsx)
+    if (!channel && user.channel) {
+      channel = user.channel;
+    }
+
+    // 4. Desde user.source (campo alternativo)
+    if (!channel && user.source) {
+      channel = user.source;
+    }
+
+    // 5. Desde user.platform (campo alternativo)
+    if (!channel && user.platform) {
+      channel = user.platform;
+    }
+
+    // 6. Desde user.lastChannel (último canal usado)
+    if (!channel && user.lastChannel) {
+      channel = user.lastChannel;
+    }
+
+    // 7. Desde user.conversationChannel (canal de la conversación)
+    if (!channel && user.conversationChannel) {
+      channel = user.conversationChannel;
+    }
+
+    // 8. Desde user.origin (origen del mensaje)
+    if (!channel && user.origin) {
+      channel = user.origin;
+    }
+
+    if (!channel) return '';
+
+    // Normalizar el nombre del canal
+    const normalizedChannel = String(channel).toLowerCase().trim();
+    // Mapeo de nombres alternativos a nombres estándar
+    const channelMapping: Record<string, string> = {
+      'whatsapp': 'whatsapp',
+      'wa': 'whatsapp',
+      'wsp': 'whatsapp',
+      'instagram': 'instagram',
+      'ig': 'instagram',
+      'tiktok': 'tiktok',
+      'telegram': 'telegram',
+      'tg': 'telegram',
+      'messenger': 'messenger',
+      'facebook_messenger': 'messenger',
+      'fb': 'messenger',
+      'facebook': 'messenger',
+      'email': 'email',
+      'mail': 'email',
+      'correo': 'email'
+    };
+    return channelMapping[normalizedChannel] || normalizedChannel;
+  };
+
   const filteredUsers = (users || []).filter(user => {
     const matchesSearch = user.phone_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.profile_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesChannel = filterChannel === 'all' || user.platform_type === filterChannel;
+    const matchesChannel = filterChannel === 'all' || detectChannel(user) === filterChannel;
     return matchesSearch && matchesChannel;
   });
 
@@ -124,7 +218,7 @@ export const Clients = () => {
     });
   };
 
-  const getChannelColor = (channel: string) => {
+const getChannelColor = (channel: string) => {
     const channelLower = channel.toLowerCase();
     switch (channelLower) {
       case 'whatsapp':
@@ -142,6 +236,26 @@ export const Clients = () => {
       default:
         return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
     }
+  };
+
+  const getChannelIcon = (channel: string) => {
+    const channelLower = channel?.toLowerCase() || '';
+    switch (channelLower) {
+      case 'whatsapp':
+        return <FaWhatsapp className="w-3.5 h-3.5" />;
+      case 'instagram':
+        return <FaInstagram className="w-3.5 h-3.5" />;
+      case 'tiktok':
+        return <SiTiktok className="w-3.5 h-3.5" />;
+      case 'telegram':
+        return <FaTelegram className="w-3.5 h-3.5" />;
+      case 'messenger':
+        return <FaFacebookMessenger className="w-3.5 h-3.5" />;
+      case 'email':
+        return <Mail className="w-3.5 h-3.5" />;
+      default:
+        return <MessageSquare className="w-3.5 h-3.5" />;
+      }
   };
 
   const formatPhoneNumber = (phone: string) => {
@@ -245,9 +359,6 @@ export const Clients = () => {
         
         return (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent-500/10 text-accent-500 flex items-center justify-center font-black text-sm">
-              {displayNumber.slice(-2)}
-            </div>
             <div>
               <div className="flex items-center gap-2">
                 {prefix && <span className="font-bold text-accent-500 text-sm">{prefix}</span>}
@@ -287,75 +398,11 @@ export const Clients = () => {
       header: 'Canal',
       mobilePriority: 'high',
       render: (_: any, user: any) => {
-        // Intentar detectar el canal de múltiples formas (basado en esquema de BD)
-        let channel = null;
-        
-        // 1. Desde user.platform_type (campo correcto según esquema BD)
-        if (user.platform_type) {
-          channel = user.platform_type;
-        }
-        
-        // 2. Desde user.channels (objeto)
-        if (!channel && user.channels && Object.keys(user.channels).length > 0) {
-          channel = Object.keys(user.channels)[0];
-        }
-        
-        // 3. Desde user.channel (string directo - como en Conversations.tsx)
-        if (!channel && user.channel) {
-          channel = user.channel;
-        }
-        
-        // 4. Desde user.source (campo alternativo)
-        if (!channel && user.source) {
-          channel = user.source;
-        }
-        
-        // 5. Desde user.platform (campo alternativo)
-        if (!channel && user.platform) {
-          channel = user.platform;
-        }
-        
-        // 6. Desde user.lastChannel (último canal usado)
-        if (!channel && user.lastChannel) {
-          channel = user.lastChannel;
-        }
-        
-        // 7. Desde user.conversationChannel (canal de la conversación)
-        if (!channel && user.conversationChannel) {
-          channel = user.conversationChannel;
-        }
-        
-        // 8. Desde user.origin (origen del mensaje)
-        if (!channel && user.origin) {
-          channel = user.origin;
-        }
-        
-        // Normalizar el nombre del canal
-        if (channel) {
-          const normalizedChannel = String(channel).toLowerCase().trim();
-          // Mapeo de nombres alternativos a nombres estándar
-          const channelMapping: Record<string, string> = {
-            'whatsapp': 'whatsapp',
-            'wa': 'whatsapp',
-            'wsp': 'whatsapp',
-            'instagram': 'instagram',
-            'ig': 'instagram',
-            'tiktok': 'tiktok',
-            'telegram': 'telegram',
-            'tg': 'telegram',
-            'messenger': 'messenger',
-            'facebook_messenger': 'messenger',
-            'fb': 'messenger',
-            'facebook': 'messenger',
-            'email': 'email',
-            'mail': 'email',
-            'correo': 'email'
-          };
-          channel = channelMapping[normalizedChannel] || normalizedChannel;
-        }
-        
-        return channel ? (
+        const channel = detectChannel(user);
+
+return channel ? (
           <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase border ${getChannelColor(channel)}`}>
+            {getChannelIcon(channel)}
             <span>{channel}</span>
           </div>
         ) : (
@@ -488,11 +535,15 @@ export const Clients = () => {
         title="Nuevo Cliente"
         icon={<UserPlus className="w-5 h-5 text-accent-500" />}
       >
-        <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget; const name = (form.elements.namedItem('name') as HTMLInputElement).value; addNotification({ type: 'success', title: 'Cliente creado', message: `Se ha creado el cliente ${name}` }); setShowCreateModal(false); }} className="space-y-4">
+        <form onSubmit={handleCreateClient} className="space-y-4">
           <input type="text" name="name" placeholder="Nombre del cliente" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="email" name="email" placeholder="Correo electrónico" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="tel" name="phone" placeholder="Teléfono" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
-          <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md">Crear Cliente</button>
+          <input type="text" name="company" placeholder="Empresa (opcional)" className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
+          <button type="submit" disabled={creating} className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+            {creating ? 'Creando...' : 'Crear Cliente'}
+          </button>
         </form>
       </Modal>
     </PageContainer>

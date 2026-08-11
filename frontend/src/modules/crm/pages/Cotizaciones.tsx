@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, FileText, Eye, Trash2, Send, Download, Copy, Edit3, X, Percent, Calendar, DollarSign, ClipboardList, ShoppingCart, RotateCcw, History } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
@@ -13,6 +13,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Badge } from '../../../components/ui/Badge';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { useNotifications } from '../../../contexts/NotificationContext';
+import { getQuotes, createQuote, updateQuote, deleteQuote, createOrder } from '../../../services/api';
 
 interface QuoteItem {
   id: string;
@@ -81,6 +82,28 @@ const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador', sent: 'Enviado', accepted: 'Aceptado', rejected: 'Rechazado', expired: 'Vencido',
 };
 
+const mapQuote = (row: any): Quote => ({
+  id: row.id,
+  number: row.number,
+  clientName: row.client_name,
+  clientEmail: row.client_email || '',
+  clientPhone: row.client_phone || '',
+  date: row.quote_date,
+  expiryDate: row.expiry_date,
+  status: row.status,
+  items: (row.quote_items || []).map((i: any) => ({
+    id: i.id,
+    description: i.description,
+    quantity: Number(i.quantity || 0),
+    unitPrice: Number(i.unit_price || 0),
+  })),
+  taxRate: Number(row.tax_rate || 0),
+  discount: Number(row.discount || 0),
+  notes: row.notes || '',
+  createdBy: row.created_by || 'Admin',
+  history: row.history || [],
+});
+
 export const Cotizaciones = () => {
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,6 +111,7 @@ export const Cotizaciones = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [currentPage, setCurrentPage] = useState(1);
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState<Quote | null>(null);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
@@ -134,39 +158,117 @@ export const Cotizaciones = () => {
 
   const addHistory = (quote: Quote, action: string): HistoryEntry => ({ date: today(), action, user: 'Admin' });
 
-  const handleDelete = () => {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await getQuotes();
+        if (!cancelled) setQuotes((Array.isArray(rows) ? rows : []).map(mapQuote));
+      } catch (err) {
+        console.error('Failed to load quotes:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleDelete = async () => {
     if (!confirmDelete) return;
-    setQuotes(prev => prev.filter(q => q.id !== confirmDelete.id));
-    addNotification(`Cotización ${confirmDelete.number} eliminada`, 'warning');
+    const target = confirmDelete;
+    setQuotes(prev => prev.filter(q => q.id !== target.id));
     setConfirmDelete(null);
+    try {
+      await deleteQuote(target.id);
+      addNotification({ type: 'warning', title: 'Cotización eliminada', message: `Cotización ${target.number} eliminada` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar la cotización.' });
+    }
   };
 
-  const handleSend = (quote: Quote) => {
-    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'sent' as const, history: [...q.history, addHistory(q, 'Enviada al cliente')] } : q));
-    addNotification(`Cotización ${quote.number} enviada al cliente`, 'success');
+  const handleSend = async (quote: Quote) => {
+    try {
+      const updated = await updateQuote(quote.id, {
+        status: 'sent',
+        history: [...quote.history, addHistory(quote, 'Enviada al cliente')],
+      });
+      setQuotes(prev => prev.map(q => q.id === quote.id ? mapQuote(updated) : q));
+      addNotification({ type: 'success', title: 'Cotización enviada', message: `Cotización ${quote.number} enviada al cliente` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo enviar la cotización.' });
+    }
   };
 
-  const handleMarkAccepted = (quote: Quote) => {
-    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'accepted' as const, history: [...q.history, addHistory(q, 'Aceptada por el cliente')] } : q));
-    addNotification(`Cotización ${quote.number} marcada como aceptada`, 'success');
-    setShowDetailModal(null);
+  const handleMarkAccepted = async (quote: Quote) => {
+    try {
+      const updated = await updateQuote(quote.id, {
+        status: 'accepted',
+        history: [...quote.history, addHistory(quote, 'Aceptada por el cliente')],
+      });
+      setQuotes(prev => prev.map(q => q.id === quote.id ? mapQuote(updated) : q));
+      addNotification({ type: 'success', title: 'Cotización aceptada', message: `Cotización ${quote.number} marcada como aceptada` });
+      setShowDetailModal(null);
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo actualizar la cotización.' });
+    }
   };
 
-  const handleMarkRejected = (quote: Quote) => {
-    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'rejected' as const, history: [...q.history, addHistory(q, 'Rechazada por el cliente')] } : q));
-    addNotification(`Cotización ${quote.number} marcada como rechazada`, 'warning');
-    setShowDetailModal(null);
+  const handleMarkRejected = async (quote: Quote) => {
+    try {
+      const updated = await updateQuote(quote.id, {
+        status: 'rejected',
+        history: [...quote.history, addHistory(quote, 'Rechazada por el cliente')],
+      });
+      setQuotes(prev => prev.map(q => q.id === quote.id ? mapQuote(updated) : q));
+      addNotification({ type: 'warning', title: 'Cotización rechazada', message: `Cotización ${quote.number} marcada como rechazada` });
+      setShowDetailModal(null);
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo actualizar la cotización.' });
+    }
   };
 
-  const handleDuplicate = (quote: Quote) => {
-    const newQuote: Quote = { ...quote, id: String(Date.now()), number: nextNumber(quotes), date: today(), status: 'draft', history: [{ date: today(), action: 'Duplicada desde ' + quote.number, user: 'Admin' }] };
-    setQuotes(prev => [...prev, newQuote]);
-    addNotification(`Cotización duplicada como ${newQuote.number}`, 'success');
+  const handleDuplicate = async (quote: Quote) => {
+    try {
+      const newNumber = nextNumber(quotes);
+      const created = await createQuote({
+        number: newNumber,
+        clientName: quote.clientName,
+        clientEmail: quote.clientEmail,
+        clientPhone: quote.clientPhone,
+        date: today(),
+        expiryDate: quote.expiryDate,
+        status: 'draft',
+        items: quote.items.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })),
+        taxRate: quote.taxRate,
+        discount: quote.discount,
+        notes: quote.notes,
+        createdBy: 'Admin',
+        history: [{ date: today(), action: 'Duplicada desde ' + quote.number, user: 'Admin' }],
+      });
+      setQuotes(prev => [mapQuote(created), ...prev]);
+      addNotification({ type: 'success', title: 'Cotización duplicada', message: `Cotización duplicada como ${newNumber}` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo duplicar la cotización.' });
+    }
   };
 
-  const handleConvertToOrder = (quote: Quote) => {
-    addNotification(`Pedido creado desde ${quote.number}`, 'success');
-    setShowDetailModal(null);
+  const handleConvertToOrder = async (quote: Quote) => {
+    try {
+      const sub = calcSubtotal(quote.items);
+      const total = calcTotal(sub, calcTax(sub, quote.taxRate), quote.discount);
+      const created = await createOrder({
+        customer: quote.clientName,
+        items: quote.items.length,
+        total,
+        status: 'pending',
+        date: today(),
+        channel: 'WhatsApp',
+      });
+      addNotification({ type: 'success', title: 'Pedido creado', message: `Pedido ${created.id} creado desde ${quote.number}` });
+      setShowDetailModal(null);
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo crear el pedido.' });
+    }
   };
 
   const openCreate = () => {
@@ -185,20 +287,46 @@ export const Cotizaciones = () => {
     setShowCreateModal(true);
   };
 
-  const handleSave = () => {
-    if (!formClientName.trim()) { addNotification('El nombre del cliente es obligatorio', 'warning'); return; }
-    if (formItems.length === 0 || formItems.every(i => !i.description.trim())) { addNotification('Agrega al menos un item válido', 'warning'); return; }
-    if (editingQuote) {
-      setQuotes(prev => prev.map(q => q.id === editingQuote.id ? {
-        ...q, clientName: formClientName, clientEmail: formClientEmail, clientPhone: formClientPhone,
-        expiryDate: formExpiryDate, items: formItems, taxRate: formTaxRate, discount: formDiscount, notes: formNotes,
-        history: [...q.history, addHistory(q, 'Editada')],
-      } : q));
-      addNotification(`Cotización ${editingQuote.number} actualizada`, 'success');
-    } else {
-      const newQuote: Quote = { id: String(Date.now()), number: nextNumber(quotes), clientName: formClientName, clientEmail: formClientEmail, clientPhone: formClientPhone, date: today(), expiryDate: formExpiryDate, status: 'draft', items: formItems, taxRate: formTaxRate, discount: formDiscount, notes: formNotes, createdBy: 'Admin', history: [{ date: today(), action: 'Creada', user: 'Admin' }] };
-      setQuotes(prev => [...prev, newQuote]);
-      addNotification(`Cotización ${newQuote.number} creada`, 'success');
+  const handleSave = async () => {
+    if (!formClientName.trim()) { addNotification({ type: 'warning', title: 'Campo requerido', message: 'El nombre del cliente es obligatorio' }); return; }
+    if (formItems.length === 0 || formItems.every(i => !i.description.trim())) { addNotification({ type: 'warning', title: 'Items vacíos', message: 'Agrega al menos un item válido' }); return; }
+    try {
+      if (editingQuote) {
+        const updated = await updateQuote(editingQuote.id, {
+          clientName: formClientName,
+          clientEmail: formClientEmail,
+          clientPhone: formClientPhone,
+          expiryDate: formExpiryDate,
+          items: formItems.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })),
+          taxRate: formTaxRate,
+          discount: formDiscount,
+          notes: formNotes,
+          history: [...editingQuote.history, addHistory(editingQuote, 'Editada')],
+        });
+        setQuotes(prev => prev.map(q => q.id === editingQuote.id ? mapQuote(updated) : q));
+        addNotification({ type: 'success', title: 'Cotización actualizada', message: `Cotización ${editingQuote.number} actualizada correctamente` });
+      } else {
+        const newNumber = nextNumber(quotes);
+        const created = await createQuote({
+          number: newNumber,
+          clientName: formClientName,
+          clientEmail: formClientEmail,
+          clientPhone: formClientPhone,
+          date: today(),
+          expiryDate: formExpiryDate,
+          status: 'draft',
+          items: formItems.map(i => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice })),
+          taxRate: formTaxRate,
+          discount: formDiscount,
+          notes: formNotes,
+          createdBy: 'Admin',
+          history: [{ date: today(), action: 'Creada', user: 'Admin' }],
+        });
+        setQuotes(prev => [mapQuote(created), ...prev]);
+        addNotification({ type: 'success', title: 'Cotización creada', message: `Cotización ${newNumber} creada correctamente` });
+      }
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo guardar la cotización.' });
     }
     setShowCreateModal(false); setEditingQuote(null);
   };
@@ -254,6 +382,9 @@ export const Cotizaciones = () => {
       } />
 
       <PageBody>
+        {loading && (
+          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><FileText className="w-3 h-3 animate-spin" /> Cargando cotizaciones...</div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
           {[
             { label: 'Total Cotizado', value: `$${fmt(totals.totalAmount)}`, icon: DollarSign, color: 'text-accent-500', bg: 'bg-accent-500/10' },
@@ -273,9 +404,9 @@ export const Cotizaciones = () => {
         </div>
 
         <div className="flex items-center gap-3 mb-4">
-          <SearchBar value={searchTerm} onChange={(v) => { setSearchTerm(v); setCurrentPage(1); }} placeholder="Buscar por número, cliente o email..." className="flex-1" />
+          <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar por número, cliente o email..." className="flex-1" />
           <FilterSelect value={filterStatus} onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }} options={STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
-          <ViewToggle mode={viewMode} onChange={setViewMode} />
+          <ViewToggle value={viewMode} onChange={setViewMode} />
         </div>
 
         {viewMode === 'grid' ? (
@@ -313,7 +444,7 @@ export const Cotizaciones = () => {
           </div>
         ) : (
           <TableCard>
-            <DataTable data={paginated} columns={columns} keyExtractor={(q) => q.id} emptyMessage="No se encontraron cotizaciones"
+            <DataTable data={paginated} columns={columns} emptyMessage="No se encontraron cotizaciones"
               pagination={{ currentPage, totalPages: totalPages || 1, onPageChange: setCurrentPage }} />
           </TableCard>
         )}

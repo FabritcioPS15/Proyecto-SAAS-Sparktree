@@ -28,25 +28,10 @@ export const tenantMiddleware = async (req: TenantRequest, res: Response, next: 
     }
 
     // Enforce strict multi-tenancy: No default organization fallback
-if (process.env.NODE_ENV !== 'production') {
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('id')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .single();
-
-  if (org?.id) {
-    console.warn(`[Tenant] ⚠️ DEV FALLBACK: usando org ${org.id}`);
-    req.organizationId = org.id;
-    return next();
-  }
-}
-
-return res.status(401).json({
-  error: 'Organization ID requerido',
-  hint: 'Incluye el header X-Organization-ID o autentícate correctamente'
-});
+    return res.status(401).json({
+      error: 'Organization ID requerido',
+      hint: 'Incluye el header X-Organization-ID o autentícate correctamente'
+    });
     next();
   } catch (error) {
     console.error('[Tenant Middleware] Error:', error);

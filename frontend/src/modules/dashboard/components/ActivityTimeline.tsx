@@ -31,7 +31,6 @@ export const ActivityTimeline = () => {
     <DashboardCard
       title="Actividad Reciente"
       icon={<Activity className="w-4 h-4" />}
-      className="h-full"
     >
       <div className="relative mt-2 pl-4">
         {/* Vertical line connecting timeline items */}

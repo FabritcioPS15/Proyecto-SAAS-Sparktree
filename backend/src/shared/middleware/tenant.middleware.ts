@@ -74,8 +74,15 @@ export class TenantMiddleware {
     // 3. Check subdomain (e.g., company-name.sparktree.com)
     const host = req.headers.host;
     if (host) {
-      const subdomain = host.split('.')[0];
-      if (subdomain && subdomain !== 'www' && subdomain !== 'api') {
+      const hostname = host.split(':')[0];
+      const subdomain = hostname.split('.')[0];
+      if (
+        subdomain
+        && subdomain !== 'www'
+        && subdomain !== 'api'
+        && subdomain !== 'localhost'
+        && subdomain !== '127.0.0.1'
+      ) {
         return subdomain;
       }
     }

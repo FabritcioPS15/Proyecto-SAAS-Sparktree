@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Trash2, Clock, Users, Video, Phone, UsersRound, Presentation, Ellipsis } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
+import { getCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from '../../../services/api';
 
 type EventType = 'meeting' | 'demo' | 'webinar' | 'review' | 'call' | 'other';
 
@@ -84,12 +85,27 @@ const MOCK_EVENTS: CalendarEvent[] = [
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
+const toDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const mapEvent = (row: any): CalendarEvent => ({
+  id: row.id,
+  title: row.title,
+  date: new Date(row.event_date + 'T12:00:00'),
+  time: row.time || '',
+  duration: row.duration || '',
+  description: row.description || '',
+  attendees: row.attendees || '',
+  type: row.type,
+  color: row.color,
+});
+
 export const Calendar = () => {
   const { addNotification } = useNotifications();
   const [today] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [events, setEvents] = useState<CalendarEvent[]>(MOCK_EVENTS);
+  const [loading, setLoading] = useState(true);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -117,39 +133,76 @@ export const Calendar = () => {
 
   const isToday = (day: number) => today.getDate() === day && today.getMonth() === currentMonth && today.getFullYear() === currentYear;
 
-  const handleCreateEvent = () => {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await getCalendarEvents();
+        if (!cancelled) setEvents((Array.isArray(rows) ? rows : []).map(mapEvent));
+      } catch (err) {
+        console.error('Failed to load calendar events:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleCreateEvent = async () => {
     if (!formData.title.trim()) return;
-    const newEvent: CalendarEvent = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: formData.title,
-      date: selectedDate || new Date(currentYear, currentMonth, 1),
-      time: formData.time,
-      duration: formData.duration,
-      description: formData.description,
-      attendees: formData.attendees,
-      type: formData.type,
-      color: formData.color,
-    };
-    setEvents(prev => [...prev, newEvent]);
-    setShowCreateEvent(false);
-    setFormData({ title: '', time: '09:00', duration: '1h', description: '', attendees: '', type: 'meeting', color: 'blue' });
-    addNotification({ type: 'success', title: 'Evento creado', message: `"${newEvent.title}" agregado al calendario.` });
+    try {
+      const created = await createCalendarEvent({
+        title: formData.title,
+        date: toDateStr(selectedDate || new Date(currentYear, currentMonth, 1)),
+        time: formData.time,
+        duration: formData.duration,
+        description: formData.description,
+        attendees: formData.attendees,
+        type: formData.type,
+        color: formData.color,
+      });
+      setEvents(prev => [...prev, mapEvent(created)]);
+      setShowCreateEvent(false);
+      setFormData({ title: '', time: '09:00', duration: '1h', description: '', attendees: '', type: 'meeting', color: 'blue' });
+      addNotification({ type: 'success', title: 'Evento creado', message: `"${formData.title}" agregado al calendario.` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo crear el evento.' });
+    }
   };
 
-  const handleUpdateEvent = () => {
+  const handleUpdateEvent = async () => {
     if (!formData.title.trim() || !editingEvent) return;
-    setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? { ...ev, ...formData } : ev));
-    setEditingEvent(null);
-    setSelectedEvent(null);
-    setFormData({ title: '', time: '09:00', duration: '1h', description: '', attendees: '', type: 'meeting', color: 'blue' });
-    addNotification({ type: 'success', title: 'Evento actualizado', message: `"${formData.title}" modificado correctamente.` });
+    try {
+      const updated = await updateCalendarEvent(editingEvent.id, {
+        title: formData.title,
+        date: toDateStr(editingEvent.date),
+        time: formData.time,
+        duration: formData.duration,
+        description: formData.description,
+        attendees: formData.attendees,
+        type: formData.type,
+        color: formData.color,
+      });
+      setEvents(prev => prev.map(ev => ev.id === editingEvent.id ? mapEvent(updated) : ev));
+      setEditingEvent(null);
+      setSelectedEvent(null);
+      setFormData({ title: '', time: '09:00', duration: '1h', description: '', attendees: '', type: 'meeting', color: 'blue' });
+      addNotification({ type: 'success', title: 'Evento actualizado', message: `"${formData.title}" modificado correctamente.` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo actualizar el evento.' });
+    }
   };
 
-  const handleDeleteEvent = (id: string) => {
+  const handleDeleteEvent = async (id: string) => {
     const deleted = events.find(e => e.id === id);
     setEvents(prev => prev.filter(e => e.id !== id));
     setSelectedEvent(null);
-    if (deleted) addNotification({ type: 'success', title: 'Evento eliminado', message: `"${deleted.title}" ha sido eliminado.` });
+    try {
+      await deleteCalendarEvent(id);
+      if (deleted) addNotification({ type: 'success', title: 'Evento eliminado', message: `"${deleted.title}" ha sido eliminado.` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el evento.' });
+    }
   };
 
   return (
@@ -235,7 +288,9 @@ export const Calendar = () => {
               Eventos de {MONTHS[currentMonth]}
             </h3>
             <div className="space-y-3">
-              {monthEvents.length === 0 ? (
+              {loading ? (
+                <p className="text-sm text-slate-400 text-center py-8">Cargando eventos...</p>
+              ) : monthEvents.length === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-8">No hay eventos este mes</p>
               ) : (
                 <div className="space-y-3 overflow-y-auto max-h-[500px] pr-1 scrollbar-thin">

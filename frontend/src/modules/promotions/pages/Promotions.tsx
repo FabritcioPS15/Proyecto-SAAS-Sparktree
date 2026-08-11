@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Copy, Trash2, List, LayoutGrid, Tag } from 'lucide-react';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -10,6 +10,7 @@ import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
+import { getPromotions, createPromotion, deletePromotion } from '../../../services/api';
 
 interface Promotion {
   id: string; code: string; discount: number; type: 'percentage' | 'fixed';
@@ -23,6 +24,18 @@ const mockPromotions: Promotion[] = [
   { id: 'PROM-003', code: 'NUEVO15', discount: 15, type: 'percentage', minPurchase: 75, usageLimit: 200, used: 12, status: 'active', expiresAt: '2024-04-30' },
 ];
 
+const mapPromotion = (row: any): Promotion => ({
+  id: row.id,
+  code: row.code,
+  discount: Number(row.discount || 0),
+  type: row.type,
+  minPurchase: Number(row.min_purchase || 0),
+  usageLimit: Number(row.usage_limit || 0),
+  used: Number(row.used || 0),
+  status: row.status,
+  expiresAt: row.expires_at || '',
+});
+
 export const Promotions = () => {
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +44,73 @@ export const Promotions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newExpiresAt, setNewExpiresAt] = useState<dayjs.Dayjs | null>(null);
+  const [promotions, setPromotions] = useState<Promotion[]>(mockPromotions);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await getPromotions();
+        if (!cancelled) setPromotions((Array.isArray(rows) ? rows : []).map(mapPromotion));
+      } catch (err) {
+        console.error('Failed to load promotions:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleDelete = async (promo: Promotion) => {
+    setPromotions(prev => prev.filter(p => p.id !== promo.id));
+    try {
+      await deletePromotion(promo.id);
+      addNotification({ type: 'success', title: 'Promoción eliminada', message: `Se ha eliminado la promoción ${promo.code}` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar la promoción.' });
+    }
+  };
+
+  const handleDuplicate = async (promo: Promotion) => {
+    try {
+      const created = await createPromotion({
+        code: `${promo.code}-Copia`,
+        discount: promo.discount,
+        type: promo.type,
+        minPurchase: promo.minPurchase,
+        usageLimit: promo.usageLimit,
+        used: 0,
+        status: 'active',
+        expiresAt: promo.expiresAt || null,
+      });
+      setPromotions(prev => [mapPromotion(created), ...prev]);
+      addNotification({ type: 'success', title: 'Promoción duplicada', message: `Se ha duplicado ${promo.code}` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo duplicar la promoción.' });
+    }
+  };
+
+  const handleCreate = async (code: string, discount: string, expiresAt: string) => {
+    try {
+      const created = await createPromotion({
+        code,
+        discount: Number(discount) || 0,
+        type: 'percentage',
+        minPurchase: 0,
+        usageLimit: 0,
+        used: 0,
+        status: 'active',
+        expiresAt: expiresAt || null,
+      });
+      setPromotions(prev => [mapPromotion(created), ...prev]);
+      addNotification({ type: 'success', title: 'Promoción creada', message: `Se ha creado la promoción ${code}` });
+      setShowCreateModal(false);
+      setNewExpiresAt(null);
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo crear la promoción.' });
+    }
+  };
 
   const columns = [
     { key: 'code', header: 'Código' },
@@ -39,15 +119,15 @@ export const Promotions = () => {
     { key: 'usage', header: 'Uso', render: (_v: unknown, row: Promotion) => `${row.used}/${row.usageLimit}` },
     { key: 'status', header: 'Estado', render: (v: string) => <StatusBadge status={v} /> },
     { key: 'expiresAt', header: 'Expira' },
-    { key: 'actions', header: 'Acciones', className: 'text-center', render: () => (
+    { key: 'actions', header: 'Acciones', className: 'text-center', render: (_v: unknown, row: Promotion) => (
       <div className="flex gap-2">
-        <button className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Copy className="w-4 h-4" /></button>
-        <button className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
+        <button onClick={() => handleDuplicate(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Copy className="w-4 h-4" /></button>
+        <button onClick={() => handleDelete(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
       </div>
     )},
   ];
 
-  const filtered = mockPromotions.filter(p =>
+  const filtered = promotions.filter(p =>
     p.code.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (filterStatus === 'all' || p.status === filterStatus)
   );
@@ -64,6 +144,9 @@ export const Promotions = () => {
         }
       />
       <PageBody>
+        {loading && (
+          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><Tag className="w-3 h-3 animate-spin" /> Cargando promociones...</div>
+        )}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
           <div className="flex flex-col lg:flex-row gap-4 mb-4">
             <div className="flex-1 relative group">
@@ -117,8 +200,8 @@ export const Promotions = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-1">
-                    <button className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Copy className="w-3.5 h-3.5" /></button>
-                    <button className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleDuplicate(promo)} className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Copy className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleDelete(promo)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -137,7 +220,7 @@ export const Promotions = () => {
         title="Nueva Promoción"
         icon={<Tag className="w-5 h-5 text-accent-500" />}
       >
-        <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget; const name = (form.elements.namedItem('name') as HTMLInputElement).value; const discount = (form.elements.namedItem('discount') as HTMLInputElement).value; const expiresAt = newExpiresAt?.format('YYYY-MM-DD') || ''; addNotification({ type: 'success', title: 'Promoción creada', message: `Se ha creado la promoción ${name}` }); setShowCreateModal(false); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget; const name = (form.elements.namedItem('name') as HTMLInputElement).value; const discount = (form.elements.namedItem('discount') as HTMLInputElement).value; const expiresAt = newExpiresAt?.format('YYYY-MM-DD') || ''; handleCreate(name, discount, expiresAt); }} className="space-y-4">
           <input type="text" name="name" placeholder="Nombre de la promoción" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="number" name="discount" placeholder="Porcentaje de descuento" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <DatePicker

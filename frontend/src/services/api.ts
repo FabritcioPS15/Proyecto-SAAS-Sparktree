@@ -741,16 +741,6 @@ export const resetPassword = async (token: string, newPassword: string) => {
   }
 };
 
-export const adminLogin = async () => {
-  try {
-    const response = await api.post('/auth/admin-login');
-    return response.data;
-  } catch (error) {
-    console.error('Error admin login:', error);
-    throw error;
-  }
-};
-
 export const logout = async () => {
   try {
     const response = await api.post('/auth/logout');
@@ -1120,6 +1110,211 @@ export const uploadProductMedia = async (file: File) => {
     });
   } catch (error) {
     console.error('Error uploading media:', error);
+    throw error;
+  }
+};
+
+// ============ Calendar endpoints ============
+export const getCalendarEvents = async () => {
+  try {
+    const response = await api.get('/calendar/events');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching calendar events:', error);
+    throw error;
+  }
+};
+
+export const createCalendarEvent = async (data: any) => {
+  try {
+    const response = await api.post('/calendar/events', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating calendar event:', error);
+    throw error;
+  }
+};
+
+export const updateCalendarEvent = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/calendar/events/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating calendar event:', error);
+    throw error;
+  }
+};
+
+export const deleteCalendarEvent = async (id: string) => {
+  try {
+    const response = await api.delete(`/calendar/events/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting calendar event:', error);
+    throw error;
+  }
+};
+
+// ============ Business Hours endpoints ============
+export const getBusinessHours = async () => {
+  try {
+    const response = await api.get('/business-hours');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching business hours:', error);
+    throw error;
+  }
+};
+
+export const createBusinessHour = async (data: any) => {
+  try {
+    const response = await api.post('/business-hours', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating business hour:', error);
+    throw error;
+  }
+};
+
+export const updateBusinessHour = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/business-hours/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating business hour:', error);
+    throw error;
+  }
+};
+
+export const deleteBusinessHour = async (id: string) => {
+  try {
+    const response = await api.delete(`/business-hours/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting business hour:', error);
+    throw error;
+  }
+};
+
+// ============ Promotions endpoints ============
+export const getPromotions = async () => {
+  try {
+    const response = await api.get('/promotions');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching promotions:', error);
+    throw error;
+  }
+};
+
+export const createPromotion = async (data: any) => {
+  try {
+    const response = await api.post('/promotions', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating promotion:', error);
+    throw error;
+  }
+};
+
+export const updatePromotion = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/promotions/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating promotion:', error);
+    throw error;
+  }
+};
+
+export const deletePromotion = async (id: string) => {
+  try {
+    const response = await api.delete(`/promotions/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting promotion:', error);
+    throw error;
+  }
+};
+
+// ============ Quotes endpoints ============
+export const getQuotes = async () => {
+  try {
+    const response = await api.get('/quotes');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching quotes:', error);
+    throw error;
+  }
+};
+
+export const createQuote = async (data: any) => {
+  try {
+    const response = await api.post('/quotes', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating quote:', error);
+    throw error;
+  }
+};
+
+export const updateQuote = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/quotes/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating quote:', error);
+    throw error;
+  }
+};
+
+export const deleteQuote = async (id: string) => {
+  try {
+    const response = await api.delete(`/quotes/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting quote:', error);
+    throw error;
+  }
+};
+
+// ============ Orders endpoints ============
+export const getOrders = async () => {
+  try {
+    const response = await api.get('/orders');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    throw error;
+  }
+};
+
+export const createOrder = async (data: any) => {
+  try {
+    const response = await api.post('/orders', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating order:', error);
+    throw error;
+  }
+};
+
+export const updateOrder = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/orders/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating order:', error);
+    throw error;
+  }
+};
+
+export const deleteOrder = async (id: string) => {
+  try {
+    const response = await api.delete(`/orders/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting order:', error);
     throw error;
   }
 };

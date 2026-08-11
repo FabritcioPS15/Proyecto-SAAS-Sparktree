@@ -62,7 +62,7 @@ export const PageHeader = ({ title, highlight, description, icon: Icon, action, 
               </p>
             )}
             {meta && meta.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {meta.map((item, i) => {
                   const MIcon = item.icon;
                   return (

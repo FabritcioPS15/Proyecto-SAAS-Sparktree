@@ -25,6 +25,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Bell, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { getConversations, getLeads } from '../services/api';
+import { useNotifications as useReapopNotifications } from 'reapop';
 
 // =============================================================================
 // TIPOS E INTERFACES
@@ -87,6 +88,7 @@ interface NotificationProviderProps {
  */
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notify } = useReapopNotifications();
 
   /**
    * Añade una nueva notificación al sistema
@@ -101,6 +103,22 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     };
 
     setNotifications(prev => [newNotification, ...prev]);
+    
+    // Disparar toast global usando Reapop
+    notify({
+      title: notification.title,
+      message: notification.message,
+      status: notification.type as 'success' | 'error' | 'warning' | 'info',
+      dismissible: true,
+      dismissAfter: 6000,
+      buttons: notification.action ? [
+        {
+          name: notification.action.label,
+          primary: true,
+          onClick: notification.action.onClick
+        }
+      ] : []
+    });
 
     // Auto-remove after 10 seconds for non-important notifications
     if (notification.type !== 'error' && notification.type !== 'warning') {

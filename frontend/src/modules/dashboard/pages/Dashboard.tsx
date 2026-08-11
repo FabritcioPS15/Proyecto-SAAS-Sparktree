@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, MessageSquare, Bot, Activity, Box, Zap, CreditCard, ChevronRight, UserPlus } from 'lucide-react';
-import { getAnalytics } from '../../../services/api';
-import { useLayout } from '../../../components/layout/Layout';
+import { Users, MessageSquare, Activity, Box, Zap, ChevronRight, UserPlus, Share2, AlertCircle, LayoutDashboard, Play, ShoppingCart, FileText, Target, Wallet, Calendar, Gift } from 'lucide-react';
+import { getAnalytics, getCrmDashboard, getOrders, getQuotes, getPromotions, getCalendarEvents } from '../../../services/api';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
+import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { useConnections } from '../../../contexts/ConnectionsContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
 
-import { DashboardHero } from '../components/DashboardHero';
 import { MetricCard } from '../components/MetricCard';
 import { AIInsights } from '../components/AIInsights';
 import { ActivityTimeline } from '../components/ActivityTimeline';
@@ -26,9 +26,19 @@ const initialStats = {
   botResponsesToday: 0
 };
 
+const formatCurrency = (value: number) =>
+  value.toLocaleString('es-ES', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 12) return 'Buenos días,';
+  if (hour >= 12 && hour < 19) return 'Buenas tardes,';
+  return 'Buenas noches,';
+};
+
 export const Dashboard = () => {
   const navigate = useNavigate();
-  const { isSidebarCollapsed } = useLayout();
+  const { user } = useAuth();
   const { connections } = useConnections();
   const [stats, setStats] = useState(initialStats);
   const [messagesData, setMessagesData] = useState<any[]>([]);
@@ -38,6 +48,8 @@ export const Dashboard = () => {
   const [endDate, setEndDate] = useState('');
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [crm, setCrm] = useState({ totalClients: 0, totalDeals: 0, totalValue: 0, wonValue: 0 });
+  const [moduleCounts, setModuleCounts] = useState({ orders: 0, quotes: 0, promotions: 0, events: 0 });
 
   const platformData = [
     { id: 'whatsapp', name: 'WhatsApp', icon: FaWhatsapp, color: 'text-emerald-500', route: '/whatsapp-qr' },
@@ -46,6 +58,36 @@ export const Dashboard = () => {
     { id: 'telegram', name: 'Telegram', icon: FaTelegram, color: 'text-blue-500', route: '/telegram-config' },
     { id: 'messenger', name: 'Messenger', icon: FaFacebookMessenger, color: 'text-blue-600', route: '/facebook-config' }
   ];
+
+  const generateMessagesData = useCallback((timeRange: string, isConnected: boolean, customStart?: string, customEnd?: string) => {
+    const data = [];
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    let start: Date;
+    let end: Date = today;
+
+    if (timeRange === 'custom' && customStart && customEnd) {
+      start = new Date(customStart);
+      end = new Date(customEnd);
+    } else {
+      const days = timeRange === '7d' ? 7 : 30;
+      start = new Date(today);
+      start.setDate(start.getDate() - days + 1);
+    }
+
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      const baseValue = isConnected ? 80 + Math.random() * 120 : 150 + Math.random() * 100;
+      const weekendMultiplier = (currentDate.getDay() === 0 || currentDate.getDay() === 6) ? 0.7 : 1;
+      const value = Math.floor(baseValue * weekendMultiplier * (1 + Math.random() * 0.3));
+      data.push({
+        date: currentDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
+        value: value
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return data;
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -65,37 +107,38 @@ export const Dashboard = () => {
           });
         }
 
-        const generateMessagesData = (timeRange: string, customStart?: string, customEnd?: string) => {
-          const data = [];
-          const today = new Date();
-          today.setHours(23, 59, 59, 999);
-          let start: Date;
-          let end: Date = today;
+        setMessagesData(generateMessagesData(selectedTimeRange, isConnected, startDate, endDate));
 
-          if (timeRange === 'custom' && customStart && customEnd) {
-            start = new Date(customStart);
-            end = new Date(customEnd);
-          } else {
-            const days = timeRange === '7d' ? 7 : 30;
-            start = new Date(today);
-            start.setDate(start.getDate() - days + 1);
-          }
+        // Real CRM metrics
+        try {
+          const crmData = await getCrmDashboard();
+          setCrm({
+            totalClients: crmData?.totalClients || 0,
+            totalDeals: crmData?.totalDeals || 0,
+            totalValue: crmData?.totalValue || 0,
+            wonValue: crmData?.wonValue || 0
+          });
+        } catch (e) {
+          console.error('Error fetching CRM metrics:', e);
+        }
 
-          const currentDate = new Date(start);
-          while (currentDate <= end) {
-            const baseValue = isConnected ? 80 + Math.random() * 120 : 150 + Math.random() * 100;
-            const weekendMultiplier = (currentDate.getDay() === 0 || currentDate.getDay() === 6) ? 0.7 : 1;
-            const value = Math.floor(baseValue * weekendMultiplier * (1 + Math.random() * 0.3));
-            data.push({
-              date: currentDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
-              value: value
-            });
-            currentDate.setDate(currentDate.getDate() + 1);
-          }
-          return data;
-        };
-
-        setMessagesData(generateMessagesData(selectedTimeRange, startDate, endDate));
+        // Real module counts
+        try {
+          const [orders, quotes, promotions, events] = await Promise.all([
+            getOrders().catch(() => []),
+            getQuotes().catch(() => []),
+            getPromotions().catch(() => []),
+            getCalendarEvents().catch(() => [])
+          ]);
+          setModuleCounts({
+            orders: (orders || []).length,
+            quotes: (quotes || []).length,
+            promotions: (promotions || []).length,
+            events: (events || []).filter((ev: any) => new Date(ev.event_date).getTime() >= new Date().setHours(0, 0, 0, 0)).length
+          });
+        } catch (e) {
+          console.error('Error fetching module counts:', e);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -103,7 +146,7 @@ export const Dashboard = () => {
       }
     };
     fetchDashboardData();
-  }, [selectedTimeRange, startDate, endDate, whatsappConnected]);
+  }, [selectedTimeRange, startDate, endDate, generateMessagesData]);
 
   const handleRangeChange = (range: string) => {
     setSelectedTimeRange(range);
@@ -112,67 +155,108 @@ export const Dashboard = () => {
 
   if (loading) return <PageLoader sectionName="Dashboard" />;
 
+  const connectedChannels = connections.filter(c => c.status === 'connected').length;
+  const firstName = user?.full_name?.split(' ')[0] || 'usuario';
+
+  const quickActions = [
+    { name: 'Nuevo Cliente', path: '/clients', icon: UserPlus, color: 'text-primary-500' },
+    { name: 'Nueva Cotización', path: '/cotizaciones', icon: FileText, color: 'text-violet-500' },
+    { name: 'Nuevo Pedido', path: '/orders', icon: ShoppingCart, color: 'text-emerald-500' },
+    { name: 'Crear Promoción', path: '/promotions', icon: Gift, color: 'text-pink-500' },
+    { name: 'Agendar Evento', path: '/calendar', icon: Calendar, color: 'text-amber-500' },
+    { name: 'Ver Analíticas', path: '/analytics', icon: Activity, color: 'text-sky-500' },
+  ];
+
   return (
     <PageContainer>
-      <PageBody>
-        <div className="max-w-7xl mx-auto space-y-8 pb-12">
-          <DashboardHero />
+      <PageHeader
+        title={getGreeting()}
+        highlight={`${firstName} 👋`}
+        description="Todo está funcionando correctamente en tu ecosistema inteligente."
+        icon={LayoutDashboard}
+        meta={[
+          { label: 'Uptime', value: '99.9%', icon: Activity, color: 'emerald' },
+          { label: 'Conversaciones hoy', value: stats.messagesToday.toLocaleString(), icon: MessageSquare, color: 'accent' },
+          { label: 'Canales activos', value: connectedChannels, icon: Share2, color: 'blue' },
+          { label: 'Alertas críticas', value: '0', icon: AlertCircle, color: 'amber' },
+        ]}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => navigate('/analytics')}
+              className="px-4 py-2.5 bg-white dark:bg-dark-card border border-[#E5E7EB] dark:border-dark-border text-slate-700 dark:text-slate-300 font-semibold text-sm rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
+            >
+              Ver Analíticas
+            </button>
+            <button
+              onClick={() => navigate('/flow-manager')}
+              className="px-4 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-black font-semibold text-sm rounded-xl hover:opacity-90 transition-opacity shadow-md flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Crear Flujo
+            </button>
+          </div>
+        }
+      />
 
+      <PageBody>
+        <div className="space-y-5">
           {/* KPIs Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <MetricCard
-              title="Usuarios"
-              value={stats.totalUsers.toLocaleString()}
+              title="Clientes"
+              value={crm.totalClients.toLocaleString()}
               icon={<Users className="w-5 h-5" />}
-              trend={{ value: 12, label: 'vs mes pasado', direction: 'up' }}
+              trend={{ value: 0, label: 'en CRM', direction: 'neutral' }}
               sparkline={[12, 14, 18, 15, 20, 24, 28, 30]}
               delay={0.1}
             />
             <MetricCard
-              title="Interacciones"
-              value={stats.totalInteractions.toLocaleString()}
-              icon={<MessageSquare className="w-5 h-5" />}
-              trend={{ value: 8, label: 'vs ayer', direction: 'up' }}
+              title="Oportunidades"
+              value={crm.totalDeals.toLocaleString()}
+              icon={<Target className="w-5 h-5" />}
+              trend={{ value: 0, label: 'en pipeline', direction: 'neutral' }}
               sparkline={[30, 45, 40, 50, 60, 55, 70, 85]}
               delay={0.2}
             />
             <MetricCard
-              title="Respuestas IA"
-              value={stats.botResponses.toLocaleString()}
-              icon={<Bot className="w-5 h-5" />}
-              trend={{ value: 2, label: 'vs ayer', direction: 'down' }}
+              title="Pedidos"
+              value={moduleCounts.orders.toLocaleString()}
+              icon={<ShoppingCart className="w-5 h-5" />}
+              trend={{ value: 0, label: 'registrados', direction: 'neutral' }}
               sparkline={[60, 55, 58, 50, 48, 52, 49, 45]}
               delay={0.3}
             />
             <MetricCard
-              title="Nuevos Hoy"
-              value={stats.newUsersToday.toLocaleString()}
-              icon={<UserPlus className="w-5 h-5" />}
-              trend={{ value: 0, label: 'estable', direction: 'neutral' }}
+              title="Valor Ganado"
+              value={formatCurrency(crm.wonValue)}
+              icon={<Wallet className="w-5 h-5" />}
+              trend={{ value: 0, label: 'deals ganados', direction: 'neutral' }}
               sparkline={[10, 10, 10, 10, 10, 10, 10, 10]}
               delay={0.4}
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <MainChart
-              data={messagesData}
-              selectedRange={selectedTimeRange}
-              onRangeChange={handleRangeChange}
-              showCustomRange={showCustomRange}
-              startDate={startDate}
-              endDate={endDate}
-              onStartDateChange={setStartDate}
-              onEndDateChange={setEndDate}
-            />
-            <div className="flex flex-col gap-6 h-full">
-              <AIInsights />
-              <ActivityTimeline />
-            </div>
+          {/* Main Chart */}
+          <MainChart
+            data={messagesData}
+            selectedRange={selectedTimeRange}
+            onRangeChange={handleRangeChange}
+            showCustomRange={showCustomRange}
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+          />
+
+          {/* Insights + Activity */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <AIInsights />
+            <ActivityTimeline />
           </div>
 
           {/* Bottom Grids */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Canales */}
             <DashboardCard title="Estado de Canales" icon={<Box className="w-4 h-4" />}>
               <div className="space-y-3 mt-4">
@@ -205,56 +289,51 @@ export const Dashboard = () => {
             {/* Quick Actions */}
             <DashboardCard title="Acciones Rápidas" icon={<Zap className="w-4 h-4" />}>
               <div className="grid grid-cols-2 gap-3 mt-4">
-                {[
-                  { name: 'Crear Bot', path: '/bot-builder' },
-                  { name: 'Enviar Campaña', path: '/campaigns' },
-                  { name: 'Crear Usuario', path: '/users' },
-                  { name: 'Entrenar IA', path: '/ai-training' },
-                  { name: 'Ver Reportes', path: '/analytics' },
-                  { name: 'Configuración', path: '/settings' },
-                ].map(action => (
-                  <button
-                    key={action.name}
-                    onClick={() => navigate(action.path)}
-                    className="flex flex-col items-start p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left group"
-                  >
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{action.name}</span>
-                  </button>
-                ))}
+                {quickActions.map(action => {
+                  const Icon = action.icon;
+                  return (
+                    <button
+                      key={action.name}
+                      onClick={() => navigate(action.path)}
+                      className="flex flex-col items-start gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left group"
+                    >
+                      <Icon className={`w-4 h-4 ${action.color}`} />
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{action.name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </DashboardCard>
 
-            {/* Plan Info */}
-            <DashboardCard title="Plan y Consumo" icon={<CreditCard className="w-4 h-4" />}>
-              <div className="mt-4 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white">Pro</h4>
-                    <p className="text-sm font-medium text-slate-500">Plan actual</p>
-                  </div>
-                  <div className="text-right">
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white">$49</h4>
-                    <p className="text-sm font-medium text-slate-500">por mes</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    <span>Interacciones</span>
-                    <span>{stats.totalInteractions.toLocaleString()} / 10,000</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-900 dark:bg-white rounded-full transition-all duration-1000"
-                      style={{ width: `${Math.min((stats.totalInteractions / 10000) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <button className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                  Administrar Facturación
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+            {/* Resumen de Módulos */}
+            <DashboardCard title="Resumen de Módulos" icon={<Activity className="w-4 h-4" />}>
+              <div className="mt-4 space-y-2.5">
+                {[
+                  { name: 'Cotizaciones', count: moduleCounts.quotes, path: '/cotizaciones', icon: FileText, color: 'text-violet-500', bg: 'bg-violet-500/10' },
+                  { name: 'Pedidos', count: moduleCounts.orders, path: '/orders', icon: ShoppingCart, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                  { name: 'Promociones', count: moduleCounts.promotions, path: '/promotions', icon: Gift, color: 'text-pink-500', bg: 'bg-pink-500/10' },
+                  { name: 'Próximos eventos', count: moduleCounts.events, path: '/calendar', icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                ].map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => navigate(item.path)}
+                      className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-800/20 hover:border-slate-300 dark:hover:border-white/10 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${item.bg} ${item.color}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 group-hover:text-white transition-colors">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{item.count}</span>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </DashboardCard>
           </div>

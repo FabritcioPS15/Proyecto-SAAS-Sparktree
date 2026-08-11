@@ -46,7 +46,7 @@ export const MainChart: React.FC<MainChartProps> = ({
           ))}
         </div>
       }
-      className="col-span-full xl:col-span-2 min-h-[400px]"
+      className="min-h-[400px]"
     >
       {showCustomRange && (
         <div className="flex items-center gap-3 mb-6 p-4 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-slate-100 dark:border-white/5 animate-in fade-in slide-in-from-top-4 duration-500">

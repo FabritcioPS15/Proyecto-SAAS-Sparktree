@@ -12,18 +12,20 @@ export interface AuthenticatedRequest extends Request {
 }
 
 /**
- * Basic authentication middleware.
- * Resolves user from x-user-id header and populates req.user
+ * Authentication + multi-tenant isolation middleware.
+ *
+ * Resolves the user from the X-User-ID header and enforces that the
+ * requested organization (X-Organization-ID) matches the user's own
+ * organization. The super_admin role is allowed to operate on any
+ * organization (it manages every company).
  */
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.headers['x-user-id'] as string;
-    
+    const requestedOrgId = req.headers['x-organization-id'] as string;
+
     if (!userId) {
-      // For now, if no userId, we might want to return 401
-      // but to maintain compatibility with existing flow, let's just proceed
-      // and let the route handle missing user if needed.
-      return next();
+      return res.status(401).json({ error: 'Unauthorized', hint: 'Incluye el header X-User-ID' });
     }
 
     const { data: user, error } = await supabase
@@ -32,13 +34,25 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       .eq('id', userId)
       .single();
 
-    if (user && !error) {
-      (req as any).user = user;
+    if (error || !user) {
+      return res.status(401).json({ error: 'Unauthorized', hint: 'Usuario no encontrado' });
     }
 
+    // If an organization was explicitly requested, enforce tenant isolation
+    if (requestedOrgId) {
+      const isSuperAdmin = user.role === 'super_admin';
+      if (!isSuperAdmin && user.organization_id !== requestedOrgId) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          hint: 'No tienes acceso a esta organización'
+        });
+      }
+    }
+
+    (req as any).user = user;
     next();
   } catch (error) {
     console.error('[Auth Middleware] Error:', error);
-    next();
+    next(error);
   }
 };

@@ -30,7 +30,6 @@ export const AIInsights = () => {
       title="AI Insights"
       subtitle="Conclusiones generadas por Sparktree AI"
       icon={<Sparkles className="w-4 h-4" />}
-      className="h-full"
     >
       <div className="space-y-4 pt-2">
         {insights.map((insight) => (

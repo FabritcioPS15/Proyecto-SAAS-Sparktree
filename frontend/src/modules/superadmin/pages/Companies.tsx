@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Building2, Users, CreditCard, AlertTriangle,
-  CheckCircle, Clock, Bell, Eye, Crown, TrendingUp, Send
+  CheckCircle, Clock, Bell, Eye, Crown, TrendingUp, Send, LogIn
 } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
@@ -13,6 +14,7 @@ import { SearchBar } from '../../../components/ui/SearchBar';
 import { Badge } from '../../../components/ui/Badge';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { getOrganizations, updateOrganizationPayment, updateOrganizationNotification } from '../../../services/api';
 
 interface Company {
@@ -38,6 +40,14 @@ export const Companies = () => {
   const [notificationMsg, setNotificationMsg] = useState('');
   const [showPopup, setShowPopup] = useState(false);
   const { addNotification } = useNotifications();
+  const { switchOrganization } = useAuth();
+  const navigate = useNavigate();
+
+  const handleEnterCompany = (org: Company) => {
+    switchOrganization(org.id);
+    navigate('/');
+    addNotification({ type: 'success', title: 'Accediendo', message: `Entrando a ${org.name} como Super Admin` });
+  };
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -271,6 +281,7 @@ export const Companies = () => {
             onRowClick={(org) => setSelectedCompany(org)}
             getId={(org) => org.id}
             actions={(org) => [
+              { icon: <LogIn className="w-4 h-4" />, label: 'Entrar como empresa', onClick: () => handleEnterCompany(org), tooltip: 'Entrar como empresa' },
               { icon: <Eye className="w-4 h-4" />, label: 'Ver detalle', onClick: () => setSelectedCompany(org), tooltip: 'Ver detalle' },
               { icon: <Bell className="w-4 h-4" />, label: 'Enviar notificación', onClick: () => { setSelectedCompany(org); setNotificationMsg(org.admin_notification || ''); setShowPopup(org.show_overdue_popup || false); setShowNotifyModal(true); }, tooltip: 'Enviar notificación' },
             ]}

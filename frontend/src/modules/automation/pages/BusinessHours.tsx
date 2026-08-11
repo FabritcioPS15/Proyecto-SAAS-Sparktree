@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Trash2, List, LayoutGrid, Clock } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
@@ -6,6 +6,7 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
+import { getBusinessHours, createBusinessHour, deleteBusinessHour } from '../../../services/api';
 
 interface BusinessHour {
   id: string; day: string; openTime: string; closeTime: string; autoResponse: string;
@@ -21,17 +22,69 @@ const mockHours: BusinessHour[] = [
   { id: 'BH-007', day: 'Domingo', openTime: '-', closeTime: '-', autoResponse: 'Cerrado. Te responderemos el lunes.' },
 ];
 
+const mapHour = (row: any): BusinessHour => ({
+  id: row.id,
+  day: row.day,
+  openTime: row.open_time,
+  closeTime: row.close_time,
+  autoResponse: row.auto_response || '',
+});
+
 export const BusinessHours = () => {
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAvail, setFilterAvail] = useState('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [hours, setHours] = useState<BusinessHour[]>(mockHours);
+  const [loading, setLoading] = useState(true);
   const [formDay, setFormDay] = useState('');
   const [formOpenTime, setFormOpenTime] = useState('');
   const [formCloseTime, setFormCloseTime] = useState('');
 
-  const filtered = mockHours.filter(h =>
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await getBusinessHours();
+        if (!cancelled) setHours((Array.isArray(rows) ? rows : []).map(mapHour));
+      } catch (err) {
+        console.error('Failed to load business hours:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleCreate = async () => {
+    if (!formDay || !formOpenTime || !formCloseTime) return;
+    try {
+      const created = await createBusinessHour({ day: formDay, openTime: formOpenTime, closeTime: formCloseTime });
+      setHours(prev => {
+        const next = prev.filter(h => h.day !== formDay);
+        return [...next, mapHour(created)];
+      });
+      addNotification({ type: 'success', title: 'Horario creado', message: `Se ha creado el horario para ${formDay}` });
+      setShowCreateModal(false);
+      setFormDay(''); setFormOpenTime(''); setFormCloseTime('');
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo crear el horario.' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const deleted = hours.find(h => h.id === id);
+    setHours(prev => prev.filter(h => h.id !== id));
+    try {
+      await deleteBusinessHour(id);
+      addNotification({ type: 'success', title: 'Horario eliminado', message: `Horario de ${deleted?.day} eliminado.` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el horario.' });
+    }
+  };
+
+  const filtered = hours.filter(h =>
     h.day.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (filterAvail === 'all' || (filterAvail === 'open' ? h.openTime !== '-' : h.openTime === '-'))
   );
@@ -48,6 +101,9 @@ export const BusinessHours = () => {
         }
       />
       <PageBody>
+        {loading && (
+          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><Clock className="w-3 h-3 animate-spin" /> Cargando horarios...</div>
+        )}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
           <div className="flex flex-col lg:flex-row gap-4 mb-6">
             <div className="flex-1 relative group">
@@ -111,7 +167,7 @@ export const BusinessHours = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <p className="text-xs text-slate-400 max-w-xs truncate hidden md:block">{hour.autoResponse}</p>
-                    <button className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleDelete(hour.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))}
@@ -126,7 +182,7 @@ export const BusinessHours = () => {
         title="Nuevo Horario"
         icon={<Clock className="w-5 h-5 text-accent-500" />}
       >
-        <form onSubmit={(e) => { e.preventDefault(); addNotification({ type: 'success', title: 'Horario creado', message: `Se ha creado el horario para ${formDay}` }); setShowCreateModal(false); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }} className="space-y-4">
           <Dropdown
             value={formDay}
             onChange={v => setFormDay(v)}

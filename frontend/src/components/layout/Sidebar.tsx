@@ -103,6 +103,8 @@ const superAdminMenuItems: MenuItem[] = [
   { icon: Globe, label: 'Todas las Empresas', path: '/superadmin/companies' },
   { icon: DollarSign, label: 'Métricas del Negocio', path: '/superadmin/business-metrics' },
   { icon: Activity, label: 'Logs del Sistema', path: '/superadmin/system-logs' },
+  { icon: ShieldAlert, label: 'Organizaciones', path: '/admin/organizations' },
+  ...empresaMenuItemsExpanded,
 ];
 
 const staffMenuItems: MenuItem[] = [
@@ -143,6 +145,8 @@ const adminCategories = [
 
 const superAdminCategories: Array<{ name: string; items: string[] }> = [
   { name: 'Super Admin', items: ['/superadmin/companies', '/superadmin/business-metrics', '/superadmin/system-logs'] },
+  { name: 'Administración', items: ['/admin/organizations'] },
+  ...empresaCategories,
 ];
 
 const staffCategories = [

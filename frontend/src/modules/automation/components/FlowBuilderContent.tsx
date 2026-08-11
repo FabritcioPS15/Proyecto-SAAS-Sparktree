@@ -1112,6 +1112,13 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                             className="w-full pl-8 pr-5 py-4 bg-slate-50 dark:bg-slate-800/50 rounded-sm text-xs font-bold outline-none"
                           />
                         </div>
+                        {['telefono', 'phone', 'celular'].some((kw) =>
+                          (selectedNode.data.variableName || '').toLowerCase().includes(kw)
+                        ) && (
+                          <p className="mt-2 text-[9px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wide">
+                            Se guardará como el número de teléfono del contacto.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

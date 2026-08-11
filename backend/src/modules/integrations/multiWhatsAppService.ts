@@ -386,14 +386,15 @@ export class MultiWhatsAppService {
       extractedNumber = remoteJid ? remoteJid.split('@')[0] : '';
     }
 
-    // Si el número extraído parece un ID largo (más de 15 dígitos), intentar obtener el número real de otras fuentes
-    if (extractedNumber.length > 15) {
+    const isLid = remoteJid && remoteJid.endsWith('@lid');
+    // Si el número extraído parece un ID largo (más de 13 dígitos) o es un LID, intentar obtener el número real de otras fuentes
+    if (extractedNumber.length > 13 || isLid) {
       console.log(`[MultiWhatsApp] Extracted number looks like ID: ${extractedNumber}, trying to get real phone number`);
       
       // Intentar obtener el número del participant list si es un grupo
       if (msg.key?.participant) {
         const participantNumber = msg.key.participant.split('@')[0].split(':')[0];
-        if (participantNumber.length <= 15) {
+        if (participantNumber.length <= 15 && !msg.key.participant.endsWith('@lid')) {
           console.log(`[MultiWhatsApp] Using participant number: ${participantNumber}`);
           return participantNumber;
         }
@@ -403,7 +404,7 @@ export class MultiWhatsAppService {
       const contextInfo = (messageContent as any)?.contextInfo;
       if (contextInfo?.participant) {
         const contextParticipant = contextInfo.participant.split('@')[0].split(':')[0];
-        if (contextParticipant.length <= 15) {
+        if (contextParticipant.length <= 15 && !contextInfo.participant.endsWith('@lid')) {
           console.log(`[MultiWhatsApp] Using context participant number: ${contextParticipant}`);
           return contextParticipant;
         }
@@ -415,7 +416,7 @@ export class MultiWhatsAppService {
         const quotedParticipant = (messageContent as any)?.extendedTextMessage?.contextInfo?.participant;
         if (quotedParticipant) {
           const quotedNumber = quotedParticipant.split('@')[0].split(':')[0];
-          if (quotedNumber.length <= 15) {
+          if (quotedNumber.length <= 15 && !quotedParticipant.endsWith('@lid')) {
             console.log(`[MultiWhatsApp] Using quoted participant number: ${quotedNumber}`);
             return quotedNumber;
           }
@@ -517,39 +518,77 @@ export class MultiWhatsAppService {
   private async saveMessageData(message: any, senderPhone: string, connection: WhatsAppConnection, flow: any, profileName: string = ''): Promise<{contact: any, conversation: any}> {
     // Similar to existing logic but using connection-specific organization
     const isGroup = (message.jid || '').includes('@g.us');
-    
-    // Obtener el contacto existente para preservar custom_attributes
-    const { data: existingContact } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('organization_id', connection.organizationId)
-      .eq('phone_number', senderPhone)
-      .single();
-    
+    const messageJid = message.jid || (senderPhone ? `${senderPhone}@s.whatsapp.net` : '');
+
+    // Un LID de WhatsApp es un ID privado (ej: 93080682238146@lid) que NO es un número real.
+    // No debe guardarse como phone_number (el "número largo" que quedaba guardado).
+    // Solamente se puede usar un LID como identificador interno (whatsapp_jid), nunca como teléfono.
+    const isLid = messageJid.toLowerCase().endsWith('@lid');
+    const lidPrefix = messageJid.split('@')[0];
+    const isSenderPhoneActuallyLid = isLid && senderPhone === lidPrefix;
+    const usablePhone = isSenderPhoneActuallyLid ? '' : senderPhone;
+
+    // Obtener el contacto existente, primero por el JID de WhatsApp (LID) y luego por teléfono.
+    // Así los contactos con LID se reutilizan sin duplicarse y preservan un número real previo.
+    let existingContact: any | null = null;
+    if (isLid) {
+      const { data: byJid } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('organization_id', connection.organizationId)
+        .eq('custom_attributes->>whatsapp_jid', messageJid)
+        .maybeSingle();
+      existingContact = byJid || null;
+    }
+    if (!existingContact) {
+      const { data: byPhone } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('organization_id', connection.organizationId)
+        .eq('phone_number', usablePhone)
+        .maybeSingle();
+      existingContact = byPhone || null;
+    }
+
     // Construir custom_attributes preservando datos existentes
     const existingAttrs = existingContact?.custom_attributes || {};
     const newAttrs = {
       ...existingAttrs,
-      whatsapp_jid: message.jid,
+      whatsapp_jid: messageJid,
       is_group: isGroup
     };
-    
-    // Si senderPhone parece un ID largo, intentar guardar el número real si está disponible en attrs existentes
-    if (senderPhone.length > 15 && existingAttrs.real_phone_number) {
-      newAttrs.real_phone_number = existingAttrs.real_phone_number;
+
+    let contact: any = existingContact;
+
+    if (existingContact) {
+      // Preservar el número real si el contacto ya lo tenía (el LID no debe sobrescribirlo).
+      const finalPhone = usablePhone || existingContact.phone_number || '';
+      const { data: updated } = await supabase
+        .from('contacts')
+        .update({
+          profile_name: profileName || existingContact.profile_name,
+          phone_number: finalPhone,
+          last_active_at: new Date().toISOString(),
+          custom_attributes: newAttrs
+        })
+        .eq('id', existingContact.id)
+        .select()
+        .single();
+      contact = updated || existingContact;
+    } else {
+      const { data: created } = await supabase
+        .from('contacts')
+        .insert({
+          organization_id: connection.organizationId,
+          phone_number: usablePhone,
+          profile_name: profileName,
+          last_active_at: new Date().toISOString(),
+          custom_attributes: newAttrs
+        })
+        .select()
+        .single();
+      contact = created;
     }
-    
-    const { data: contact } = await supabase
-      .from('contacts')
-      .upsert({
-        organization_id: connection.organizationId,
-        phone_number: senderPhone,
-        profile_name: profileName, 
-        last_active_at: new Date().toISOString(),
-        custom_attributes: newAttrs
-      }, { onConflict: 'organization_id,phone_number' })
-      .select()
-      .single();
 
     let { data: conversations } = await supabase
       .from('conversations')

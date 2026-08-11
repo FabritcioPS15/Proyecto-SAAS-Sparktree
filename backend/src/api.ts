@@ -32,6 +32,11 @@ import catalogsRoutes from './modules/catalogs/catalogs.routes';
 import knowledgeRoutes from './modules/knowledge/knowledge.routes';
 import billingRoutes from './modules/billing/billing.routes';
 import aiRoutes from './modules/ai/ai.routes';
+import calendarRoutes from './modules/calendar/calendar.routes';
+import businessHoursRoutes from './modules/automation/businessHours.routes';
+import promotionsRoutes from './modules/promotions/promotions.routes';
+import quotesRoutes from './modules/crm/quotes.routes';
+import ordersRoutes from './modules/orders/orders.routes';
 
 // Load environment variables
 dotenv.config();
@@ -219,14 +224,14 @@ app.get('/metrics', async (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 
 // Auth and Tenant Middleware (Applied to all following /api routes)
-// TEMPORARILY DISABLED FOR DEVELOPMENT
 import { authenticateToken } from './core/middleware/auth';
 import { tenantMiddleware } from './core/middleware/tenant';
 
 // Webhook routes (no auth required)
 app.use('/api/webhooks', webhookRoutes);
 
-// app.use('/api', authenticateToken);
+// Enforce authentication + tenant isolation on every /api request
+app.use('/api', authenticateToken);
 app.use('/api', tenantMiddleware);
 
 app.use('/api/users', userRoutes);
@@ -250,6 +255,11 @@ app.use('/api/catalogs', catalogsRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/calendar', calendarRoutes);
+app.use('/api/business-hours', businessHoursRoutes);
+app.use('/api/promotions', promotionsRoutes);
+app.use('/api/quotes', quotesRoutes);
+app.use('/api/orders', ordersRoutes);
 
 // Middleware to record metrics for all successful responses
 app.use((req: Request, res: Response, next: NextFunction) => {

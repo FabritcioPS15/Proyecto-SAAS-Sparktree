@@ -1,17 +1,31 @@
 import { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { MessageCircle, Mail, Lock, ArrowRight, Loader2, Info, ChevronDown, ChevronUp, Sparkles, CheckCircle2, Shield, UserPlus } from 'lucide-react';
-import { FaWhatsapp, FaFacebook, FaInstagram, FaGoogle, FaTelegram, FaTiktok } from 'react-icons/fa';
-import { login, adminLogin } from '../../../services/api';
+import { MessageCircle, Mail, Lock, ArrowRight, Loader2, Info, Sparkles, CheckCircle2, Shield, UserCog, Building2, Terminal, Zap } from 'lucide-react';
+import { login } from '../../../services/api';
+
+const HOME_BY_ROLE: Record<string, string> = {
+  super_admin: '/superadmin/companies',
+  admin: '/',
+  empresa: '/',
+  staff: '/',
+  agent: '/conversations',
+};
+
+const QUICK_ACCOUNTS = [
+  { label: 'Super Administrador', role: 'Super Admin', email: 'admin@sparktree.io', icon: Shield, color: 'text-purple-400', bg: 'bg-purple-500/10', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  { label: 'Administrador Staff', role: 'Staff', email: 'staff@sparktree.io', icon: UserCog, color: 'text-amber-400', bg: 'bg-amber-500/10', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  { label: 'Empresa Demo', role: 'Empresa', email: 'empresa@demo.com', icon: Building2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  { label: 'Admin Local', role: 'Admin', email: 'admin@localhost', icon: Terminal, color: 'text-sky-400', bg: 'bg-sky-500/10', badge: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
+];
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showTestAccounts, setShowTestAccounts] = useState(false);
-  
+  const [quickAccount, setQuickAccount] = useState('');
+
   const { login: setAuthSession } = useAuth();
   const navigate = useNavigate();
 
@@ -19,11 +33,11 @@ export const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
+
     try {
       const data = await login(email, password);
       setAuthSession(data.user, data.organizationId);
-      navigate('/');
+      navigate(HOME_BY_ROLE[data.user.role] || '/');
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Credenciales inválidas. Por favor intenta de nuevo.');
     } finally {
@@ -31,31 +45,21 @@ export const Login = () => {
     }
   };
 
-  const handleAdminLogin = async () => {
+  const handleQuickLogin = async (accEmail: string) => {
     setIsLoading(true);
+    setQuickAccount(accEmail);
     setError('');
-    
+
     try {
-      const data = await adminLogin();
+      const data = await login(accEmail, 'admin123');
       setAuthSession(data.user, data.organizationId);
-      navigate('/');
+      navigate(HOME_BY_ROLE[data.user.role] || '/');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Error al iniciar sesión como admin.');
+      setError(err.response?.data?.error || err.message || 'Error al iniciar sesión rápida.');
     } finally {
       setIsLoading(false);
+      setQuickAccount('');
     }
-  };
-
-  const setTestAccount = (e: string, p: string) => {
-    setEmail(e);
-    setPassword(p);
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    // Aquí se implementaría la lógica de autenticación social
-    // Por ahora mostramos un mensaje informativo
-    console.log(`Login con ${provider} - Próximamente disponible`);
-    setError(`Inicio de sesión con ${provider} estará disponible próximamente.`);
   };
 
   return (
@@ -65,7 +69,7 @@ export const Login = () => {
         {/* Background Glows */}
         <div className="absolute top-[-20%] left-[-10%] w-[100%] h-[100%] bg-primary-900/10 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[100%] h-[100%] bg-accent-900/10 blur-[150px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
-        
+
         <div className="relative z-10 w-full max-w-md space-y-16">
           <div className="flex flex-col items-center text-center space-y-6">
             <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md mb-4 shadow-xl shadow-primary-500/5">
@@ -117,15 +121,15 @@ export const Login = () => {
           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-primary-900/10 blur-[100px] rounded-full opacity-50" />
         </div>
 
-        <div className="w-full max-w-md relative z-10 py-12">
-          <div className="lg:hidden text-center mb-12">
+        <div className="w-full max-w-lg relative z-10 py-10">
+          <div className="lg:hidden text-center mb-10">
             <div className="inline-flex p-3 bg-primary-600/10 rounded-2xl border border-primary-500/20 mb-4">
               <MessageCircle className="w-8 h-8 text-primary-400" />
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Sparktree</h1>
           </div>
 
-          <div className="space-y-3 mb-10 text-center lg:text-left">
+          <div className="space-y-3 mb-8 text-center lg:text-left">
             <h1 className="text-3xl font-bold text-white tracking-tight">Iniciar sesión</h1>
             <p className="text-gray-500 text-sm font-medium leading-relaxed">Bienvenido de nuevo. Gestiona tus comunicaciones de manera centralizada.</p>
           </div>
@@ -135,8 +139,8 @@ export const Login = () => {
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email Corporativo</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-primary-400 transition-colors" />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/5 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/50 outline-none transition-all text-white text-sm placeholder:text-gray-600 font-medium"
@@ -153,8 +157,8 @@ export const Login = () => {
               </div>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-primary-400 transition-colors" />
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/5 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/50 outline-none transition-all text-white text-sm placeholder:text-gray-600 font-medium"
@@ -171,11 +175,11 @@ export const Login = () => {
               </div>
             )}
 
-            <button 
+            <button
               disabled={isLoading}
               className="w-full py-4 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary-600/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group mt-4 relative overflow-hidden"
             >
-              {isLoading ? (
+              {isLoading && !quickAccount ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
@@ -184,117 +188,55 @@ export const Login = () => {
                 </>
               )}
             </button>
-
-            {/* Single-click Admin Login Button */}
-            <button 
-              type="button"
-              onClick={handleAdminLogin}
-              disabled={isLoading}
-              className="w-full py-3 bg-white/[0.03] hover:bg-white/[0.05] border border-white/5 text-white rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group mt-3"
-            >
-              <Shield className="w-4 h-4 text-primary-400" />
-              <span>Acceso Admin Local (Un Click)</span>
-            </button>
           </form>
 
-          {/* Social Login Divider */}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">O continúa con</span>
-            <div className="flex-1 h-px bg-white/10" />
-          </div>
+          {/* Quick Access */}
+          <div className="mt-8 pt-8 border-t border-white/5">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="w-3.5 h-3.5 text-primary-400" />
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Acceso rápido</p>
+            </div>
+            <p className="text-[11px] text-gray-600 mb-4">Entra con un click a cada perfil de demostración.</p>
 
-          {/* Social Login Buttons */}
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => handleSocialLogin('WhatsApp')}
-              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-green-500/30 transition-all group"
-            >
-              <FaWhatsapp className="w-6 h-6 text-green-500 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">WhatsApp</span>
-            </button>
-            <button
-              onClick={() => handleSocialLogin('Facebook')}
-              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-blue-500/30 transition-all group"
-            >
-              <FaFacebook className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Facebook</span>
-            </button>
-            <button
-              onClick={() => handleSocialLogin('Google')}
-              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-red-500/30 transition-all group"
-            >
-              <FaGoogle className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Google</span>
-            </button>
-            <button
-              onClick={() => handleSocialLogin('Instagram')}
-              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-pink-500/30 transition-all group"
-            >
-              <FaInstagram className="w-6 h-6 text-pink-500 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Instagram</span>
-            </button>
-            <button
-              onClick={() => handleSocialLogin('Telegram')}
-              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-blue-400/30 transition-all group"
-            >
-              <FaTelegram className="w-6 h-6 text-blue-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">Telegram</span>
-            </button>
-            <button
-              onClick={() => handleSocialLogin('TikTok')}
-              className="flex flex-col items-center gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-black/30 transition-all group"
-            >
-              <FaTiktok className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-medium text-gray-400 group-hover:text-gray-300">TikTok</span>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {QUICK_ACCOUNTS.map((acc) => {
+                const Icon = acc.icon;
+                const loadingThis = isLoading && quickAccount === acc.email;
+                return (
+                  <button
+                    key={acc.email}
+                    onClick={() => handleQuickLogin(acc.email)}
+                    disabled={isLoading}
+                    className="group flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-xl hover:bg-white/[0.06] hover:border-white/15 transition-all text-left active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${acc.bg}`}>
+                      {loadingThis ? <Loader2 className={`w-5 h-5 animate-spin ${acc.color}`} /> : <Icon className={`w-5 h-5 ${acc.color}`} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white truncate">{acc.label}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500 font-medium truncate block">{acc.email}</span>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border shrink-0 ${acc.badge}`}>{acc.role}</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-600 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Register Link */}
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <p className="text-gray-500 text-sm">
               ¿No tienes cuenta?{' '}
-              <Link to="/register" className="text-primary-400 hover:text-primary-300 font-bold transition-colors inline-flex items-center gap-1">
-                <UserPlus className="w-3 h-3" />
+              <Link to="/register" className="text-primary-400 hover:text-primary-300 font-bold transition-colors">
                 Crear cuenta
               </Link>
             </p>
           </div>
 
-          {/* Quick Access Toggle */}
-          <div className="mt-10 pt-8 border-t border-white/5">
-            <button 
-              onClick={() => setShowTestAccounts(!showTestAccounts)}
-              className="flex items-center justify-between w-full text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-gray-400 transition-colors group"
-            >
-              <span>Atajos de prueba</span>
-              {showTestAccounts ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3 group-hover:translate-y-0.5 transition-transform" />}
-            </button>
-            
-            {showTestAccounts && (
-              <div className="grid grid-cols-1 gap-2 mt-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                {[
-                  { label: 'Super Administrador', email: 'admin@sparktree.io', color: 'text-primary-400' },
-                  { label: 'Personal de Staff', email: 'staff@sparktree.io', color: 'text-white' },
-                  { label: 'Cliente Demo', email: 'empresa@demo.com', color: 'text-emerald-400' }
-                ].map((account) => (
-                  <button 
-                    key={account.email}
-                    onClick={() => setTestAccount(account.email, 'admin123')}
-                    className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-white/10 transition-all text-left group/btn"
-                  >
-                    <div className="flex flex-col">
-                      <span className={`text-[11px] font-bold uppercase tracking-wider ${account.color}`}>{account.label}</span>
-                      <span className="text-[10px] text-gray-500 font-medium">{account.email}</span>
-                    </div>
-                    <ArrowRight className="w-3 h-3 text-gray-600 group-hover/btn:text-white transition-colors" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <p className="text-center text-gray-500 text-[11px] mt-10 font-bold uppercase tracking-wider">
+          <p className="text-center text-gray-500 text-[11px] mt-8 font-bold uppercase tracking-wider">
             Sparktree Tech Hub © 2024
           </p>
         </div>
@@ -302,6 +244,3 @@ export const Login = () => {
     </div>
   );
 };
-
-
-

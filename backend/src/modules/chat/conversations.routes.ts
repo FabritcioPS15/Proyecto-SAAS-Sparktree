@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
     // Only select needed columns for the list; avoid loading all messages
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select('id, contact_id, last_message_at, status, created_at, organization_id, contacts(phone_number, profile_name, profile_picture), messages(content, created_at)')
+      .select('id, contact_id, last_message_at, status, created_at, platform_type, organization_id, contacts(phone_number, profile_name, profile_picture), messages(content, created_at)')
       .eq('organization_id', orgId)
       .order('last_message_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -45,23 +45,30 @@ router.get('/', async (req, res) => {
       // Remove raw messages data from the output (we already extracted what we need)
       delete conv.messages;
 
+      // Los LID de WhatsApp (@lid) NO son números reales; evitar mostrarlos como teléfono.
+      const storedPhone = conv.contacts?.phone_number || '';
+      const phoneDigits = storedPhone.replace(/\D/g, '');
+      const isLidPhone = storedPhone.length > 15 || phoneDigits.length > 15;
+      const displayPhone = isLidPhone ? '' : storedPhone;
+
       return {
         _id: conv.id,
         id: conv.id,
         contactId: {
           id: conv.contact_id,
           _id: conv.contact_id,
-          phoneNumber: conv.contacts?.phone_number || 'Desconocido',
+          phoneNumber: displayPhone || 'Desconocido',
           name: (conv.contacts?.profile_name && conv.contacts.profile_name !== 'Sin nombre') 
             ? conv.contacts.profile_name 
-            : (conv.contacts?.phone_number || 'Sin nombre'),
+            : (displayPhone || 'Sin nombre'),
           profilePicture: conv.contacts?.profile_picture || null,
           isGroup: conv.contacts?.custom_attributes?.is_group || 
                    conv.contacts?.phone_number?.includes('-') || 
-                   (conv.contacts?.phone_number && conv.contacts.phone_number.length > 15)
+                   (displayPhone && displayPhone.length > 15)
         },
         lastMessageAt: conv.last_message_at,
         lastMessageContent: lastMessageContent,
+        channel: conv.platform_type || 'whatsapp',
         unreadCount: 0,
         status: conv.status,
         createdAt: conv.created_at

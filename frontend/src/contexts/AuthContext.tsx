@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
 
 interface User {
   id: string;
@@ -20,15 +19,14 @@ interface AuthContextType {
   organizationId: string | null;
   activeProfile: Profile | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (user: User, organizationId: string) => Promise<void>;
   logout: () => void;
   selectProfile: (profile: Profile) => void;
   clearProfile: () => void;
+  switchOrganization: (organizationId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -57,24 +55,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
-      
-      const { user: userData, organizationId: orgId } = response.data;
-      
-      setUser(userData);
-      setOrganizationId(orgId);
-      
-      localStorage.setItem('sparktree_session', JSON.stringify({ 
-        user: userData, 
-        organizationId: orgId,
-        activeProfile: null
-      }));
-    } catch (error: any) {
-      console.error('Login failed', error);
-      throw new Error(error.response?.data?.error || 'Error al iniciar sesión');
-    }
+  const login = async (user: User, organizationId: string) => {
+    setUser(user);
+    setOrganizationId(organizationId);
+
+    localStorage.setItem('sparktree_session', JSON.stringify({ 
+      user, 
+      organizationId,
+      activeProfile: null
+    }));
   };
 
   const logout = () => {
@@ -108,8 +97,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const switchOrganization = (orgId: string) => {
+    setOrganizationId(orgId);
+    const savedSession = localStorage.getItem('sparktree_session');
+    if (savedSession) {
+      const parsed = JSON.parse(savedSession);
+      localStorage.setItem('sparktree_session', JSON.stringify({ ...parsed, organizationId: orgId }));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, organizationId, activeProfile, loading, login, logout, selectProfile, clearProfile }}>
+    <AuthContext.Provider value={{ user, organizationId, activeProfile, loading, login, logout, selectProfile, clearProfile, switchOrganization }}>
       {children}
     </AuthContext.Provider>
   );

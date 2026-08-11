@@ -26,6 +26,15 @@ export const CaptureNode = ({ id, data: initialData }: any) => {
             {data.variableName || 'variable'}
           </span>
         </div>
+        {['telefono', 'phone', 'celular'].some((kw) =>
+          (data.variableName || '').toLowerCase().includes(kw)
+        ) && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[8px] font-black bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50 uppercase tracking-wider">
+              Teléfono del contacto
+            </span>
+          </div>
+        )}
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-white !border-cyan-400 group-hover:!bg-cyan-500" />
     </div>

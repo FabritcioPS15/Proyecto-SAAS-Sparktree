@@ -7,10 +7,21 @@ import { ConnectionsProvider } from './contexts/ConnectionsContext';
 import { Layout } from './components/layout/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomizationProvider } from './contexts/CustomizationContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { PageLoader } from './components/layout/PageLoader';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import NotificationsSystem, { NotificationsProvider, setUpNotifications, useNotifications } from 'reapop';
+import { CustomNotification } from './components/ui/CustomNotification';
+
+// Configure reapop notifications
+setUpNotifications({
+  defaultProps: {
+    position: 'top-right',
+    dismissible: true,
+    dismissAfter: 5000,
+  }
+});
 
 
 // Lazy load pages for better performance
@@ -66,17 +77,54 @@ const Calendar = lazy(() => import('./modules/calendar/pages/Calendar').then(mod
 const WhatsAppManager = lazy(() => import('./modules/inbox/pages/WhatsAppManager').then(module => ({ default: module.WhatsAppManager })));
 const Cotizaciones = lazy(() => import('./modules/crm/pages/Cotizaciones').then(module => ({ default: module.Cotizaciones })));
 
+// Rutas permitidas por rol (prefijos de segmento). '*' = acceso total.
+const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
+  super_admin: ['*'],
+  admin: ['*'],
+  empresa: ['*'],
+  staff: ['/', '/conversations', '/email', '/calendar', '/clients', '/leads', '/support', '/agents', '/knowledge-base', '/notifications'],
+  agent: ['/conversations', '/clients', '/knowledge-base'],
+};
+
+const ROLE_FALLBACK: Record<string, string> = {
+  agent: '/conversations',
+  staff: '/',
+  admin: '/',
+  empresa: '/',
+  super_admin: '/superadmin/companies',
+};
+
+const hasRouteAccess = (role: string, pathname: string): boolean => {
+  const prefixes = ROLE_ALLOWED_PREFIXES[role] || [];
+  if (prefixes.includes('*')) {
+    // admin y super_admin ven todo, excepto que admin no entra al panel superadmin
+    return role === 'admin' ? !pathname.startsWith('/superadmin') : true;
+  }
+  if (pathname === '/') return prefixes.includes('/');
+  const pathSegs = pathname.split('/').filter(Boolean);
+  return prefixes.some((prefix) => {
+    const pSegs = prefix.split('/').filter(Boolean);
+    return pSegs.every((seg, i) => pathSegs[i] === seg);
+  });
+};
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, activeProfile } = useAuth();
-  
+  const location = useLocation();
+
   if (loading) return <PageLoader sectionName="Panel" isInitial />;
   if (!user) return <Navigate to="/login" />;
-  
+
+  // Bloqueo por rol: si la ruta no está permitida, redirigir a la vista base del rol
+  if (!hasRouteAccess(user.role, location.pathname)) {
+    return <Navigate to={ROLE_FALLBACK[user.role] || '/'} replace />;
+  }
+
   // Si es rol empresa y no ha seleccionado perfil, obligar a seleccionar
   if (user.role === 'empresa' && !activeProfile) {
     return <ProfileSelectionPage />;
   }
-  
+
   return <>{children}</>;
 };
 
@@ -148,29 +196,57 @@ function AppContent() {
       {/* AI / LLM */}
       <Route path="/ai/providers" element={<Suspense fallback={<PageLoader sectionName="Proveedores LLM" />}><ProtectedRoute><Layout><AIProviderSettings /></Layout></ProtectedRoute></Suspense>} />
       
-      {/* Multi-WhatsApp */}
       <Route path="/multi-whatsapp" element={<Suspense fallback={<PageLoader sectionName="WhatsApp Manager" />}><ProtectedRoute><Layout><WhatsAppManager /></Layout></ProtectedRoute></Suspense>} />
     </Routes>
   );
 }
 
+const GlobalNotifications = () => {
+  const { notifications, dismissNotification } = useNotifications();
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: '1rem',
+        right: '1rem',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        pointerEvents: 'none',
+      }}
+    >
+      {notifications.map((notification) => (
+        <CustomNotification
+          key={notification.id}
+          notification={notification}
+          dismissNotification={dismissNotification}
+        />
+      ))}
+    </div>
+  );
+};
+
 function App() {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
     <ThemeProvider>
-      <NotificationProvider>
-        <AuthProvider>
-          <ConnectionsProvider>
-            <WhatsAppProvider>
-              <CustomizationProvider>
-              <BrowserRouter>
-                <AppContent />
-              </BrowserRouter>
-              </CustomizationProvider>
-            </WhatsAppProvider>
-          </ConnectionsProvider>
-        </AuthProvider>
-      </NotificationProvider>
+      <NotificationsProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <ConnectionsProvider>
+              <WhatsAppProvider>
+                <CustomizationProvider>
+                <BrowserRouter>
+                  <AppContent />
+                  <GlobalNotifications />
+                </BrowserRouter>
+                </CustomizationProvider>
+              </WhatsAppProvider>
+            </ConnectionsProvider>
+          </AuthProvider>
+        </NotificationProvider>
+      </NotificationsProvider>
     </ThemeProvider>
     </LocalizationProvider>
   );

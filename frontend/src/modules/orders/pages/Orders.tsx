@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, List, LayoutGrid, ShoppingCart } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
@@ -8,6 +8,7 @@ import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
+import { getOrders, createOrder, deleteOrder } from '../../../services/api';
 
 interface Order {
   id: string; customer: string; items: number; total: number;
@@ -25,6 +26,18 @@ const mockOrders: Order[] = [
 
 const CHANNELS = ['WhatsApp', 'Instagram', 'Messenger', 'Telegram', 'TikTok'];
 
+const todayStr = () => new Date().toISOString().split('T')[0];
+
+const mapOrder = (row: any): Order => ({
+  id: row.id,
+  customer: row.customer,
+  items: Number(row.items || 0),
+  total: Number(row.total || 0),
+  status: row.status,
+  date: row.order_date || '',
+  channel: row.channel || 'WhatsApp',
+});
+
 export const Orders = () => {
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,6 +46,51 @@ export const Orders = () => {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await getOrders();
+        if (!cancelled) setOrders((Array.isArray(rows) ? rows : []).map(mapOrder));
+      } catch (err) {
+        console.error('Failed to load orders:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleCreate = async (customer: string, product: string, amount: string) => {
+    try {
+      const created = await createOrder({
+        customer,
+        items: 1,
+        total: Number(amount) || 0,
+        status: 'pending',
+        date: todayStr(),
+        channel: 'WhatsApp',
+      });
+      setOrders(prev => [mapOrder(created), ...prev]);
+      addNotification({ type: 'success', title: 'Pedido creado', message: `Se ha creado el pedido para ${customer}` });
+      setShowCreateModal(false);
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo crear el pedido.' });
+    }
+  };
+
+  const handleDelete = async (order: Order) => {
+    setOrders(prev => prev.filter(o => o.id !== order.id));
+    try {
+      await deleteOrder(order.id);
+      addNotification({ type: 'success', title: 'Pedido eliminado', message: `Se ha eliminado el pedido de ${order.customer}` });
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el pedido.' });
+    }
+  };
 
   const columns = [
     { key: 'id', header: 'Orden ID' },
@@ -42,9 +100,12 @@ export const Orders = () => {
     { key: 'status', header: 'Estado', render: (v: string) => <StatusBadge status={v} /> },
     { key: 'date', header: 'Fecha' },
     { key: 'channel', header: 'Canal' },
+    { key: 'actions', header: '', render: (_v: unknown, row: Order) => (
+      <button onClick={() => handleDelete(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
+    )},
   ];
 
-  const filtered = mockOrders.filter(o =>
+  const filtered = orders.filter(o =>
     (o.customer.toLowerCase().includes(searchTerm.toLowerCase()) || o.id.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (filterChannel === 'all' || o.channel === filterChannel) &&
     (filterStatus === 'all' || o.status === filterStatus)
@@ -63,6 +124,9 @@ export const Orders = () => {
         }
       />
       <PageBody>
+        {loading && (
+          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><ShoppingCart className="w-3 h-3 animate-spin" /> Cargando pedidos...</div>
+        )}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
           <div className="flex flex-col lg:flex-row gap-4 mb-4">
             <div className="flex-1 relative group">
@@ -117,6 +181,7 @@ export const Orders = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-slate-400">{order.date}</span>
                     <button className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Edit className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleDelete(order)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -135,7 +200,7 @@ export const Orders = () => {
         title="Nuevo Pedido"
         icon={<ShoppingCart className="w-5 h-5 text-accent-500" />}
       >
-        <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget; const name = (form.elements.namedItem('name') as HTMLInputElement).value; const product = (form.elements.namedItem('product') as HTMLInputElement).value; const amount = (form.elements.namedItem('amount') as HTMLInputElement).value; addNotification({ type: 'success', title: 'Pedido creado', message: `Se ha creado el pedido para ${name}` }); setShowCreateModal(false); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget; const name = (form.elements.namedItem('name') as HTMLInputElement).value; const product = (form.elements.namedItem('product') as HTMLInputElement).value; const amount = (form.elements.namedItem('amount') as HTMLInputElement).value; handleCreate(name, product, amount); }} className="space-y-4">
           <input type="text" name="name" placeholder="Nombre del cliente" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="text" name="product" placeholder="Producto" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="number" name="amount" placeholder="Monto" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />

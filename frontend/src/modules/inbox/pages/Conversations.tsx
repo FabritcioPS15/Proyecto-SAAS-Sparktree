@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getConversations, getConversationMessages, deleteConversation, deleteUser, getCatalogs } from '../../../services/api';
 import api from '../../../services/api';
@@ -162,6 +162,11 @@ export const Conversations = () => {
       realPhone = contact.phoneNumber || contact.id;
     }
     
+    // Si parece un ID largo (LID de WhatsApp @lid) y no corresponde a un número real, no mostrarlo
+    const digitsOnly = (realPhone || '').replace(/\D/g, '');
+    const looksLikeLid = digitsOnly.length > 15 || (realPhone || '').length > 15;
+    if (looksLikeLid) return '';
+    
     return realPhone;
   };
 
@@ -203,7 +208,7 @@ export const Conversations = () => {
         }
 
         if (filterChannel !== 'all') {
-          filtered = filtered.filter(conv => conv.channel === filterChannel);
+          filtered = filtered.filter(conv => normalizeChannel(conv.channel) === filterChannel);
         }
 
         setConversations(filtered);
@@ -512,7 +517,15 @@ export const Conversations = () => {
   const parseMessage = (content: any): string => {
     if (!content) return '';
     try {
-      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      let parsed = content;
+      if (typeof content === 'string') {
+        try {
+          parsed = JSON.parse(content);
+        } catch {
+          // Si no es un JSON válido, entonces es un texto plano
+          return content;
+        }
+      }
       const body = parsed.body ||
         parsed.text?.body ||
         parsed.text ||
@@ -526,7 +539,7 @@ export const Conversations = () => {
 
       if (body) return body;
       if (parsed.url || parsed.imageMessage || parsed.videoMessage || parsed.documentMessage || parsed.media) return '';
-      return '';
+      return typeof parsed === 'string' ? parsed : '';
     } catch {
       return '';
     }
@@ -667,6 +680,21 @@ export const Conversations = () => {
     return channelMap[channel] || { icon: null, color: 'bg-gray-500', label: channel };
   };
 
+  const normalizeChannel = (channel?: string) => {
+    const channelMapping: Record<string, string> = {
+      'wa': 'whatsapp',
+      'wsp': 'whatsapp',
+      'ig': 'instagram',
+      'tg': 'telegram',
+      'facebook_messenger': 'messenger',
+      'fb': 'messenger',
+      'facebook': 'messenger'
+    };
+    if (!channel) return 'whatsapp';
+    const normalized = String(channel).toLowerCase().trim();
+    return channelMapping[normalized] || normalized;
+  };
+
   if (loading) return <PageLoader sectionName="Conversaciones" />;
 
   return (
@@ -766,7 +794,7 @@ export const Conversations = () => {
             const isSelected = selectedConv?._id === conv._id;
             const contact = conv.contactId || {};
             const avatar = generateAvatar(contact);
-            const channelBadge = getChannelBadge(conv.channel || 'whatsapp');
+            const channelBadge = getChannelBadge(normalizeChannel(conv.channel));
             const ChannelIcon = channelBadge.icon;
 
             return (
@@ -806,7 +834,7 @@ export const Conversations = () => {
                         {contact.name || (() => {
                           const realPhone = getRealPhoneNumber(contact);
                           const { prefix, number } = formatPhoneNumber(realPhone);
-                          return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                          return prefix && number ? `${prefix} ${number}` : number || realPhone || 'Sin número guardado';
                         })()}
                       </span>
                       <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider text-white flex items-center gap-1 shrink-0 ${channelBadge.color}`}>
@@ -907,7 +935,7 @@ export const Conversations = () => {
                     {selectedConv.contactId?.name || (() => {
                       const realPhone = getRealPhoneNumber(selectedConv.contactId);
                       const { prefix, number } = formatPhoneNumber(realPhone);
-                      return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                      return prefix && number ? `${prefix} ${number}` : number || realPhone || 'Sin número guardado';
                     })()}
                   </h3>
                   <span className="text-[10px] text-gray-400 font-semibold">En línea</span>
@@ -952,7 +980,7 @@ export const Conversations = () => {
                           {selectedConv.contactId?.name || (() => {
                             const realPhone = getRealPhoneNumber(selectedConv.contactId);
                             const { prefix, number } = formatPhoneNumber(realPhone);
-                            return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                            return prefix && number ? `${prefix} ${number}` : number || realPhone || 'Sin número guardado';
                           })()}
                         </h3>
                         <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
@@ -960,7 +988,7 @@ export const Conversations = () => {
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{(() => {
                         const realPhone = getRealPhoneNumber(selectedConv.contactId);
                         const { prefix, number } = formatPhoneNumber(realPhone);
-                        return prefix && number ? `${prefix} ${number}` : number || realPhone;
+                        return prefix && number ? `${prefix} ${number}` : number || realPhone || 'Sin número guardado';
                       })()}</span>
                     </div>
                   </div>

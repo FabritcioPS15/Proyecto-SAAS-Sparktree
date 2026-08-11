@@ -3,6 +3,25 @@ import { supabase } from '../../../../core/config/supabase';
 import axios from 'axios';
 import { executeRAGNode } from '../../../../automation/nodes/knowledge/rag.node';
 
+const PHONE_VAR_KEYWORDS = ['telefono', 'phone', 'celular'];
+
+// Un nodo de captura cuya variable contenga estas palabras se trata como
+// teléfono del contacto: se valida, se extrae del texto y se guarda en phone_number.
+const isPhoneVariable = (name: string): boolean => {
+  const normalized = (name || '').toLowerCase().replace(/[^a-z]/g, '');
+  return PHONE_VAR_KEYWORDS.some((kw) => normalized.includes(kw));
+};
+
+// Extrae un teléfono desde texto libre ("mi número es 987 654 321", "+51 987654321").
+// Normaliza espacios, guiones y paréntesis. Retorna null si no hay un teléfono válido.
+const extractPhoneFromText = (text: string): string | null => {
+  const cleaned = text.replace(/[()\-]/g, ' ');
+  const match = cleaned.match(/\+?\d[\d\s]{5,13}\d/);
+  if (!match) return null;
+  const phone = match[0].replace(/\s+/g, '');
+  return /^\+?[0-9]{7,15}$/.test(phone) ? phone : null;
+};
+
 export async function handleIncomingMessage(
   message: any,
   senderPhone: string,
@@ -339,36 +358,47 @@ export async function handleIncomingMessage(
         
         // Validation logic
         const valType = node.data?.validationType || 'any';
+        const variableName = node.data?.variableName || `var_${nodeId}`;
+        const isPhoneField = isPhoneVariable(variableName);
         let isValid = true;
-        
+        let savedValue = textBody;
+
         if (valType === 'email') {
           isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(textLower);
         } else if (valType === 'number') {
           isValid = !isNaN(Number(textBody));
-        } else if (valType === 'phone') {
-          isValid = /^\+?[0-9]{7,15}$/.test(textBody.replace(/\s+/g, ''));
+        } else if (valType === 'phone' || isPhoneField) {
+          const extracted = extractPhoneFromText(textBody);
+          isValid = !!extracted;
+          if (extracted) savedValue = extracted;
         }
 
         // Allow Skip logic
         const isSkip = node.data?.allowSkip && (textLower === 'saltar' || textLower === 'skip' || textLower === 'omitir');
 
         if (isValid || isSkip) {
-          console.log(`[Bot Engine] Input valid or skipped. Saving variable: ${node.data?.variableName}`);
+          console.log(`[Bot Engine] Input valid or skipped. Saving variable: ${variableName}`);
           
           // Persistence: Save to custom_attributes
-          const variableName = node.data?.variableName || `var_${nodeId}`;
           const currentAttributes = contact.custom_attributes || {};
           
           if (!isSkip) {
-            currentAttributes[variableName] = textBody;
+            currentAttributes[variableName] = savedValue;
+          }
+
+          // Si la variable capturada es el teléfono, guardarlo también como el número
+          // real del contacto (los contactos LID no traen número de WhatsApp).
+          const updatePayload: any = {
+            custom_attributes: currentAttributes,
+            bot_state: null // Clear state
+          };
+          if (isPhoneField && !isSkip && isValid) {
+            updatePayload.phone_number = savedValue;
           }
 
           await supabase
             .from('contacts')
-            .update({ 
-               custom_attributes: currentAttributes,
-               bot_state: null // Clear state
-            })
+            .update(updatePayload)
             .eq('id', organizationConfig.contactId)
             .eq('organization_id', organizationConfig.organizationId);
 
