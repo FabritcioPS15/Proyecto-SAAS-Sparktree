@@ -625,8 +625,8 @@ INSERT INTO public.organizations (id, name, plan, max_whatsapp_connections) VALU
   (uuid_generate_v4(), 'Empresa Demo S.A.', 'basic', 2);
 
 INSERT INTO public.users (organization_id, email, full_name, role) VALUES
-  ((SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'admin@sparktree.io', 'Super Administrador', 'super_admin'),
-  ((SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'staff@sparktree.io', 'Administrador Staff', 'staff'),
+  ((SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'admin+fabpsandoval@gmail.com', 'Super Administrador', 'super_admin'),
+  ((SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'staff+fabpsandoval@gmail.com', 'Administrador Staff', 'staff'),
   ((SELECT id FROM public.organizations WHERE name = 'Empresa Demo S.A.'), 'empresa@demo.com', 'Empresa Demo S.A.', 'empresa');
 
 -- ============================================================

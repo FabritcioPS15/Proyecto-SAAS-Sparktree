@@ -36,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Restore session from localStorage
-    const savedSession = localStorage.getItem('sparktree_session');
+    const savedSession = localStorage.getItem('sparkbot_session');
     if (savedSession) {
       try {
         const { user: savedUser, organizationId: savedOrgId, activeProfile: savedProfile } = JSON.parse(savedSession);
@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setOrganizationId(savedOrgId || savedUser.organization_id || null);
           if (savedProfile) setActiveProfile(savedProfile);
         } else {
-          localStorage.removeItem('sparktree_session');
+          localStorage.removeItem('sparkbot_session');
         }
       } catch (e) {
         console.error('Failed to restore session', e);
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(user);
     setOrganizationId(organizationId);
 
-    localStorage.setItem('sparktree_session', JSON.stringify({ 
+    localStorage.setItem('sparkbot_session', JSON.stringify({ 
       user, 
       organizationId,
       activeProfile: null
@@ -81,19 +81,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const selectProfile = (profile: Profile) => {
     setActiveProfile(profile);
-    const savedSession = localStorage.getItem('sparktree_session');
+    const savedSession = localStorage.getItem('sparkbot_session');
     if (savedSession) {
       const parsed = JSON.parse(savedSession);
-      localStorage.setItem('sparktree_session', JSON.stringify({ ...parsed, activeProfile: profile }));
+      localStorage.setItem('sparkbot_session', JSON.stringify({ ...parsed, activeProfile: profile }));
     }
   };
 
   const clearProfile = () => {
     setActiveProfile(null);
-    const savedSession = localStorage.getItem('sparktree_session');
+    const savedSession = localStorage.getItem('sparkbot_session');
     if (savedSession) {
       const parsed = JSON.parse(savedSession);
-      localStorage.setItem('sparktree_session', JSON.stringify({ ...parsed, activeProfile: null }));
+      localStorage.setItem('sparkbot_session', JSON.stringify({ ...parsed, activeProfile: null }));
     }
   };
 

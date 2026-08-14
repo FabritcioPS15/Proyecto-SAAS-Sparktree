@@ -23,7 +23,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
           </div>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Escanea el Código <span className="text-primary-600">QR</span></h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
-            Abre WhatsApp en tu teléfono, ve a Dispositivos Vinculados y escanea este código para conectar Sparktree.
+            Abre WhatsApp en tu teléfono, ve a Dispositivos Vinculados y escanea este código para conectar SparkBot.
           </p>
         </div>
 

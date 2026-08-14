@@ -19,7 +19,7 @@
     {
       "id": "admin-local-001",
       "organization_id": "org-local-001",
-      "email": "admin@sparktree.local",
+      "email": "admin+fabpsandoval@gmail.com",
       "full_name": "Administrador",
       "role": "super_admin",
       "created_at": "2026-06-15T13:50:11.969Z",
@@ -28,7 +28,7 @@
     {
       "id": "user-local-002",
       "organization_id": "org-local-001",
-      "email": "staff@sparktree.local",
+      "email": "staff+fabpsandoval@gmail.com",
       "full_name": "María García",
       "role": "staff",
       "created_at": "2026-06-15T13:50:11.969Z",

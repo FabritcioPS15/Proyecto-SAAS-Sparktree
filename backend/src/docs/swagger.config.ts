@@ -9,12 +9,12 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'SparkTree SaaS API',
+      title: 'SparkBot SaaS API',
       version: '1.0.0',
-      description: 'API documentation for SparkTree omnichannel SaaS platform',
+      description: 'API documentation for SparkBot omnichannel SaaS platform',
       contact: {
-        name: 'SparkTree Support',
-        email: 'support@sparktree.com',
+        name: 'SparkBot Support',
+        email: 'support+fabpsandoval@gmail.com',
       },
     },
     servers: [
@@ -23,7 +23,7 @@ const options = {
         description: 'Development server',
       },
       {
-        url: 'https://api.sparktree.com',
+        url: 'https://api.sparkbot.com',
         description: 'Production server',
       },
     ],

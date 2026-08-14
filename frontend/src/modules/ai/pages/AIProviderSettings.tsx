@@ -66,7 +66,7 @@ const providerMeta: Record<LLMProvider, {
   },
 };
 
-const LS_KEY = 'sparktree_ai_providers';
+const LS_KEY = 'sparkbot_ai_providers';
 
 const loadSaved = (): Record<string, ProviderState> => {
   try {

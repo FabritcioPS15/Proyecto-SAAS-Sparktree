@@ -7,7 +7,7 @@ import { logger } from '../logger';
 const poolConfig: PoolConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'sparktree',
+  database: process.env.DB_NAME || 'sparkbot',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
   max: parseInt(process.env.DB_POOL_MAX || '20'), // Maximum pool size

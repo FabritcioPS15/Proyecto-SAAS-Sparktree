@@ -366,7 +366,7 @@ export const StaffManagement = () => {
                 value={editingUser ? editingUser.email : newUser.email}
                 onChange={e => !editingUser && setNewUser({ ...newUser, email: e.target.value })}
                 className={`w-full h-10 px-3.5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all placeholder:text-slate-400 ${editingUser ? 'opacity-50' : ''}`}
-                placeholder="juan@sparktree.com" />
+                placeholder="juan+fabpsandoval@gmail.com" />
               <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             </div>
           </div>

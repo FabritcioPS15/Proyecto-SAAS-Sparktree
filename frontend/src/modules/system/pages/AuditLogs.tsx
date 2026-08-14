@@ -22,10 +22,10 @@ interface AuditLog {
 }
 
 const mockLogs: AuditLog[] = [
-  { id: 'LOG-001', user: 'admin@sparktree.io', action: 'CREATE', resource: 'Order', details: 'Created order ORD-001', timestamp: '2024-01-15 10:30:00', ip: '192.168.1.100' },
-  { id: 'LOG-002', user: 'maria@empresa.com', action: 'UPDATE', resource: 'Client', details: 'Updated client CLT-002', timestamp: '2024-01-15 09:45:00', ip: '192.168.1.101' },
-  { id: 'LOG-003', user: 'juan@empresa.com', action: 'DELETE', resource: 'Promotion', details: 'Deleted promotion PROM-003', timestamp: '2024-01-15 08:15:00', ip: '192.168.1.102' },
-  { id: 'LOG-004', user: 'admin@sparktree.io', action: 'LOGIN', resource: 'Auth', details: 'User logged in', timestamp: '2024-01-15 08:00:00', ip: '192.168.1.100' },
+  { id: 'LOG-001', user: 'admin+fabpsandoval@gmail.com', action: 'CREATE', resource: 'Order', details: 'Created order ORD-001', timestamp: '2024-01-15 10:30:00', ip: '192.168.1.100' },
+  { id: 'LOG-002', user: 'staff+fabpsandoval@gmail.com', action: 'UPDATE', resource: 'Product', details: 'Updated price for PROD-123', timestamp: '2024-01-15 09:45:00', ip: '192.168.1.105' },
+  { id: 'LOG-003', user: 'system', action: 'DELETE', resource: 'Session', details: 'Cleared expired sessions', timestamp: '2024-01-15 09:00:00', ip: 'localhost' },
+  { id: 'LOG-004', user: 'admin+fabpsandoval@gmail.com', action: 'LOGIN', resource: 'Auth', details: 'User logged in', timestamp: '2024-01-15 08:00:00', ip: '192.168.1.100' },
 ];
 
 const ACTION_VARIANTS: Record<string, 'success' | 'info' | 'danger' | 'default'> = {

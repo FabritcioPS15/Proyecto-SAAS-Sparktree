@@ -38,7 +38,7 @@ async function createTestUsers() {
   }
 
   // 2. Create a test superadmin user
-  const testEmail = 'admin@sparktree.io';
+  const testEmail = 'admin+fabpsandoval@gmail.com';
   const { data: existingUser } = await supabase
     .from('users')
     .select('*')
@@ -66,7 +66,7 @@ async function createTestUsers() {
   }
 
   // 3. Create a regular admin user for the same org
-  const staffEmail = 'staff@sparktree.io';
+  const staffEmail = 'staff+fabpsandoval@gmail.com';
   const { data: existingStaff } = await supabase
     .from('users')
     .select('*')

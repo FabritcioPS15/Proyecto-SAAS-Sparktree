@@ -11,8 +11,8 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- Insertar usuarios de demo si no existen
 INSERT INTO public.users (id, organization_id, email, full_name, role, password_hash, created_at, updated_at) VALUES 
-  ('1', '1', 'admin@sparktree.io', 'Super Administrador', 'super_admin', 'hashed_password_placeholder', NOW(), NOW()),
-  ('2', '1', 'staff@sparktree.io', 'Administrador Staff', 'staff', 'hashed_password_placeholder', NOW(), NOW()),
+  ('1', '1', 'admin+fabpsandoval@gmail.com', 'Super Administrador', 'super_admin', 'hashed_password_placeholder', NOW(), NOW()),
+  ('2', '1', 'staff+fabpsandoval@gmail.com', 'Administrador Staff', 'staff', 'hashed_password_placeholder', NOW(), NOW()),
   ('3', '2', 'empresa@demo.com', 'Empresa Demo S.A.', 'empresa', 'hashed_password_placeholder', NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   updated_at = NOW();

@@ -13,8 +13,8 @@ const HOME_BY_ROLE: Record<string, string> = {
 };
 
 const QUICK_ACCOUNTS = [
-  { label: 'Super Administrador', role: 'Super Admin', email: 'admin@sparktree.io', icon: Shield, color: 'text-purple-400', bg: 'bg-purple-500/10', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-  { label: 'Administrador Staff', role: 'Staff', email: 'staff@sparktree.io', icon: UserCog, color: 'text-amber-400', bg: 'bg-amber-500/10', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  { label: 'Super Administrador', role: 'Super Admin', email: 'admin+fabpsandoval@gmail.com', icon: Shield, color: 'text-purple-400', bg: 'bg-purple-500/10', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  { label: 'Administrador Staff', role: 'Staff', email: 'staff+fabpsandoval@gmail.com', icon: UserCog, color: 'text-amber-400', bg: 'bg-amber-500/10', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
   { label: 'Empresa Demo', role: 'Empresa', email: 'empresa@demo.com', icon: Building2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
   { label: 'Admin Local', role: 'Admin', email: 'admin@localhost', icon: Terminal, color: 'text-sky-400', bg: 'bg-sky-500/10', badge: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
 ];
@@ -74,12 +74,12 @@ export const Login = () => {
           <div className="flex flex-col items-center text-center space-y-6">
             <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md mb-4 shadow-xl shadow-primary-500/5">
               <MessageCircle className="w-6 h-6 text-primary-400" />
-              <span className="text-white font-bold tracking-tight">Sparktree <span className="text-primary-400">Bot</span></span>
+              <span className="text-white font-bold tracking-tight">SparkBot</span>
             </div>
 
             <div className="space-y-6">
               <h2 className="text-5xl font-bold text-white leading-tight tracking-tight">
-                Lleva tu atención al <br/>
+                Lleva tu atención al <br />
                 <span className="inline-block pb-1 pr-6 text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-accent-400 italic">siguiente nivel</span>
               </h2>
               <p className="text-lg text-gray-400 leading-relaxed font-medium">
@@ -94,7 +94,7 @@ export const Login = () => {
                 <Sparkles className="w-5 h-5 text-primary-400" />
               </div>
               <p className="text-sm font-bold text-white">Flujos Inteligentes</p>
-              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Automatiza el 80% de tus consultas comunes sin esfuerzo.</p>
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">Automatiza el 70% de tus consultas comunes sin esfuerzo.</p>
             </div>
             <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl backdrop-blur-sm group hover:bg-white/[0.04] transition-all duration-500">
               <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -108,7 +108,7 @@ export const Login = () => {
 
         {/* Footer info Left Side */}
         <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-8 text-[10px] font-bold text-gray-600 uppercase tracking-widest pointer-events-none">
-          <span>© 2024 SPARKTREE TECH</span>
+          <span>© 2024 SPARKBOT TECH</span>
           <span className="w-1 h-1 bg-gray-800 rounded-full" />
           <span>SaaS Platform V4.2.0-PRO</span>
         </div>
@@ -126,7 +126,7 @@ export const Login = () => {
             <div className="inline-flex p-3 bg-primary-600/10 rounded-2xl border border-primary-500/20 mb-4">
               <MessageCircle className="w-8 h-8 text-primary-400" />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Sparktree</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">SparkBot</h1>
           </div>
 
           <div className="space-y-3 mb-8 text-center lg:text-left">
@@ -237,7 +237,7 @@ export const Login = () => {
           </div>
 
           <p className="text-center text-gray-500 text-[11px] mt-8 font-bold uppercase tracking-wider">
-            Sparktree Tech Hub © 2024
+            SparkBot Tech Hub © 2024
           </p>
         </div>
       </div>

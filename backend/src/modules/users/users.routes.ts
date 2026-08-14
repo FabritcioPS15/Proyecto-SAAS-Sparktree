@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
     const contactBotMap = (conversations || []).reduce((acc: any, conv: any) => {
       if (!acc[conv.contact_id]) {
         acc[conv.contact_id] = {
-          attendedBy: conv.whatsapp_connections?.display_name || 'Bot Sparktree',
+          attendedBy: conv.whatsapp_connections?.display_name || 'Bot SparkBot',
           serviceNumber: conv.whatsapp_connections?.phone_number || 'N/A'
         };
       }
@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
       lastInteraction: c.last_active_at,
       totalMessages: messageCounts[c.id] || 0,
       botState: c.bot_state,
-      attendedBy: contactBotMap[c.id]?.attendedBy || 'Bot Sparktree',
+      attendedBy: contactBotMap[c.id]?.attendedBy || 'Bot SparkBot',
       serviceNumber: contactBotMap[c.id]?.serviceNumber || 'N/A'
     }));
 

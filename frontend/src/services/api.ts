@@ -11,7 +11,7 @@ const api = axios.create({
 
 // Add a request interceptor to include auth headers
 api.interceptors.request.use((config) => {
-  const savedSession = localStorage.getItem('sparktree_session');
+  const savedSession = localStorage.getItem('sparkbot_session');
   if (savedSession) {
     try {
       const { user, organizationId } = JSON.parse(savedSession);
@@ -1048,7 +1048,7 @@ export const getAIProviders = async () => {
     return response.data;
   } catch (error) {
     console.warn('API fallback: using mock AI provider config');
-    const saved = localStorage.getItem('sparktree_ai_providers');
+    const saved = localStorage.getItem('sparkbot_ai_providers');
     return saved ? JSON.parse(saved) : [];
   }
 };
@@ -1059,12 +1059,12 @@ export const saveAIProvider = async (data: { provider: string; apiKey: string; m
     return response.data;
   } catch (error) {
     console.warn('API fallback: saving AI provider to localStorage');
-    const saved = localStorage.getItem('sparktree_ai_providers');
+    const saved = localStorage.getItem('sparkbot_ai_providers');
     const providers = saved ? JSON.parse(saved) : [];
     const existing = providers.findIndex((p: any) => p.provider === data.provider);
     if (existing >= 0) providers[existing] = { ...providers[existing], ...data };
     else providers.push({ id: `provider-${Date.now()}`, ...data });
-    localStorage.setItem('sparktree_ai_providers', JSON.stringify(providers));
+    localStorage.setItem('sparkbot_ai_providers', JSON.stringify(providers));
     return { success: true };
   }
 };
@@ -1075,9 +1075,9 @@ export const deleteAIProvider = async (provider: string) => {
     return response.data;
   } catch (error) {
     console.warn('API fallback: deleting AI provider from localStorage');
-    const saved = localStorage.getItem('sparktree_ai_providers');
+    const saved = localStorage.getItem('sparkbot_ai_providers');
     const providers = saved ? JSON.parse(saved) : [];
-    localStorage.setItem('sparktree_ai_providers', JSON.stringify(providers.filter((p: any) => p.provider !== provider)));
+    localStorage.setItem('sparkbot_ai_providers', JSON.stringify(providers.filter((p: any) => p.provider !== provider)));
     return { success: true };
   }
 };

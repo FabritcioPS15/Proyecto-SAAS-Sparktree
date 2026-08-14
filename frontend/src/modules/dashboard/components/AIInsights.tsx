@@ -28,7 +28,7 @@ export const AIInsights = () => {
   return (
     <DashboardCard
       title="AI Insights"
-      subtitle="Conclusiones generadas por Sparktree AI"
+      subtitle="Conclusiones generadas por SparkBot AI"
       icon={<Sparkles className="w-4 h-4" />}
     >
       <div className="space-y-4 pt-2">

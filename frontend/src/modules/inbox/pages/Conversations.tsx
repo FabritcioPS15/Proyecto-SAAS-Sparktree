@@ -1335,7 +1335,7 @@ export const Conversations = () => {
               <div className="absolute inset-0 bg-accent-500/10 blur-[60px] rounded-full" />
               <MessageCircle className="w-24 h-24 text-accent-500 z-10 animate-pulse-slow" />
             </div>
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter">Sparktree Messaging</h2>
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter">SparkBot Messaging</h2>
             <p className="max-w-sm text-gray-500 dark:text-gray-400 text-sm font-medium leading-relaxed mb-10 px-6">
               Gestiona todas tus interacciones de WhatsApp desde una interfaz centralizada y moderna.
             </p>

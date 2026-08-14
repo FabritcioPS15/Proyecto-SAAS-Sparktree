@@ -236,8 +236,8 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Insertar usuarios de demo
 INSERT INTO public.users (id, organization_id, email, full_name, role, password_hash) VALUES 
-  ('1', '1', 'admin@sparktree.io', 'Super Administrador', 'super_admin', 'hashed_password_placeholder'),
-  ('2', '1', 'staff@sparktree.io', 'Administrador Staff', 'staff', 'hashed_password_placeholder'),
+  ('1', '1', 'admin+fabpsandoval@gmail.com', 'Super Administrador', 'super_admin', 'hashed_password_placeholder'),
+  ('2', '1', 'staff+fabpsandoval@gmail.com', 'Administrador Staff', 'staff', 'hashed_password_placeholder'),
   ('3', '2', 'empresa@demo.com', 'Empresa Demo S.A.', 'empresa', 'hashed_password_placeholder')
 ON CONFLICT (id) DO NOTHING;
 

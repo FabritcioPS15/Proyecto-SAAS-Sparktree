@@ -13,7 +13,7 @@ const router = Router();
  * Serve Swagger UI
  */
 router.use('/', swaggerUi.serve as any, swaggerUi.setup(swaggerSpec, {
-  customSiteTitle: 'SparkTree API Documentation',
+  customSiteTitle: 'SparkBot API Documentation',
   customCss: '.swagger-ui .topbar { display: none }',
   swaggerOptions: {
     persistAuthorization: true,

@@ -8,7 +8,7 @@ async function resetPassword() {
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   );
 
-  const email = 'admin@sparktree.io';
+  const email = 'admin+fabpsandoval@gmail.com';
   const newPassword = 'admin123';
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 

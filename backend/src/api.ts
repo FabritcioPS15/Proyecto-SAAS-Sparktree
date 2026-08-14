@@ -206,7 +206,7 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    service: 'Sparktree SaaS Backend'
+    service: 'SparkBot SaaS Backend'
   });
 });
 
@@ -346,7 +346,7 @@ import { multiPlatformService } from './modules/integrations/platform/multiPlatf
 // });
 
 httpServer.listen(PORT, async () => {
-  console.log(`🚀 Sparktree SaaS Backend running on port ${PORT}`);
+  console.log(`🚀 SparkBot SaaS Backend running on port ${PORT}`);
   console.log(`🔌 WebSocket server enabled for real-time updates`);
   
   // Initialize WhatsApp connections

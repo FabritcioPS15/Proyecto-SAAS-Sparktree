@@ -162,6 +162,7 @@ router.post('/', tenantMiddleware.use.bind(tenantMiddleware), async (req, res) =
         name,
         description,
         status,
+        is_active: status === 'active',
         version,
         category,
         triggers,
@@ -237,6 +238,12 @@ router.put('/:id', tenantMiddleware.use.bind(tenantMiddleware), async (req, res)
         updateData[field] = req.body[field];
       }
     });
+
+    // Mantener is_active sincronizado con el estado del flujo para que el
+    // motor del bot solo ejecute flujos realmente activos (no borradores).
+    if (updateData.status !== undefined) {
+      updateData.is_active = updateData.status === 'active';
+    }
 
     console.log(`[Flows API] Updating flow ${id} (using nodes for strategy persistence)`);
 
@@ -339,6 +346,7 @@ router.post('/:id/duplicate', tenantMiddleware.use.bind(tenantMiddleware), async
         name: `${originalFlow.name} (Copia)`,
         description: originalFlow.description,
         status: 'draft',
+        is_active: false,
         version: '1.0.0',
         category: originalFlow.category,
         triggers: originalFlow.triggers,

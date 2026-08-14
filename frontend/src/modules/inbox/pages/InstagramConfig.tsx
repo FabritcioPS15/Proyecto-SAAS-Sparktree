@@ -29,8 +29,8 @@ interface InstagramData {
 
 // Mock options for page selection
 const mockPages = [
-  { id: 'pg_001', name: 'Página Oficial Sparktree', igUsername: '@sparktree_oficial', igAccountId: 'ig_001', profilePicUrl: '' },
-  { id: 'pg_002', name: 'Sparktree Marketing', igUsername: '@sparktree_mkt', igAccountId: 'ig_002', profilePicUrl: '' },
+  { id: 'pg_001', name: 'Página Oficial SparkBot', igUsername: '@sparkbot_oficial', igAccountId: 'ig_001', profilePicUrl: '' },
+  { id: 'pg_002', name: 'SparkBot Marketing', igUsername: '@sparkbot_mkt', igAccountId: 'ig_002', profilePicUrl: '' },
 ];
 
 const prerequisites = [

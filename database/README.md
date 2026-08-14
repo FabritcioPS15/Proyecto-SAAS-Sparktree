@@ -114,8 +114,8 @@ psql -U your_user -d sparktree_saas -f database/seed_data.sql
 - **ID 2:** Empresa Demo S.A. (Basic, 2 conexiones)
 
 ### Usuarios
-- **admin@sparktree.io:** Super Administrador
-- **staff@sparktree.io:** Administrador Staff  
+- **admin+fabpsandoval@gmail.com:** Super Administrador
+- **staff+fabpsandoval@gmail.com:** Administrador Staff  
 - **empresa@demo.com:** Usuario Empresa
 
 ### Conexiones WhatsApp

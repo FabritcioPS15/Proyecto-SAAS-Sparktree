@@ -66,8 +66,8 @@ export const TikTokConfig = () => {
       });
       setData({
         businessAccountId: 'tb_789012345',
-        username: 'sparktree_oficial',
-        displayName: 'Sparktree Business',
+        username: 'sparkbot_oficial',
+        displayName: 'SparkBot Business',
         profilePicUrl: '',
         status: 'connected',
         connectedAt: new Date().toISOString(),

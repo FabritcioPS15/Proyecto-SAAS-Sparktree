@@ -187,8 +187,8 @@ INSERT INTO public.organizations (id, name, plan, max_whatsapp_connections, crea
 
 -- Usuarios
 INSERT INTO public.users (id, organization_id, email, full_name, role, password_hash, created_at, updated_at) VALUES 
-  (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'admin@sparktree.io', 'Super Administrador', 'super_admin', 'hashed_password_placeholder', NOW(), NOW()),
-  (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'staff@sparktree.io', 'Administrador Staff', 'staff', 'hashed_password_placeholder', NOW(), NOW()),
+  (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'admin+fabpsandoval@gmail.com', 'Super Administrador', 'super_admin', 'hashed_password_placeholder', NOW(), NOW()),
+  (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), 'staff+fabpsandoval@gmail.com', 'Administrador Staff', 'staff', 'hashed_password_placeholder', NOW(), NOW()),
   (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Empresa Demo S.A.'), 'empresa@demo.com', 'Empresa Demo S.A.', 'empresa', 'hashed_password_placeholder', NOW(), NOW());
 
 -- Conexiones WhatsApp
@@ -197,7 +197,7 @@ INSERT INTO public.whatsapp_connections (
 ) VALUES 
   (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Empresa Demo S.A.'), (SELECT id FROM public.users WHERE email = 'empresa@demo.com'), 'Número Principal', '+5491112345678', 'connected', '2024-03-17T08:00:00Z', NOW(), NOW()),
   (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Empresa Demo S.A.'), (SELECT id FROM public.users WHERE email = 'empresa@demo.com'), 'Número Secundario', '+5491187654321', 'disconnected', NULL, NOW(), NOW()),
-  (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), (SELECT id FROM public.users WHERE email = 'admin@sparktree.io'), 'Soporte Cliente', '+5491155556666', 'connected', '2024-03-16T15:30:00Z', NOW(), NOW());
+  (uuid_generate_v4(), (SELECT id FROM public.organizations WHERE name = 'Sparktree Admin'), (SELECT id FROM public.users WHERE email = 'admin+fabpsandoval@gmail.com'), 'Soporte Cliente', '+5491155556666', 'connected', '2024-03-16T15:30:00Z', NOW(), NOW());
 
 -- Flows
 INSERT INTO public.flows (
