@@ -26,11 +26,7 @@ router.get('/', authenticateToken, tenantMiddleware.use.bind(tenantMiddleware), 
     
     const { data, error } = await supabase
       .from('whatsapp_connections')
-      .select(`
-        *,
-        organizations!inner(name),
-        users!inner(email, full_name)
-      `)
+      .select('*')
       .eq('organization_id', organization_id)
       .order('created_at', { ascending: false });
 

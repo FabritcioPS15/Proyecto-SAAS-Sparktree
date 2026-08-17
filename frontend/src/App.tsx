@@ -76,6 +76,8 @@ const Email = lazy(() => import('./modules/email/pages/Email').then(module => ({
 const Calendar = lazy(() => import('./modules/calendar/pages/Calendar').then(module => ({ default: module.Calendar })));
 const WhatsAppManager = lazy(() => import('./modules/inbox/pages/WhatsAppManager').then(module => ({ default: module.WhatsAppManager })));
 const Cotizaciones = lazy(() => import('./modules/crm/pages/Cotizaciones').then(module => ({ default: module.Cotizaciones })));
+const Campaigns = lazy(() => import('./modules/campaigns/pages/Campaigns').then(module => ({ default: module.Campaigns })));
+const Reminders = lazy(() => import('./modules/reminders/pages/Reminders').then(module => ({ default: module.Reminders })));
 
 // Rutas permitidas por rol (prefijos de segmento). '*' = acceso total.
 const ROLE_ALLOWED_PREFIXES: Record<string, string[]> = {
@@ -164,6 +166,8 @@ function AppContent() {
       {/* New modules - Negocio */}
       <Route path="/orders" element={<Suspense fallback={<PageLoader sectionName="Pedidos" />}><ProtectedRoute><Layout><Orders /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/promotions" element={<Suspense fallback={<PageLoader sectionName="Promociones" />}><ProtectedRoute><Layout><Promotions /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/campaigns" element={<Suspense fallback={<PageLoader sectionName="Campañas" />}><ProtectedRoute><Layout><Campaigns /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/reminders" element={<Suspense fallback={<PageLoader sectionName="Recordatorios" />}><ProtectedRoute><Layout><Reminders /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/cotizaciones" element={<Suspense fallback={<PageLoader sectionName="Cotizaciones" />}><ProtectedRoute><Layout><Cotizaciones /></Layout></ProtectedRoute></Suspense>} />
       
       {/* New modules - Automatización */}

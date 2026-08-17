@@ -9,20 +9,22 @@ router.get('/', tenantMiddleware.use.bind(tenantMiddleware), async (req, res) =>
         const orgId = (req as any).organizationId;
         if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
+        const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
+
         const { data, error } = await supabase
             .from('contacts')
-            .select('*')
+            .select('id, phone_number, profile_name, custom_attributes, last_active_at, created_at')
             .eq('organization_id', orgId)
-            // Filtramos solo los contactos que han sido marcados como 'cliente potencial' por el bot
             .contains('custom_attributes', { is_potential_lead: true })
-            .order('last_active_at', { ascending: false });
+            .order('last_active_at', { ascending: false })
+            .limit(limit);
 
         if (error) {
             console.error('Error fetching leads:', error);
             return res.status(500).json({ error: 'Failed to fetch leads' });
         }
 
-        res.json(data);
+        res.json(data || []);
     } catch (err) {
         console.error('Detailed Error:', err);
         res.status(500).json({ error: 'Failed to fetch leads' });

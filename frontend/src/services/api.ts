@@ -346,7 +346,7 @@ export const getPlatformConnections = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching platform connections:', error);
-    throw error;
+    return [];
   }
 };
 
@@ -1315,6 +1315,278 @@ export const deleteOrder = async (id: string) => {
     return response.data;
   } catch (error) {
     console.error('Error deleting order:', error);
+    throw error;
+  }
+};
+
+// ============ Campaigns (mensajes masivos desde Excel) endpoints ============
+export const parseCampaignExcel = async (fileName: string, base64Data: string) => {
+  try {
+    const response = await api.post('/campaigns/parse-excel', { fileName, base64Data });
+    return response.data;
+  } catch (error) {
+    console.error('Error parsing campaign Excel:', error);
+    throw error;
+  }
+};
+
+export const getCampaigns = async () => {
+  try {
+    const response = await api.get('/campaigns');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    throw error;
+  }
+};
+
+export const getCampaign = async (id: string) => {
+  try {
+    const response = await api.get(`/campaigns/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching campaign:', error);
+    throw error;
+  }
+};
+
+export const createCampaign = async (data: any) => {
+  try {
+    const response = await api.post('/campaigns', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating campaign:', error);
+    throw error;
+  }
+};
+
+export const updateCampaign = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/campaigns/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating campaign:', error);
+    throw error;
+  }
+};
+
+export const sendCampaign = async (id: string) => {
+  try {
+    const response = await api.post(`/campaigns/${id}/send`);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending campaign:', error);
+    throw error;
+  }
+};
+
+export const pauseCampaign = async (id: string) => {
+  try {
+    const response = await api.post(`/campaigns/${id}/pause`);
+    return response.data;
+  } catch (error) {
+    console.error('Error pausing campaign:', error);
+    throw error;
+  }
+};
+
+export const resumeCampaign = async (id: string) => {
+  try {
+    const response = await api.post(`/campaigns/${id}/resume`);
+    return response.data;
+  } catch (error) {
+    console.error('Error resuming campaign:', error);
+    throw error;
+  }
+};
+
+export const deleteCampaign = async (id: string) => {
+  try {
+    const response = await api.delete(`/campaigns/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting campaign:', error);
+    throw error;
+  }
+};
+
+// ========== REMINDERS ==========
+export const parseReminderExcel = async (fileName: string, base64Data: string) => {
+  try {
+    const response = await api.post('/reminders/parse-excel', { fileName, base64Data });
+    return response.data;
+  } catch (error) {
+    console.error('Error parsing reminder Excel:', error);
+    throw error;
+  }
+};
+
+export const getReminders = async () => {
+  try {
+    const response = await api.get('/reminders');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching reminders:', error);
+    throw error;
+  }
+};
+
+export const getReminder = async (id: string) => {
+  try {
+    const response = await api.get(`/reminders/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching reminder:', error);
+    throw error;
+  }
+};
+
+export const createReminder = async (data: {
+  name: string;
+  messageTemplate: string;
+  whatsappConnectionId: string | null;
+  scheduleType?: string;
+  scheduledAt?: string | null;
+  recurringCron?: string | null;
+  delayMs?: number;
+  contacts: Array<{ phone: string; variables: Record<string, string> }>;
+  imageBase64?: string | null;
+}) => {
+  try {
+    const response = await api.post('/reminders', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating reminder:', error);
+    throw error;
+  }
+};
+
+export const updateReminder = async (id: string, data: any) => {
+  try {
+    const response = await api.put(`/reminders/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating reminder:', error);
+    throw error;
+  }
+};
+
+export const sendReminder = async (id: string) => {
+  try {
+    const response = await api.post(`/reminders/${id}/send`);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending reminder:', error);
+    throw error;
+  }
+};
+
+export const pauseReminder = async (id: string) => {
+  try {
+    const response = await api.post(`/reminders/${id}/pause`);
+    return response.data;
+  } catch (error) {
+    console.error('Error pausing reminder:', error);
+    throw error;
+  }
+};
+
+export const resumeReminder = async (id: string) => {
+  try {
+    const response = await api.post(`/reminders/${id}/resume`);
+    return response.data;
+  } catch (error) {
+    console.error('Error resuming reminder:', error);
+    throw error;
+  }
+};
+
+export const cancelReminder = async (id: string) => {
+  try {
+    const response = await api.post(`/reminders/${id}/cancel`);
+    return response.data;
+  } catch (error) {
+    console.error('Error cancelling reminder:', error);
+    throw error;
+  }
+};
+
+export const deleteReminder = async (id: string) => {
+  try {
+    const response = await api.delete(`/reminders/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting reminder:', error);
+    throw error;
+  }
+};
+
+// ========== MESSAGE TEMPLATES ==========
+export const getMessageTemplates = async (category?: string) => {
+  try {
+    const params = category && category !== 'all' ? { category } : {};
+    const response = await api.get('/message-templates', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching message templates:', error);
+    throw error;
+  }
+};
+
+export const getMessageTemplate = async (id: string) => {
+  try {
+    const response = await api.get(`/message-templates/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching message template:', error);
+    throw error;
+  }
+};
+
+export const getMessageTemplateStats = async () => {
+  try {
+    const response = await api.get('/message-templates/stats');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching message template stats:', error);
+    throw error;
+  }
+};
+
+export const createMessageTemplate = async (data: {
+  name: string;
+  category: string;
+  content: string;
+}) => {
+  try {
+    const response = await api.post('/message-templates', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating message template:', error);
+    throw error;
+  }
+};
+
+export const updateMessageTemplate = async (id: string, data: {
+  name?: string;
+  category?: string;
+  content?: string;
+}) => {
+  try {
+    const response = await api.put(`/message-templates/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating message template:', error);
+    throw error;
+  }
+};
+
+export const deleteMessageTemplate = async (id: string) => {
+  try {
+    const response = await api.delete(`/message-templates/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting message template:', error);
     throw error;
   }
 };

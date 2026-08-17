@@ -13,39 +13,43 @@ router.get('/', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
     const offset = parseInt(req.query.offset as string) || 0;
 
-    console.log(`[Conversations API] Fetching conversations for org: ${orgId} (limit: ${limit}, offset: ${offset})`);
-    
-    // Only select needed columns for the list; avoid loading all messages
+    // 1. Fetch conversations + contacts (NO messages relation)
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select('id, contact_id, last_message_at, status, created_at, platform_type, organization_id, contacts(phone_number, profile_name, profile_picture), messages(content, created_at)')
+      .select('id, contact_id, last_message_at, status, created_at, platform_type, organization_id, contacts(phone_number, profile_name, profile_picture, custom_attributes)')
       .eq('organization_id', orgId)
       .order('last_message_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    console.log('[Conversations API] DB Response:');
-    console.log('  - Error:', error);
-    console.log('  - Data length:', conversations?.length || 0);
-    
-    if (conversations && conversations.length > 0) {
-      console.log('  - First conversation:', conversations[0]);
+    if (error) {
+      console.error('[Conversations API] DB Error:', error);
+      return res.status(500).json({ error: 'Failed to fetch conversations' });
     }
 
-    const formattedConversations = (conversations || []).map((conv: any) => {
-      // Pick the latest message content (only first/last, not all messages)
-      let lastMessageContent = 'Sin mensajes';
-      if (conv.messages && conv.messages.length > 0) {
-        // messages array only contains needed fields
-        const latestMsg = conv.messages.reduce((prev: any, current: any) => 
-          (new Date(current.created_at) > new Date(prev.created_at)) ? current : prev
-        );
-        lastMessageContent = latestMsg.content;
+    if (!conversations || conversations.length === 0) {
+      return res.json([]);
+    }
+
+    // 2. Fetch last message for each conversation in a single query
+    const convIds = conversations.map((c: any) => c.id);
+    const { data: lastMessages } = await supabase
+      .from('messages')
+      .select('conversation_id, content, created_at')
+      .in('conversation_id', convIds)
+      .order('created_at', { ascending: false });
+
+    // Build a map: conversationId -> last message content
+    const lastMsgMap = new Map<string, string>();
+    if (lastMessages) {
+      for (const msg of lastMessages) {
+        if (!lastMsgMap.has(msg.conversation_id)) {
+          lastMsgMap.set(msg.conversation_id, msg.content);
+        }
       }
+    }
 
-      // Remove raw messages data from the output (we already extracted what we need)
-      delete conv.messages;
-
-      // Los LID de WhatsApp (@lid) NO son números reales; evitar mostrarlos como teléfono.
+    // 3. Format response (no more reduce over all messages)
+    const formattedConversations = conversations.map((conv: any) => {
       const storedPhone = conv.contacts?.phone_number || '';
       const phoneDigits = storedPhone.replace(/\D/g, '');
       const isLidPhone = storedPhone.length > 15 || phoneDigits.length > 15;
@@ -58,16 +62,16 @@ router.get('/', async (req, res) => {
           id: conv.contact_id,
           _id: conv.contact_id,
           phoneNumber: displayPhone || 'Desconocido',
-          name: (conv.contacts?.profile_name && conv.contacts.profile_name !== 'Sin nombre') 
-            ? conv.contacts.profile_name 
+          name: (conv.contacts?.profile_name && conv.contacts.profile_name !== 'Sin nombre')
+            ? conv.contacts.profile_name
             : (displayPhone || 'Sin nombre'),
           profilePicture: conv.contacts?.profile_picture || null,
-          isGroup: conv.contacts?.custom_attributes?.is_group || 
-                   conv.contacts?.phone_number?.includes('-') || 
+          isGroup: conv.contacts?.custom_attributes?.is_group ||
+                   conv.contacts?.phone_number?.includes('-') ||
                    (displayPhone && displayPhone.length > 15)
         },
         lastMessageAt: conv.last_message_at,
-        lastMessageContent: lastMessageContent,
+        lastMessageContent: lastMsgMap.get(conv.id) || 'Sin mensajes',
         channel: conv.platform_type || 'whatsapp',
         unreadCount: 0,
         status: conv.status,
@@ -75,7 +79,6 @@ router.get('/', async (req, res) => {
       };
     });
 
-    console.log('[Conversations API] Formatted conversations:', formattedConversations.length);
     res.json(formattedConversations);
   } catch (error) {
     console.error('[Conversations API] Error:', error);

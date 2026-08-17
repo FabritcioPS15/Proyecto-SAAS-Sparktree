@@ -1,6 +1,6 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ExternalLink, ArrowUpRight, ChevronDown, Bot, Loader2 } from 'lucide-react';
+import { Activity, ExternalLink, ArrowUpRight, ChevronDown, Bot, Loader2, Plus } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { getFlows } from '../../../services/api';
 
@@ -104,7 +104,7 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
       try {
         const data = await getFlows();
         const allFlows = Array.isArray(data) ? data : [];
-        setFlows(allFlows.filter((f: any) => f.platforms?.includes(platform) && f.status === 'active'));
+        setFlows(allFlows.filter((f: any) => f.status === 'active'));
       } catch (err) {
         console.error('Error loading flows:', err);
       } finally {
@@ -140,7 +140,7 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
         <div className="mb-4 space-y-2">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Flujos activos</p>
           {flows.map((flow: any) => (
-            <Link key={flow.id || flow._id} to="/builder"
+            <Link key={flow.id || flow._id} to="/flow-manager"
               className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30 hover:border-accent-500/30 transition-all group"
             >
               <div className="p-1.5 bg-emerald-500/10 rounded-lg">
@@ -158,17 +158,20 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
 
       {flows.length === 0 && !flowsLoading && (
         <div className="space-y-3 mb-4">
-          <div className="flex items-start gap-3 p-3.5 bg-accent-500/5 rounded-xl border border-accent-500/10">
-            <div className="w-6 h-6 shrink-0 bg-gradient-to-br from-accent-500 to-accent-600 text-white text-[10px] font-black rounded-lg flex items-center justify-center">01</div>
-            <div>
-              <p className="font-black text-slate-900 dark:text-white text-xs uppercase mb-0.5">Sin flujos activos</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">Crea un flujo en el Constructor para activar esta conexión.</p>
+          <Link to="/flow-manager" className="block">
+            <div className="flex items-start gap-3 p-3.5 bg-accent-500/5 rounded-xl border border-accent-500/10 hover:border-accent-500/30 hover:bg-accent-500/10 transition-all cursor-pointer group">
+              <div className="w-6 h-6 shrink-0 bg-gradient-to-br from-accent-500 to-accent-600 text-white text-[10px] font-black rounded-lg flex items-center justify-center">01</div>
+              <div className="flex-1">
+                <p className="font-black text-slate-900 dark:text-white text-xs uppercase mb-0.5">Sin flujos activos</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">Crea un flujo en el Constructor para activar esta conexión.</p>
+              </div>
+              <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-accent-500 transition-colors shrink-0 mt-1" />
             </div>
-          </div>
+          </Link>
         </div>
       )}
 
-      <Link to="/builder"
+      <Link to="/flow-manager"
         className="flex items-center justify-center gap-2 w-full h-10 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99]"
       >
         Ir al Constructor

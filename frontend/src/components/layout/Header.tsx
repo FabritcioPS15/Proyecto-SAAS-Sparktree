@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Moon, Sun, Menu, LogOut, User, Settings as SettingsIcon,
   ChevronDown, Building2, Users, Bell, Search, Plus, HelpCircle, CreditCard,
-  MessageSquare, Bot, Sparkles, Share2, Palette, Tag, BookOpen, FileText
+  MessageSquare, Bot, Sparkles, Share2, Palette, Tag, BookOpen, FileText, Megaphone
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { NotificationBell } from '../../contexts/NotificationContext';
@@ -66,6 +66,7 @@ const SEARCH_ITEMS = [
   { label: 'Calendario', path: '/calendar', keywords: 'calendario agenda citas eventos' },
   { label: 'Pedidos', path: '/orders', keywords: 'pedidos ordenes compras' },
   { label: 'Promociones', path: '/promotions', keywords: 'promociones descuentos campañas' },
+  { label: 'Campañas', path: '/campaigns', keywords: 'campañas mensajes masivos excel whatsapp broadcast envíos' },
   { label: 'Cotizaciones', path: '/cotizaciones', keywords: 'cotizaciones presupuestos' },
   { label: 'Organizaciones', path: '/admin/organizations', keywords: 'organizaciones empresas admin' },
   { label: 'Personal', path: '/admin/staff', keywords: 'personal staff equipo' },
@@ -128,6 +129,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const quickActions = [
     { icon: Bot, label: 'Crear Flujo', path: '/flow-manager' },
     { icon: Tag, label: 'Crear Promoción', path: '/promotions' },
+    { icon: Megaphone, label: 'Crear Campaña', path: '/campaigns' },
     { icon: BookOpen, label: 'Crear Catálogo', path: '/catalogs' },
     { icon: FileText, label: 'Crear Plantilla', path: '/message-templates' },
   ];
@@ -152,6 +154,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
     if (path.startsWith('/calendar')) return { title: 'Calendario', description: 'Calendario compartido para agendar citas, eventos y tareas del equipo.' };
     if (path.startsWith('/orders')) return { title: 'Pedidos', description: 'Gestiona los pedidos recibidos: estado, seguimiento y historial.' };
     if (path.startsWith('/promotions')) return { title: 'Promociones', description: 'Crea y administra campañas promocionales y descuentos.' };
+    if (path.startsWith('/campaigns')) return { title: 'Campañas', description: 'Sube un Excel con contactos y envía mensajes personalizados por WhatsApp de forma automatizada.' };
     if (path.startsWith('/crm') || path.startsWith('/pipeline')) return { title: 'CRM / Pipeline', description: 'Visualiza y gestiona tu pipeline de ventas con tablero kanban.' };
     if (path.startsWith('/notifications')) return { title: 'Notificaciones', description: 'Centro de notificaciones del sistema. Configura alertas y preferencias.' };
     if (path.startsWith('/webhooks')) return { title: 'Webhooks / API', description: 'Configura webhooks para integrar eventos de la plataforma con sistemas externos.' };

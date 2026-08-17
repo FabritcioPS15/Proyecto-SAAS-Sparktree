@@ -114,7 +114,7 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
     
     const interval = setInterval(() => {
       refreshConnections();
-    }, 10000); // refresh every 10 seconds
+    }, 30000); // refresh every 30 seconds
 
     return () => clearInterval(interval);
   }, [user]);

@@ -224,8 +224,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       }
     };
 
-    // Configurar verificación periódica (cada 15 segundos)
-    const interval = setInterval(checkNewMessages, 15000);
+    // Configurar verificación periódica (cada 30 segundos para reducir carga del servidor)
+    const interval = setInterval(checkNewMessages, 30000);
     checkNewMessages(); // Verificación inicial
 
     // Cleanup al desmontar

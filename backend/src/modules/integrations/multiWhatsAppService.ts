@@ -29,11 +29,13 @@ interface WhatsAppConnection {
 
 export class MultiWhatsAppService {
   private connections: Map<string, WhatsAppConnection> = new Map();
+  private reconnectAttempts: Map<string, number> = new Map();
   private logger = pino({ level: 'silent' });
+  private readonly MAX_RECONNECT_ATTEMPTS = 10;
 
   // Initialize all connections in the database (for server startup)
   async initializeAllConnections() {
-    console.log('[MultiWhatsApp] Initializing all dormant connections...');
+    console.log('\x1b[36m📱 [WhatsApp]\x1b[0m Iniciando conexiones guardadas...');
     const { data: connections, error } = await supabase
       .from('whatsapp_connections')
       .select('*');
@@ -45,6 +47,24 @@ export class MultiWhatsAppService {
 
     // Initialize in parallel to avoid one hang blocking others
     await Promise.allSettled((connections || []).map(conn => this.initializeConnection(conn)));
+
+    // Start health check every 60 seconds for dormant connections
+    this.startHealthCheck();
+  }
+
+  private startHealthCheck() {
+    setInterval(async () => {
+      for (const [id, conn] of this.connections) {
+        if (conn.status === 'error' && !conn.socket) {
+          console.log(`[MultiWhatsApp] Health check: reintentando conexión ${conn.displayName}...`);
+          try {
+            await this.connectSocket(conn);
+          } catch (err) {
+            console.error(`[MultiWhatsApp] Health check falló para ${id}:`, err);
+          }
+        }
+      }
+    }, 60000);
   }
 
   // Initialize all connections for a user
@@ -81,6 +101,10 @@ export class MultiWhatsAppService {
 
     this.connections.set(connectionData.id, connection);
 
+    // Formato amigable para los logs
+    const phoneInfo = connection.phoneNumber ? ` (${connection.phoneNumber})` : '';
+    const connLabel = `${connection.displayName || 'Desconocido'}${phoneInfo} [${connection.id.substring(0, 8)}]`;
+
     // Try to restore session from database first (RF-04)
     const sessionRestored = await sessionPersistenceService.restoreSessionToLocal(
       connection.id,
@@ -88,10 +112,10 @@ export class MultiWhatsAppService {
     );
 
     if (sessionRestored) {
-      console.log(`[MultiWhatsApp] Session restored from database for ${connection.id}, connecting...`);
+      console.log(`\x1b[32m✅ [WhatsApp]\x1b[0m Sesión existente encontrada para ${connLabel}, conectando...`);
       await this.connectSocket(connection);
     } else {
-      console.log(`[MultiWhatsApp] No session in database for ${connection.id}, waiting for manual connection`);
+      console.log(`\x1b[2m   ↳ [WhatsApp] Esperando conexión manual (QR) para ${connLabel}\x1b[0m`);
     }
   }
 
@@ -253,9 +277,20 @@ export class MultiWhatsAppService {
           this.updateConnectionStatus(connection.id, isLoggedOut ? 'disconnected' : 'error');
           
           if (shouldReconnect) {
-            setTimeout(() => this.connectSocket(connection), 5000);
+            const attempts = (this.reconnectAttempts.get(connection.id) || 0) + 1;
+            this.reconnectAttempts.set(connection.id, attempts);
+
+            if (attempts <= this.MAX_RECONNECT_ATTEMPTS) {
+              const delayMs = Math.min(5000 * Math.pow(2, attempts - 1), 60000);
+              console.log(`[MultiWhatsApp] Reconectando ${connection.id} en ${delayMs/1000}s (intento ${attempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
+              setTimeout(() => this.connectSocket(connection), delayMs);
+            } else {
+              console.error(`[MultiWhatsApp] Máximo de reintentos alcanzado para ${connection.id}. Esperando reconexión manual.`);
+              this.reconnectAttempts.delete(connection.id);
+            }
           }
         } else if (connStatus === 'open') {
+          this.reconnectAttempts.delete(connection.id);
           const userJid = connection.socket.user?.id;
           const phoneNumber = userJid ? userJid.split(':')[0].split('@')[0] : undefined;
           
@@ -665,6 +700,11 @@ export class MultiWhatsAppService {
         }
         // Add other media types as needed
         return await connection.socket?.sendMessage(jid, { document: { url }, caption: options?.caption });
+      },
+      sendImageMessage: async (to: string, base64Data: string, caption?: string) => {
+        const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+        const buffer = Buffer.from(base64Data, 'base64');
+        return await connection.socket?.sendMessage(jid, { image: buffer, caption: caption || undefined });
       }
     };
   }

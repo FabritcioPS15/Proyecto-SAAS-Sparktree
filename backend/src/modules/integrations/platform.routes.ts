@@ -18,28 +18,15 @@ router.get('/connections', tenantMiddleware, async (req: TenantRequest, res: Res
       .eq('organization_id', orgId);
 
     if (error) {
+      if (error.code === '42P01') {
+        console.warn('[Platform] Tabla platform_connections no existe aún.');
+        return res.json([]);
+      }
+      console.error('[Platform] Error fetching connections:', error);
       return res.status(500).json({ error: error.message });
     }
 
-    // Get detailed status for each connection
-    const connectionsWithStatus = await Promise.all(
-      (connections || []).map(async (conn) => {
-        try {
-          const status = await multiPlatformService.getConnectionStatus(conn.id);
-          return status;
-        } catch (err) {
-          return {
-            id: conn.id,
-            platformType: conn.platform_type,
-            status: conn.status,
-            displayName: conn.display_name,
-            error: 'Failed to get detailed status'
-          };
-        }
-      })
-    );
-
-    return res.json(connectionsWithStatus);
+    return res.json(connections || []);
   } catch (error: any) {
     console.error('Error in /platform/connections:', error);
     if (!res.headersSent) res.status(500).json({ error: error.message });

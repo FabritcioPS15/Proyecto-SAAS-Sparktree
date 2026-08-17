@@ -89,12 +89,12 @@ class SessionPersistenceService {
 
     // Check if session is expired
     if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      console.log(`[SessionPersistence] Session expired for connection ${connectionId}`);
+      console.log(`\x1b[33m⚠️  [Sesión]\x1b[0m Sesión expirada para la conexión ${connectionId}`);
       await this.deleteSession(connectionId);
       return null;
     }
 
-    console.log(`[SessionPersistence] Session retrieved for connection ${connectionId}`);
+    console.log(`\x1b[32m✅ [Sesión]\x1b[0m Sesión restaurada para la conexión ${connectionId}`);
     return data;
   }
 
@@ -204,7 +204,8 @@ class SessionPersistenceService {
       const session = await this.getSession(connectionId);
       
       if (!session) {
-        console.log(`[SessionPersistence] No session found to restore for connection ${connectionId}`);
+        // Dim color for not found
+        console.log(`\x1b[2m   ↳ [Sesión] No hay sesión previa en BD para la conexión ${connectionId.substring(0, 8)}\x1b[0m`);
         return false;
       }
 
@@ -228,10 +229,10 @@ class SessionPersistenceService {
       // Update session status
       await this.updateSessionStatus(connectionId, true);
 
-      console.log(`[SessionPersistence] Session restored to local files for connection ${connectionId}`);
+      // console.log(`[SessionPersistence] Session restored to local files for connection ${connectionId}`);
       return true;
     } catch (error) {
-      console.error(`[SessionPersistence] Error restoring session to local:`, error);
+      console.error(`\x1b[31m❌ [Sesión]\x1b[0m Error al restaurar sesión a disco:`, error);
       return false;
     }
   }

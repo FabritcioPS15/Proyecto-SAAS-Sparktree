@@ -9,7 +9,7 @@ import {
   Bot, Bell, Webhook, CreditCard as PaymentIcon,
   Activity, Lock, History, Globe, DollarSign, User, Database,
   LogOut, Brain, Mail, Calendar as CalendarIcon, Smartphone,
-  FileText
+  FileText, Megaphone
 } from 'lucide-react';
 import { SiDialogflow } from 'react-icons/si';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
@@ -39,6 +39,8 @@ const empresaMenuItemsExpanded: MenuItem[] = [
   { icon: ShoppingBag, label: 'Pedidos', path: '/orders' },
   { icon: FileText, label: 'Cotizaciones', path: '/cotizaciones' },
   { icon: Tag, label: 'Promociones', path: '/promotions' },
+  { icon: Megaphone, label: 'Campañas', path: '/campaigns' },
+  { icon: Bell, label: 'Recordatorios', path: '/reminders' },
   { icon: BarChart3, label: 'Analíticas', path: '/analytics' },
   { icon: SiDialogflow, label: 'Constructor de Bots', path: '/flow-manager' },
   { icon: MessageSquareText, label: 'Plantillas', path: '/message-templates' },
@@ -126,7 +128,7 @@ const agentMenuItems: MenuItem[] = [
 
 const empresaCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/email', '/calendar', '/clients'] },
-  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions'] },
+  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions', '/campaigns', '/reminders'] },
   { name: 'Automatización', items: ['/flow-manager', '/message-templates', '/assignment-rules', '/business-hours'] },
   { name: 'Atención', items: ['/support', '/agents', '/knowledge-base'] },
   { name: 'Sistema', items: ['/connections', '/notifications', '/webhooks', '/admin/staff', '/roles-permissions', '/audit-logs', '/ai/providers'] },
@@ -135,7 +137,7 @@ const empresaCategories = [
 
 const adminCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/email', '/calendar', '/clients'] },
-  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions'] },
+  { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions', '/campaigns', '/reminders'] },
   { name: 'Automatización', items: ['/flow-manager', '/message-templates', '/assignment-rules', '/business-hours'] },
   { name: 'Atención', items: ['/support', '/agents', '/knowledge-base'] },
   { name: 'Sistema', items: ['/connections', '/notifications', '/webhooks', '/ai/providers'] },

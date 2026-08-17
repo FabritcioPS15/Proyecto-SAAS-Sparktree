@@ -37,6 +37,9 @@ import businessHoursRoutes from './modules/automation/businessHours.routes';
 import promotionsRoutes from './modules/promotions/promotions.routes';
 import quotesRoutes from './modules/crm/quotes.routes';
 import ordersRoutes from './modules/orders/orders.routes';
+import campaignRoutes from './modules/campaigns/campaigns.routes';
+import reminderRoutes from './modules/reminders/reminders.routes';
+import messageTemplateRoutes from './modules/templates/messageTemplates.routes';
 
 // Load environment variables
 dotenv.config();
@@ -100,6 +103,17 @@ const workflowExecutionDuration = new promClient.Histogram({
 
 // Export metrics for use in other modules
 export { httpRequestDuration, httpRequestsTotal, activeConnections, workflowExecutionsTotal, workflowExecutionDuration };
+
+// --- CLEAN CONSOLE PATCH ---
+// Some internal libraries (like libsignal used by WhatsApp) spam the console with giant objects
+const originalConsoleLog = console.log;
+console.log = function (...args) {
+  if (typeof args[0] === 'string' && args[0].includes('Closing session: SessionEntry')) {
+    return; // Ignore this noisy log
+  }
+  originalConsoleLog.apply(console, args);
+};
+// ---------------------------
 
 // Middleware
 const allowedOrigins: string[] = [
@@ -186,9 +200,37 @@ app.use((req, res, next) => {
 });
 
 // Request Logger (RNF-07: Centralized logging to Docker stdout)
+const methodColors: Record<string, string> = {
+  GET: '\x1b[32m',    // Green
+  POST: '\x1b[34m',   // Blue
+  PUT: '\x1b[33m',    // Yellow
+  DELETE: '\x1b[31m', // Red
+  PATCH: '\x1b[35m',  // Magenta
+  OPTIONS: '\x1b[36m' // Cyan
+};
+const resetColor = '\x1b[0m';
+const dimColor = '\x1b[2m';
+
 app.use((req, res, next) => {
-  const logMsg = `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} | Body: ${JSON.stringify(req.body)}`;
-  console.log(logMsg);
+  // Ignorar rutas ruidosas (polling del frontend) para mantener limpia la consola
+  const noisyRoutes = [
+    '/api/leads', 
+    '/api/platform/connections', 
+    '/api/qr/status', 
+    '/api/conversations', 
+    '/api/reminders'
+  ];
+  const isNoisy = noisyRoutes.some(route => req.originalUrl.startsWith(route)) && req.method === 'GET';
+
+  if (!isNoisy) {
+    const time = new Date().toLocaleTimeString('es-ES', { hour12: false });
+    const mColor = methodColors[req.method] || '\x1b[37m'; // White default
+    const bodyStr = Object.keys(req.body || {}).length > 0 
+      ? `\n${dimColor}↳ Body: ${JSON.stringify(req.body).substring(0, 200)}${resetColor}` 
+      : '';
+
+    console.log(`${dimColor}[${time}]${resetColor} ${mColor}${req.method.padEnd(6)}${resetColor} ${req.originalUrl}${bodyStr}`);
+  }
   
   // Start timing for Prometheus metrics
   const start = Date.now();
@@ -260,6 +302,9 @@ app.use('/api/business-hours', businessHoursRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/quotes', quotesRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/campaigns', campaignRoutes);
+app.use('/api/reminders', reminderRoutes);
+app.use('/api/message-templates', messageTemplateRoutes);
 
 // Middleware to record metrics for all successful responses
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -324,6 +369,8 @@ app.use('*', (req: Request, res: Response) => {
 const PORT = process.env.PORT || 3000;
 import { multiWhatsAppService } from './modules/integrations/multiWhatsAppService';
 import { multiPlatformService } from './modules/integrations/platform/multiPlatformService';
+import { campaignsService } from './modules/campaigns/campaigns.service';
+import { remindersService } from './modules/reminders/reminders.service';
 
 // WebSocket connection handling (RF-02) - temporarily disabled
 // io.on('connection', (socket: any) => {
@@ -361,6 +408,20 @@ httpServer.listen(PORT, async () => {
     await multiPlatformService.initializeAllConnections();
   } catch (error) {
     console.error('Failed to initialize multi-platform connections:', error);
+  }
+
+  // Recuperar campañas que quedaron a medio enviar tras un reinicio
+  try {
+    await campaignsService.recoverInterruptedCampaigns();
+  } catch (error) {
+    console.error('Failed to recover interrupted campaigns:', error);
+  }
+
+  // Recuperar recordatorios que quedaron a medio enviar tras un reinicio
+  try {
+    await remindersService.recoverInterruptedReminders();
+  } catch (error) {
+    console.error('Failed to recover interrupted reminders:', error);
   }
 
   console.log(`📊 API Documentation: http://localhost:${PORT}/api`);
