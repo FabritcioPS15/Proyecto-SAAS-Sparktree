@@ -6,6 +6,7 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Modal } from '../../../components/ui/Modal';
+import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { CreateReminderModal } from '../components/CreateReminderModal';
 import {
@@ -107,12 +108,14 @@ export const Reminders = () => {
   }, [loadReminders]);
 
   const openDetail = async (reminder: Reminder) => {
+    setDetail({ ...reminder, contacts: [], count: 0, logs: [] });
     setDetailLoading(true);
     try {
       const row = await getReminder(reminder.id);
       setDetail(row);
     } catch (err) {
       addNotification({ type: 'error', title: 'Error', message: 'No se pudo cargar el detalle del recordatorio.' });
+      setDetail(null);
     } finally {
       setDetailLoading(false);
     }
@@ -196,14 +199,23 @@ export const Reminders = () => {
     { key: 'status', header: 'Estado', render: (v: string) => <StatusBadge status={v} variant={statusVariant(v)} /> },
     { key: 'progress', header: 'Progreso', render: (_v: unknown, row: Reminder) => {
       const pct = row.total > 0 ? Math.min(100, Math.round(((row.sent + row.failed) / row.total) * 100)) : 0;
+      const isSending = row.status === 'sending';
+      const allFailed = row.failed > 0 && row.sent === 0;
       return (
         <div className="w-40">
           <div className="flex justify-between text-[10px] font-bold mb-1">
             <span className="text-slate-500 dark:text-slate-400">{row.sent + row.failed}/{row.total}</span>
-            <span className="text-accent-500">{pct}%</span>
+            <span className={`${isSending ? 'text-accent-400' : allFailed ? 'text-red-400' : 'text-emerald-500'} transition-colors duration-300`}>{pct}%</span>
           </div>
-          <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${row.failed > 0 && row.sent === 0 ? 'bg-red-500' : 'bg-gradient-to-r from-accent-500 to-emerald-500'}`} style={{ width: `${pct}%` }} />
+          <div className={`h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden ${isSending ? 'progress-bar-glow' : ''}`}>
+            <div
+              className={`h-full rounded-full transition-all duration-700 ease-out ${isSending ? 'progress-bar-active' : ''} ${
+                allFailed ? 'bg-gradient-to-r from-red-500 to-red-400' :
+                pct === 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+                'bg-gradient-to-r from-accent-500 via-accent-400 to-emerald-500'
+              }`}
+              style={{ width: `${pct}%` }}
+            />
           </div>
           {row.failed > 0 && <p className="text-[9px] text-red-400 mt-0.5">{row.failed} fallaron</p>}
         </div>
@@ -331,7 +343,7 @@ export const Reminders = () => {
       >
         {detailLoading ? (
           <div className="flex items-center justify-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white" />
+            <Loader size="md" />
           </div>
         ) : detail && (
           <div className="space-y-5">
@@ -345,11 +357,28 @@ export const Reminders = () => {
               </div>
               <div className="flex-1 min-w-[200px]">
                 <div className="flex justify-between text-[10px] font-bold mb-1">
-                  <span className="text-slate-500 dark:text-slate-400">Enviados {detail.sent} · Fallidos {detail.failed} · Pendientes {detail.total - detail.sent - detail.failed}</span>
-                  <span className="text-accent-500">{detailProgress}%</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-emerald-500 counter-pop">{detail.sent}</span> enviados
+                      <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
+                      <span className="text-red-400 counter-pop">{detail.failed}</span> fallidos
+                      <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
+                      <span className="text-slate-400 counter-pop">{detail.total - detail.sent - detail.failed}</span> pendientes
+                    </span>
+                  </div>
+                  <span className={`${detail.status === 'sending' ? 'text-accent-400' : detailProgress === 100 ? 'text-emerald-500' : 'text-accent-500'} transition-colors duration-300 tabular-nums`}>
+                    {detailProgress}%
+                  </span>
                 </div>
-                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-accent-500 to-emerald-500 rounded-full transition-all" style={{ width: `${detailProgress}%` }} />
+                <div className={`h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden ${detail.status === 'sending' ? 'progress-bar-glow' : ''}`}>
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${detail.status === 'sending' ? 'progress-bar-active' : ''} ${
+                      detailProgress === 100 && detail.failed === 0 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+                      detail.failed > 0 && detail.sent === 0 ? 'bg-gradient-to-r from-red-500 to-red-400' :
+                      'bg-gradient-to-r from-accent-500 via-accent-400 to-emerald-500'
+                    }`}
+                    style={{ width: `${detailProgress}%` }}
+                  />
                 </div>
               </div>
               <p className="text-xs text-slate-400">
@@ -362,7 +391,15 @@ export const Reminders = () => {
 
             <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mensaje</p>
-              <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono">{detail.message_template}</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono">
+                {detail.message_template.split(/(\{\{[\w\s-]+\}\})/g).map((part: string, i: number) => {
+                  if (part.startsWith('{{') && part.endsWith('}}')) {
+                    const variable = part.slice(2, -2).trim();
+                    return <span key={i} className="font-bold text-accent-600 dark:text-accent-400 bg-accent-500/10 px-1 rounded">{variable}</span>;
+                  }
+                  return <span key={i}>{part}</span>;
+                })}
+              </p>
             </div>
 
             <div>

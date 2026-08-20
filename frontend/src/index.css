@@ -97,10 +97,173 @@
     animation-duration: 3s;
   }
 
+  /* Loader medium — tablas, modales, standalone */
+  .loader-md {
+    width: 36px;
+    aspect-ratio: 1;
+    display: grid;
+    border: 3px solid #0000;
+    border-radius: 50%;
+    border-right-color: rgb(var(--accent-500));
+    animation: l15 1s infinite linear;
+    position: relative;
+  }
+
+  .loader-md::before,
+  .loader-md::after {
+    content: "";
+    grid-area: 1/1;
+    margin: 2px;
+    border: inherit;
+    border-radius: 50%;
+    animation: l15 2s infinite;
+  }
+
+  .loader-md::after {
+    margin: 6px;
+    animation-duration: 3s;
+  }
+
+  /* Loader small — botones con texto */
+  .loader-sm {
+    width: 20px;
+    aspect-ratio: 1;
+    display: grid;
+    border: 2px solid #0000;
+    border-radius: 50%;
+    border-right-color: rgb(var(--accent-500));
+    animation: l15 1s infinite linear;
+    position: relative;
+  }
+
+  .loader-sm::before,
+  .loader-sm::after {
+    content: "";
+    grid-area: 1/1;
+    margin: 2px;
+    border: inherit;
+    border-radius: 50%;
+    animation: l15 2s infinite;
+  }
+
+  .loader-sm::after {
+    margin: 5px;
+    animation-duration: 3s;
+  }
+
+  /* Loader extra-small — botones inline */
+  .loader-xs {
+    width: 16px;
+    aspect-ratio: 1;
+    display: grid;
+    border: 2px solid #0000;
+    border-radius: 50%;
+    border-right-color: rgb(var(--accent-500));
+    animation: l15 1s infinite linear;
+    position: relative;
+  }
+
+  .loader-xs::before,
+  .loader-xs::after {
+    content: "";
+    grid-area: 1/1;
+    margin: 1px;
+    border: inherit;
+    border-radius: 50%;
+    animation: l15 2s infinite;
+  }
+
+  .loader-xs::after {
+    margin: 4px;
+    animation-duration: 3s;
+  }
+
+  /* Progress bar shimmer animation */
+  .progress-bar-active {
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-bar-active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Progress bar glow pulse */
+  .progress-bar-glow {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 4px rgba(var(--accent-500), 0.2); }
+    50% { box-shadow: 0 0 12px rgba(var(--accent-500), 0.5); }
+  }
+
+  /* Counter pop animation */
+  .counter-pop {
+    animation: counterPop 0.3s ease-out;
+  }
+  @keyframes counterPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
   @keyframes l15 {
     100% {
       transform: rotate(1turn)
     }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes pulseOnline {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  .animate-slideInLeft {
+    animation: slideInLeft 0.3s ease-out;
+  }
+
+  .animate-pulseOnline {
+    animation: pulseOnline 2s ease-in-out infinite;
   }
 
   /* Custom Scrollbar for Sidebar */

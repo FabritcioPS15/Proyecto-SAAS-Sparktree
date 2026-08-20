@@ -7,6 +7,7 @@ import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
+import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { getOrders, createOrder, deleteOrder } from '../../../services/api';
 
@@ -125,7 +126,7 @@ export const Orders = () => {
       />
       <PageBody>
         {loading && (
-          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><ShoppingCart className="w-3 h-3 animate-spin" /> Cargando pedidos...</div>
+          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><Loader size="xs" /> Cargando pedidos...</div>
         )}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
           <div className="flex flex-col lg:flex-row gap-4 mb-4">

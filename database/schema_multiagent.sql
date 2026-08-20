@@ -128,14 +128,14 @@ DROP CONSTRAINT IF EXISTS conversations_platform_type_check;
 
 ALTER TABLE public.conversations
 ADD CONSTRAINT conversations_platform_type_check 
-CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'facebook_messenger', 'tiktok', 'mercadolibre'));
+CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'facebook_messenger', 'tiktok', 'mercadolibre'));
 
 ALTER TABLE public.messages
 DROP CONSTRAINT IF EXISTS messages_platform_type_check;
 
 ALTER TABLE public.messages
 ADD CONSTRAINT messages_platform_type_check 
-CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'facebook_messenger', 'tiktok', 'mercadolibre'));
+CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'facebook_messenger', 'tiktok', 'mercadolibre'));
 
 ALTER TABLE public.flow_executions
 DROP CONSTRAINT IF EXISTS flow_executions_platform_type_check;

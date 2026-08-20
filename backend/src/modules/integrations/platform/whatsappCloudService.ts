@@ -54,6 +54,39 @@ export class WhatsAppCloudService extends BasePlatformService {
     connection.lastConnectedAt = new Date();
 
     await this.updateConnectionStatus(connectionId, 'connected');
+
+    // Auto-register webhook with Meta if verify token is configured
+    if (connection.config.webhookVerifyToken) {
+      await this.setupWebhook(connection);
+    }
+  }
+
+  private async setupWebhook(connection: PlatformConnection): Promise<void> {
+    try {
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+      const webhookUrl = `${backendUrl}/api/webhook`;
+      const verifyToken = connection.config.webhookVerifyToken;
+
+      // Subscribe to messages field via Meta Graph API
+      await axios.post(
+        `https://graph.facebook.com/v18.0/${connection.config.phoneNumberId}`,
+        null,
+        {
+          params: {
+            access_token: connection.config.accessToken,
+            object: 'whatsapp_business_account',
+            callback_url: webhookUrl,
+            fields: 'messages',
+            verify_token: verifyToken,
+          },
+        }
+      );
+
+      console.log(`[WhatsApp Cloud] Webhook subscribed for ${connection.displayName} → ${webhookUrl}`);
+    } catch (error: any) {
+      // Non-fatal: user can still register webhook manually in Meta dashboard
+      console.warn(`[WhatsApp Cloud] Auto webhook registration failed for ${connection.displayName}:`, error?.response?.data?.error?.message || error.message);
+    }
   }
 
   async deleteConnection(connectionId: string, userId: string): Promise<void> {
@@ -112,6 +145,7 @@ export class WhatsAppCloudService extends BasePlatformService {
             organization_id: connection.organizationId,
             contact_id: contact.id,
             platform_connection_id: connection.id,
+            platform_type: 'whatsapp_cloud',
           })
           .select()
           .single();
@@ -219,7 +253,7 @@ export class WhatsAppCloudService extends BasePlatformService {
         
         const response = await axios({
           method: 'POST',
-          url,
+          url: apiUrl,
           headers: {
             'Authorization': `Bearer ${config.accessToken}`,
             'Content-Type': 'application/json',
@@ -237,8 +271,67 @@ export class WhatsAppCloudService extends BasePlatformService {
 
         return response.data;
       },
+
+      sendTemplateMessage: async (
+        to: string,
+        templateName: string,
+        languageCode: string,
+        components: any[] = []
+      ) => {
+        const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
+        const url = `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`;
+
+        const response = await axios({
+          method: 'POST',
+          url,
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          data: {
+            messaging_product: 'whatsapp',
+            to: phoneNumber,
+            type: 'template',
+            template: {
+              name: templateName,
+              language: { code: languageCode },
+              ...(components.length > 0 ? { components } : {}),
+            },
+          },
+        });
+
+        return response.data;
+      },
     };
   }
+
+  /** Lista los templates aprobados en Meta para el WABA vinculado a esta conexión */
+  async getMetaTemplates(connectionId: string): Promise<any[]> {
+    const connection = this.connections.get(connectionId);
+    if (!connection) throw new Error('Connection not found');
+
+    const { phoneNumberId, accessToken } = connection.config;
+
+    // Primero obtenemos el WABA ID a partir del Phone Number ID
+    const phoneInfo = await axios.get(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const wabaId = phoneInfo.data?.whatsapp_business_account_id;
+    if (!wabaId) throw new Error('No se encontró el WABA ID para este número');
+
+    const response = await axios.get(
+      `https://graph.facebook.com/v18.0/${wabaId}/message_templates`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params: { limit: 100, status: 'APPROVED' },
+      }
+    );
+
+    return response.data?.data || [];
+  }
+
 
   async handleWebhook(req: any, res: any): Promise<void> {
     try {

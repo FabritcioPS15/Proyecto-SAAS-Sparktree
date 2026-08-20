@@ -5,6 +5,7 @@ import {
   CheckCircle2, Users, AtSign, PenSquare, FileSignature, Inbox,
   Package, BookTemplate, User, Eye
 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -620,7 +621,7 @@ export const Email = () => {
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                       }`}>
                     {isSending ? (
-                      <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enviando...</>
+                      <><Loader size="xs" />Enviando...</>
                     ) : (
                       <><Send className="w-3.5 h-3.5" />Enviar</>
                     )}

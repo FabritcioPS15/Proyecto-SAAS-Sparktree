@@ -1451,6 +1451,8 @@ export const createReminder = async (data: {
   delayMs?: number;
   contacts: Array<{ phone: string; variables: Record<string, string> }>;
   imageBase64?: string | null;
+  metaTemplateName?: string;
+  metaTemplateLanguage?: string;
 }) => {
   try {
     const response = await api.post('/reminders', data);

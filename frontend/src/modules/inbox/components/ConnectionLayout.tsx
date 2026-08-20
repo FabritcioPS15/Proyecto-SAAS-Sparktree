@@ -1,6 +1,7 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ExternalLink, ArrowUpRight, ChevronDown, Bot, Loader2, Plus } from 'lucide-react';
+import { Activity, ExternalLink, ArrowUpRight, ChevronDown, Bot, Plus } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { cn } from '../../../utils/cn';
 import { getFlows } from '../../../services/api';
 
@@ -131,7 +132,7 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
         <div className="p-3.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Bots Activos</p>
           <p className="text-sm font-black text-slate-900 dark:text-white">
-            {flowsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : flows.length}
+            {flowsLoading ? <Loader size="xs" /> : flows.length}
           </p>
         </div>
       </div>

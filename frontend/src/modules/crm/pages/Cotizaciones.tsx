@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { Modal } from '../../../components/ui/Modal';
 import { Badge } from '../../../components/ui/Badge';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
+import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { getQuotes, createQuote, updateQuote, deleteQuote, createOrder } from '../../../services/api';
 
@@ -383,7 +384,7 @@ export const Cotizaciones = () => {
 
       <PageBody>
         {loading && (
-          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><FileText className="w-3 h-3 animate-spin" /> Cargando cotizaciones...</div>
+          <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><Loader size="xs" /> Cargando cotizaciones...</div>
         )}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
           {[

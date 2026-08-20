@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Loader2, CreditCard, AlertTriangle, Zap, Building2, Sparkles } from 'lucide-react';
+import { Check, X, CreditCard, AlertTriangle, Zap, Building2, Sparkles } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Modal } from '../../../components/ui/Modal';
@@ -139,7 +140,7 @@ export const Plans = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-accent-500" />
+        <Loader size="md" />
       </div>
     );
   }
@@ -305,7 +306,7 @@ export const Plans = () => {
               </button>
               <button onClick={handleConfirmUpgrade} disabled={actionLoading}
                 className="flex-1 h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                {actionLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Activando...</> : 'Confirmar'}
+                {actionLoading ? <><Loader size="sm" /> Activando...</> : 'Confirmar'}
               </button>
             </div>
           }
@@ -332,7 +333,7 @@ export const Plans = () => {
               </button>
               <button onClick={handleCancelSubscription} disabled={actionLoading}
                 className="flex-1 h-11 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                {actionLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Cancelando...</> : 'Cancelar Suscripción'}
+                {actionLoading ? <><Loader size="sm" /> Cancelando...</> : 'Cancelar Suscripción'}
               </button>
             </div>
           }

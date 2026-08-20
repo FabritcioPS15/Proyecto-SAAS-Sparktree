@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '../../core/config/supabase';
 import { multiWhatsAppService } from '../integrations/multiWhatsAppService';
+import { whatsappCloudService } from '../integrations/platform/whatsappCloudService';
 
 const PHONE_HEADER_PATTERN = /cel|celular|telefono|tel[eé]fono|phone|movil|m[oó]vil|whatsapp|numero|n[uú]mero|mobile|contacto/i;
 
@@ -169,6 +170,8 @@ export class RemindersService {
     contacts: ParsedContact[];
     createdBy?: string | null;
     imageBase64?: string | null;
+    metaTemplateName?: string | null;
+    metaTemplateLanguage?: string | null;
   }) {
     const total = data.contacts.length;
     const status = data.scheduleType === 'now' ? 'draft' : 'scheduled';
@@ -188,8 +191,23 @@ export class RemindersService {
     if (data.scheduledAt) insertData.scheduled_at = data.scheduledAt;
     if (data.recurringCron) insertData.recurring_cron = data.recurringCron;
     if (data.recurringTimezone) insertData.recurring_timezone = data.recurringTimezone;
-    if (data.scheduleType === 'now') insertData.next_run_at = new Date().toISOString();
+
+    if (data.scheduleType === 'now') {
+      insertData.next_run_at = new Date().toISOString();
+    } else if (data.scheduleType === 'once' && data.scheduledAt) {
+      insertData.next_run_at = data.scheduledAt;
+    } else if (data.scheduleType === 'recurring') {
+      // For daily recurring, set next_run_at to the scheduled time today (or tomorrow if past)
+      const scheduledDate = data.scheduledAt ? new Date(data.scheduledAt) : new Date();
+      const now = new Date();
+      if (scheduledDate <= now) {
+        scheduledDate.setDate(scheduledDate.getDate() + 1);
+      }
+      insertData.next_run_at = scheduledDate.toISOString();
+    }
     if (data.imageBase64) insertData.image_base64 = data.imageBase64;
+    if (data.metaTemplateName) insertData.meta_template_name = data.metaTemplateName;
+    if (data.metaTemplateLanguage) insertData.meta_template_language = data.metaTemplateLanguage;
 
     const { data: reminder, error } = await supabase
       .from('reminders')
@@ -308,8 +326,30 @@ export class RemindersService {
       throw new Error('El recordatorio no tiene una conexión WhatsApp asignada');
     }
 
-    const connection = multiWhatsAppService.getConnection(reminder.whatsapp_connection_id);
+    // Try Baileys first
+    let connection = multiWhatsAppService.getConnection(reminder.whatsapp_connection_id);
+    let isCloudApi = false;
+
+    // If not found in Baileys, try Cloud API
     if (!connection || connection.status !== 'connected') {
+      const { data: platformConn } = await supabase
+        .from('platform_connections')
+        .select('*')
+        .eq('id', reminder.whatsapp_connection_id)
+        .eq('status', 'connected')
+        .single();
+
+      if (platformConn) {
+        await whatsappCloudService.initializeConnection(platformConn);
+        const cloudConn = whatsappCloudService['connections'].get(platformConn.id);
+        if (cloudConn) {
+          connection = cloudConn as any;
+          isCloudApi = true;
+        }
+      }
+    }
+
+    if (!connection || (connection as any).status !== 'connected') {
       throw new Error('La conexión WhatsApp no está conectada. Verifica el estado del dispositivo.');
     }
 
@@ -330,7 +370,7 @@ export class RemindersService {
     const state: SendState = { reminderId, paused: false, cancelled: false };
     this.activeSends.set(reminderId, state);
 
-    this.runSendLoop(state, reminder, connection, logEntry?.data?.id).catch((err) => {
+    this.runSendLoop(state, reminder, connection, logEntry?.data?.id, isCloudApi).catch((err) => {
       console.error('[Reminders] Send loop error:', err);
       this.activeSends.delete(reminderId);
     });
@@ -382,8 +422,10 @@ export class RemindersService {
     return { success: true };
   }
 
-  private async runSendLoop(state: SendState, reminder: any, connection: any, logId?: string) {
-    const adapter = multiWhatsAppService.createWaServiceAdapter(connection);
+  private async runSendLoop(state: SendState, reminder: any, connection: any, logId?: string, isCloudApi = false) {
+    const adapter = isCloudApi
+      ? whatsappCloudService.createServiceAdapter(connection)
+      : multiWhatsAppService.createWaServiceAdapter(connection);
     const delayMs = Math.max(Number(reminder.delay_ms) || 3000, 500);
 
     try {
@@ -409,8 +451,14 @@ export class RemindersService {
 
         try {
           const text = renderTemplate(reminder.message_template, contact.variables);
-          if (reminder.image_base64) {
-            await adapter.sendImageMessage(contact.phone, reminder.image_base64, text);
+          if (isCloudApi && reminder.meta_template_name) {
+            const langCode = reminder.meta_template_language || 'es';
+            const renderedText = renderTemplate(reminder.message_template, contact.variables);
+            await (adapter as any).sendTemplateMessage!(contact.phone, reminder.meta_template_name, langCode, [
+              { type: 'body', parameters: [{ type: 'text', text: renderedText }] },
+            ]);
+          } else if (reminder.image_base64 && !isCloudApi) {
+            await (adapter as any).sendImageMessage(contact.phone, reminder.image_base64, text);
           } else {
             await adapter.sendTextMessage(contact.phone, text);
           }
@@ -458,13 +506,58 @@ export class RemindersService {
       }
 
       const newStatus = reminder.schedule_type === 'recurring' ? 'scheduled' : 'completed';
+      const updateData: any = { status: newStatus, updated_at: new Date().toISOString() };
+
+      // For recurring, calculate next_run_at (next day at same time)
+      if (reminder.schedule_type === 'recurring') {
+        const tz = reminder.recurring_timezone || 'America/Lima';
+        const lastRun = new Date();
+        lastRun.setDate(lastRun.getDate() + 1);
+        updateData.next_run_at = lastRun.toISOString();
+      } else {
+        updateData.next_run_at = null;
+      }
+
       await supabase
         .from('reminders')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', reminder.id);
     } finally {
       this.activeSends.delete(reminder.id);
     }
+  }
+
+  startScheduler() {
+    console.log('[Reminders] ⏰ Scheduler de recordatorios iniciado (cada 30 segundos)');
+
+    setInterval(async () => {
+      try {
+        const now = new Date().toISOString();
+        const { data: dueReminders } = await supabase
+          .from('reminders')
+          .select('*')
+          .eq('status', 'scheduled')
+          .lte('next_run_at', now)
+          .not('next_run_at', 'is', null);
+
+        if (!dueReminders || dueReminders.length === 0) return;
+
+        console.log(`[Reminders] 📋 ${dueReminders.length} recordatorio(s) programado(s) listos para enviar`);
+
+        for (const reminder of dueReminders) {
+          if (this.activeSends.has(reminder.id)) continue;
+
+          console.log(`[Reminders] 🚀 Enviando recordatorio programado: "${reminder.name}" (${reminder.schedule_type})`);
+          try {
+            await this.startSending(reminder.id, reminder.organization_id);
+          } catch (err: any) {
+            console.error(`[Reminders] ❌ Error iniciando recordatorio "${reminder.name}":`, err.message || err);
+          }
+        }
+      } catch (err: any) {
+        console.error('[Reminders] ⚠️ Error en scheduler:', err.message || err);
+      }
+    }, 30_000);
   }
 }
 

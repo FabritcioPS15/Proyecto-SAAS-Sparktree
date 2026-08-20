@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Mail, Send, X, Plus, Trash2, Tag, FileText, User } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { Modal } from '../../../components/ui/Modal';
 
 interface SendEmailModalProps {
@@ -119,7 +120,7 @@ export const SendEmailModal = ({ open, onClose, catalog }: SendEmailModalProps) 
                 '✓ Abierto'
               ) : sending ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  <Loader size="xs" />
                   Preparando...
                 </>
               ) : (

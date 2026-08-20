@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Mail, ArrowLeft, ArrowRight, Loader2, Info, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, Mail, ArrowLeft, ArrowRight, Info, CheckCircle2 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { recoverPassword } from '../../../services/api';
 
 export const RecoverPassword = () => {
@@ -130,7 +131,7 @@ export const RecoverPassword = () => {
                 className="w-full py-4 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary-600/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group mt-4 relative overflow-hidden"
               >
                 {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader size="sm" />
                 ) : (
                   <>
                     <span className="relative z-10">Enviar Enlace</span>

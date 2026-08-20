@@ -12,6 +12,7 @@ import { PageContainer } from '../../../components/layout/PageContainer';
 import { ConnectionLayout, EcosystemStatus } from '../components/ConnectionLayout';
 import { cn } from '../../../utils/cn';
 import { Modal } from '../../../components/ui/Modal';
+import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
 
 // Regex básico para token de Telegram: numéricos:alfanumérico
@@ -282,7 +283,7 @@ export const TelegramConfig = () => {
                   className="w-full h-11 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                 >
                   {loading || isConnecting('telegram') ? (
-                    <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Validando...</>
+                    <><Loader size="xs" /> Validando...</>
                   ) : (
                     <><ArrowRight className="w-4 h-4" /> Validar y Conectar</>
                   )}

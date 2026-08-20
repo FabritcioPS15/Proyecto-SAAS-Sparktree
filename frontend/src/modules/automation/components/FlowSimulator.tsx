@@ -33,6 +33,7 @@ const NODE_LABELS: Record<string, string> = {
   interactive: 'Botones',
   media:       'Media',
   capture:     'Captura',
+  capture_phone: 'Capturar Celular',
   condition:   'Condición',
   delay:       'Espera',
   webhook:     'Webhook',
@@ -114,13 +115,13 @@ export const FlowSimulator: React.FC<FlowSimulatorProps> = ({ nodes, edges, matc
         if (next?.target) setTimeout(() => executeNode(next.target), 1200);
         else setActiveNodeId(null);
 
-      } else if (node.type === 'capture') {
+      } else if (node.type === 'capture' || node.type === 'capture_phone') {
         addMessage({
-          text: node.data.question || 'Por favor ingresa un dato:',
+          text: node.data.question || (node.type === 'capture_phone' ? 'Por favor, ingresa tu número de celular:' : 'Por favor ingresa un dato:'),
           sender: 'bot',
           type: 'capture',
           timestamp: ts,
-          variableName: node.data.variableName,
+          variableName: node.data.variableName || (node.type === 'capture_phone' ? 'telefono' : undefined),
         });
         setWaitingForCaptureNodeId(nodeId);
 

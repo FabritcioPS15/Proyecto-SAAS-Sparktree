@@ -60,7 +60,7 @@ router.post('/', async (req: any, res: any) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
-    const { name, messageTemplate, whatsappConnectionId, delayMs, contacts } = req.body;
+    const { name, messageTemplate, whatsappConnectionId, delayMs, contacts, metaTemplateName, metaTemplateLanguage } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'El nombre de la campaña es obligatorio' });
@@ -80,6 +80,8 @@ router.post('/', async (req: any, res: any) => {
       delayMs,
       contacts,
       createdBy: (req as any).userId || null,
+      metaTemplateName: metaTemplateName || null,
+      metaTemplateLanguage: metaTemplateLanguage || 'es',
     });
 
     res.status(201).json(campaign);

@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Plus, CheckCircle, XCircle, Loader2, ArrowRight, Sun, Moon, Plug, PlugZap, Wifi, WifiOff } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, ArrowRight, Sun, Moon, Plug, PlugZap, Wifi, WifiOff } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from "react-icons/fa";
 import { useConnections } from '../../../contexts/ConnectionsContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { cn } from '../../../utils/cn';
 
 const platforms = [
-  { id: 'whatsapp', name: 'WhatsApp', icon: FaWhatsapp, color: 'from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-500/20', bg: 'bg-emerald-500/10', text: 'text-emerald-500', description: 'Conexión con WhatsApp Business API (QR)', route: '/whatsapp-qr' },
+  { id: 'whatsapp', name: 'WhatsApp', icon: FaWhatsapp, color: 'from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-500/20', bg: 'bg-emerald-500/10', text: 'text-emerald-500', description: 'WhatsApp Business API (QR o Cloud API)', route: '/whatsapp-qr' },
   { id: 'telegram', name: 'Telegram', icon: FaTelegram, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/20', bg: 'bg-blue-500/10', text: 'text-blue-500', description: 'Bot de Telegram (Token de Bot)', route: '/telegram-config' },
   { id: 'instagram', name: 'Instagram', icon: FaInstagram, color: 'from-pink-500 to-purple-600', shadow: 'shadow-pink-500/20', bg: 'bg-pink-500/10', text: 'text-pink-500', description: 'Instagram Messaging API (OAuth)', route: '/instagram-config' },
   { id: 'facebook_messenger', name: 'Facebook Messenger', icon: FaFacebookMessenger, color: 'from-blue-600 to-blue-700', shadow: 'shadow-blue-500/20', bg: 'bg-blue-500/10', text: 'text-blue-500', description: 'Facebook Messenger Platform (OAuth)', route: '/facebook-config' },
@@ -29,9 +30,9 @@ export const Connections = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected': return <CheckCircle className="w-5 h-5 text-emerald-500" />;
-      case 'connecting': return <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />;
+      case 'connecting': return <Loader size="sm" />;
       case 'error': return <XCircle className="w-5 h-5 text-red-500" />;
-      case 'pending': return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
+      case 'pending': return <Loader size="sm" />;
       case 'error_sync': return <XCircle className="w-5 h-5 text-orange-500" />;
       default: return <WifiOff className="w-5 h-5 text-slate-400" />;
     }
@@ -128,7 +129,7 @@ export const Connections = () => {
                     <button onClick={() => handleConnect(platform.id)} disabled={isConnecting(platform.id as any)}
                       className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 dark:from-white dark:hover:from-gray-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm font-bold text-white dark:text-black transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]">
                       {isConnecting(platform.id as any) ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Conectando...</>
+                        <><Loader size="xs" /> Conectando...</>
                       ) : (
                         <><Plus className="w-4 h-4" /> Conectar {platform.name}</>
                       )}

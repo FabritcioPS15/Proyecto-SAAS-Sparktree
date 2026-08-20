@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Send, Play, Pause, Trash2, Eye, Plus, Megaphone, RefreshCw, AlertTriangle, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { Send, Play, Pause, Trash2, Eye, Plus, Megaphone, RefreshCw, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -292,7 +293,7 @@ export const Campaigns = () => {
       >
         {detailLoading ? (
           <div className="flex items-center justify-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white" />
+            <Loader size="md" />
           </div>
         ) : detail && (
           <div className="space-y-5">
@@ -384,7 +385,7 @@ export const Campaigns = () => {
                 disabled={deleting}
                 className="flex items-center gap-2 px-5 h-10 rounded-xl text-sm font-bold bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-60"
               >
-                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {deleting ? <Loader size="xs" /> : <Trash2 className="w-4 h-4" />}
                 {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
               </button>
             </div>

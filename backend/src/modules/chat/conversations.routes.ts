@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../../core/config/supabase';
 import { multiWhatsAppService } from '../integrations/multiWhatsAppService';
+import { whatsappCloudService } from '../integrations/platform/whatsappCloudService';
 
 const router = express.Router();
 
@@ -120,6 +121,7 @@ router.get('/:id/messages', async (req, res) => {
 });
 
 // POST /api/conversations/:id/send  — send a message to a contact via WhatsApp
+// Detecta automáticamente el proveedor: 'whatsapp_cloud' usa Cloud API, resto usa Baileys
 router.post('/:id/send', async (req, res) => {
   try {
     const { id } = req.params;
@@ -144,56 +146,82 @@ router.post('/:id/send', async (req, res) => {
       return res.status(404).json({ error: 'Conversación no encontrada' });
     }
 
-    // Obtener el número real del contacto de la conversación
-    // El número en la BD puede estar mal formateado, pero el bot debería responder al número real
+    // Obtener el número real del contacto de la conversación.
+    // Prioridad: phone_number > whatsapp_jid (de custom_attributes) > external_id de la conversación
     const storedPhone = conversation.contacts?.phone_number;
-    if (!storedPhone) {
-      return res.status(400).json({ error: 'El contacto no tiene número de teléfono' });
+    const contactJid: string | undefined = (conversation.contacts as any)?.custom_attributes?.whatsapp_jid
+      || (conversation as any).external_id;
+
+    let correctedPhone = '';
+
+    if (storedPhone) {
+      const cleanPhone = storedPhone.replace(/\D/g, '');
+      correctedPhone = cleanPhone;
+      console.log(`[Conversations] Using stored phone: ${storedPhone} -> cleaned: ${cleanPhone}`);
+
+      // Si el número tiene 9 dígitos y no empieza con código de país, asumimos que es de Perú
+      if (cleanPhone.length === 9 && !cleanPhone.startsWith('51')) {
+        correctedPhone = '51' + cleanPhone;
+        console.log(`[Conversations] Converted 9-digit number to Peruvian format: ${correctedPhone}`);
+      }
+    } else if (contactJid) {
+      // Extraer número del JID (ej: "51987654321@s.whatsapp.net" -> "51987654321")
+      correctedPhone = contactJid.split('@')[0].split(':')[0].replace(/\D/g, '');
+      console.log(`[Conversations] No phone_number, extracted from JID: ${contactJid} -> ${correctedPhone}`);
     }
 
-    // Corregir el número usando el mismo sistema que el bot
-    // Simplemente usamos los dígitos y confiamos en el formato internacional que envía WhatsApp
-    const cleanPhone = storedPhone.replace(/\D/g, '');
-    let correctedPhone = cleanPhone;
-    
-    console.log(`[Conversations] Original stored phone: ${storedPhone}`);
-    console.log(`[Conversations] Cleaned phone: ${cleanPhone} (${cleanPhone.length} digits)`);
-    
-    // Si el número tiene 9 dígitos y no empieza con código de país, asumimos que es de Perú
-    if (cleanPhone.length === 9 && !cleanPhone.startsWith('51')) {
-      correctedPhone = '51' + cleanPhone;
-      console.log(`[Conversations] Converted 9-digit number to Peruvian format: ${correctedPhone}`);
-    } else {
-      console.log(`[Conversations] Using phone as-is (already has country code or non-standard): ${correctedPhone}`);
-    }
-    
-    console.log(`[Conversations] Final corrected phone: ${correctedPhone}`);
-
-    // Send via WhatsApp
-    const connections = (multiWhatsAppService as any).getOrganizationConnections(orgId);
-    const activeConn = connections.find((c: any) => c.status === 'connected');
-    
-    if (!activeConn) {
-      return res.status(503).json({ error: 'WhatsApp no está conectado para esta organización. Por favor conecta el dispositivo primero.' });
-    }
-
-    const contactJid = (conversation.contacts as any)?.custom_attributes?.whatsapp_jid;
-    const adapter = (multiWhatsAppService as any).createWaServiceAdapter(activeConn);
-    
-    if (mediaUrl) {
-      // Send Media
-      await adapter.sendMediaMessage(correctedPhone, mediaUrl, { 
-        jid: contactJid, 
-        type: mediaType || 'image',
-        caption: text || caption || ''
+    if (!correctedPhone) {
+      return res.status(400).json({ 
+        error: 'El contacto no tiene número de teléfono registrado. Puede que este contacto aún no haya enviado un mensaje.' 
       });
-    } else {
-      // Send Text
-      await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
     }
+
+    console.log(`[Conversations] Sending to: ${correctedPhone} via provider: ${conversation.platform_type || 'baileys'}`);
+
+    let savedMessage: any;
+
+    // ── ROUTER DE PROVEEDOR ──────────────────────────────────────────────────
+    if (conversation.platform_type === 'whatsapp_cloud' && conversation.platform_connection_id) {
+      // ── Cloud API ──────────────────────────────────────────────────────────
+      const cloudConn = whatsappCloudService.getConnection(conversation.platform_connection_id);
+      if (!cloudConn) {
+        return res.status(503).json({ error: 'La conexión de WhatsApp Cloud API no está disponible.' });
+      }
+      const adapter = whatsappCloudService.createServiceAdapter(cloudConn);
+
+      if (mediaUrl) {
+        await adapter.sendMediaMessage(correctedPhone, mediaUrl, {
+          type: mediaType || 'image',
+          caption: text || caption || '',
+        });
+      } else {
+        await adapter.sendTextMessage(correctedPhone, text.trim());
+      }
+    } else {
+      // ── Baileys ────────────────────────────────────────────────────────────
+      const connections = (multiWhatsAppService as any).getOrganizationConnections(orgId);
+      const activeConn = connections.find((c: any) => c.status === 'connected');
+
+      if (!activeConn) {
+        return res.status(503).json({ error: 'WhatsApp no está conectado para esta organización. Por favor conecta el dispositivo primero.' });
+      }
+
+      const adapter = (multiWhatsAppService as any).createWaServiceAdapter(activeConn);
+
+      if (mediaUrl) {
+        await adapter.sendMediaMessage(correctedPhone, mediaUrl, {
+          jid: contactJid,
+          type: mediaType || 'image',
+          caption: text || caption || '',
+        });
+      } else {
+        await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     // Save message to DB
-    const { data: savedMessage } = await supabase
+    const { data: msg } = await supabase
       .from('messages')
       .insert({
         organization_id: orgId,
@@ -206,6 +234,8 @@ router.post('/:id/send', async (req, res) => {
       })
       .select()
       .single();
+
+    savedMessage = msg;
 
     // Update conversation last_message_at
     await supabase
@@ -225,6 +255,136 @@ router.post('/:id/send', async (req, res) => {
   } catch (error: any) {
     console.error('Error sending message:', error);
     res.status(500).json({ error: error.message || 'Error al enviar el mensaje' });
+  }
+});
+
+// POST /api/conversations/start — Inicia una conversación nueva
+// Con Cloud API: envía un template aprobado; Con Baileys: envía texto libre
+router.post('/start', async (req, res) => {
+  try {
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
+    const { phoneNumber, text, templateName, languageCode, components, connectionId, provider } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'El número de teléfono es obligatorio' });
+    }
+
+    // Normalizar número
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const normalizedPhone = (cleanPhone.length === 9 && !cleanPhone.startsWith('51'))
+      ? '51' + cleanPhone
+      : cleanPhone;
+
+    // Buscar o crear el contacto
+    const { data: contact } = await supabase
+      .from('contacts')
+      .upsert({
+        organization_id: orgId,
+        phone_number: normalizedPhone,
+        profile_name: 'Sin nombre',
+        last_active_at: new Date().toISOString(),
+      }, { onConflict: 'organization_id,phone_number' })
+      .select()
+      .single();
+
+    if (!contact) {
+      return res.status(500).json({ error: 'No se pudo crear el contacto' });
+    }
+
+    let conversationPlatformType = 'whatsapp';
+    let platformConnectionId: string | null = null;
+    let messageContent = '';
+
+    if (provider === 'whatsapp_cloud' && connectionId) {
+      // ── Iniciar con Cloud API (template obligatorio) ──────────────────────
+      if (!templateName) {
+        return res.status(400).json({ error: 'Se requiere un template para iniciar conversaciones con Cloud API' });
+      }
+
+      const cloudConn = whatsappCloudService.getConnection(connectionId);
+      if (!cloudConn) {
+        return res.status(503).json({ error: 'Conexión Cloud API no encontrada' });
+      }
+
+      const adapter = whatsappCloudService.createServiceAdapter(cloudConn);
+      await adapter.sendTemplateMessage!(normalizedPhone, templateName, languageCode || 'es', components || []);
+
+      conversationPlatformType = 'whatsapp_cloud';
+      platformConnectionId = connectionId;
+      messageContent = `[Template: ${templateName}]`;
+    } else {
+      // ── Iniciar con Baileys (texto libre) ─────────────────────────────────
+      if (!text) {
+        return res.status(400).json({ error: 'Se requiere un mensaje de texto para iniciar la conversación' });
+      }
+
+      const connections = (multiWhatsAppService as any).getOrganizationConnections(orgId);
+      const activeConn = connections.find((c: any) => c.status === 'connected');
+
+      if (!activeConn) {
+        return res.status(503).json({ error: 'WhatsApp (Baileys) no está conectado' });
+      }
+
+      const adapter = (multiWhatsAppService as any).createWaServiceAdapter(activeConn);
+      await adapter.sendTextMessage(normalizedPhone, text.trim());
+
+      platformConnectionId = activeConn.id || null;
+      messageContent = text.trim();
+    }
+
+    // Buscar conversación existente o crear una nueva
+    let { data: conversation } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('contact_id', contact.id)
+      .eq('platform_type', conversationPlatformType)
+      .maybeSingle();
+
+    if (!conversation) {
+      const { data: newConv } = await supabase
+        .from('conversations')
+        .insert({
+          organization_id: orgId,
+          contact_id: contact.id,
+          platform_type: conversationPlatformType,
+          platform_connection_id: platformConnectionId,
+          status: 'open',
+          last_message_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      conversation = newConv;
+    }
+
+    // Guardar el mensaje enviado
+    if (conversation) {
+      await supabase.from('messages').insert({
+        organization_id: orgId,
+        conversation_id: conversation.id,
+        contact_id: contact.id,
+        direction: 'outbound',
+        type: 'text',
+        content: messageContent,
+        status: 'sent',
+      });
+
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', conversation.id);
+    }
+
+    res.json({
+      success: true,
+      conversation,
+      contact,
+    });
+  } catch (error: any) {
+    console.error('[Conversations/start] Error:', error);
+    res.status(500).json({ error: error.message || 'Error al iniciar la conversación' });
   }
 });
 

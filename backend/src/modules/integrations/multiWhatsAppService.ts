@@ -1,6 +1,6 @@
-import makeWASocket, { 
-  DisconnectReason, 
-  useMultiFileAuthState, 
+import makeWASocket, {
+  DisconnectReason,
+  useMultiFileAuthState,
   fetchLatestBaileysVersion,
   proto
 } from '@whiskeysockets/baileys';
@@ -88,7 +88,7 @@ export class MultiWhatsAppService {
   async initializeConnection(connectionData: any) {
     // Use ephemeral directory for auth state (RNF-05)
     const authStatePath = path.join(process.env.AUTH_STATE_PATH || '/tmp/auth_state', `auth_info_${connectionData.id}`);
-    
+
     const connection: WhatsAppConnection = {
       id: connectionData.id,
       userId: connectionData.user_id,
@@ -196,21 +196,21 @@ export class MultiWhatsAppService {
       }
 
       console.log(`[MultiWhatsApp] Connecting socket for ${connection.id}...`);
-      
+
       // Try to restore session from database first
       const sessionRestored = await sessionPersistenceService.restoreSessionToLocal(
         connection.id,
         connection.authStatePath
       );
-      
+
       if (sessionRestored) {
         console.log(`[MultiWhatsApp] Session restored from database for ${connection.id}`);
       } else {
         console.log(`[MultiWhatsApp] No session found in database, starting fresh for ${connection.id}`);
       }
-      
+
       const { state, saveCreds } = await useMultiFileAuthState(connection.authStatePath);
-      
+
       let version: any = [2, 3000, 1015901307]; // Fallback version
       try {
         console.log('[MultiWhatsApp] Fetching latest Baileys version...');
@@ -240,7 +240,7 @@ export class MultiWhatsAppService {
       connection.socket.ev.on('creds.update', async () => {
         console.log(`[MultiWhatsApp] Creds updated for ${connection.id}`);
         await saveCreds();
-        
+
         // Save session to database after credential update
         try {
           if (connection.authStatePath) {
@@ -275,14 +275,14 @@ export class MultiWhatsAppService {
           connection.status = isLoggedOut ? 'disconnected' : 'error';
           connection.qr = undefined;
           this.updateConnectionStatus(connection.id, isLoggedOut ? 'disconnected' : 'error');
-          
+
           if (shouldReconnect) {
             const attempts = (this.reconnectAttempts.get(connection.id) || 0) + 1;
             this.reconnectAttempts.set(connection.id, attempts);
 
             if (attempts <= this.MAX_RECONNECT_ATTEMPTS) {
               const delayMs = Math.min(5000 * Math.pow(2, attempts - 1), 60000);
-              console.log(`[MultiWhatsApp] Reconectando ${connection.id} en ${delayMs/1000}s (intento ${attempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
+              console.log(`[MultiWhatsApp] Reconectando ${connection.id} en ${delayMs / 1000}s (intento ${attempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
               setTimeout(() => this.connectSocket(connection), delayMs);
             } else {
               console.error(`[MultiWhatsApp] Máximo de reintentos alcanzado para ${connection.id}. Esperando reconexión manual.`);
@@ -293,12 +293,12 @@ export class MultiWhatsAppService {
           this.reconnectAttempts.delete(connection.id);
           const userJid = connection.socket.user?.id;
           const phoneNumber = userJid ? userJid.split(':')[0].split('@')[0] : undefined;
-          
+
           connection.status = 'connected';
           connection.qr = undefined;
           connection.phoneNumber = phoneNumber;
           connection.lastConnectedAt = new Date();
-          
+
           this.updateConnectionStatus(connection.id, 'connected', undefined, phoneNumber);
         }
       });
@@ -403,7 +403,7 @@ export class MultiWhatsAppService {
 
   private extractPhoneNumber(msg: proto.IWebMessageInfo): string {
     if (!msg.key?.remoteJid) return '';
-    
+
     const remoteJid = msg.key.remoteJid;
     const remoteJidAlt = (msg.key as any)?.remoteJidAlt;
     const messageContent = msg.message;
@@ -425,7 +425,7 @@ export class MultiWhatsAppService {
     // Si el número extraído parece un ID largo (más de 13 dígitos) o es un LID, intentar obtener el número real de otras fuentes
     if (extractedNumber.length > 13 || isLid) {
       console.log(`[MultiWhatsApp] Extracted number looks like ID: ${extractedNumber}, trying to get real phone number`);
-      
+
       // Intentar obtener el número del participant list si es un grupo
       if (msg.key?.participant) {
         const participantNumber = msg.key.participant.split('@')[0].split(':')[0];
@@ -489,7 +489,7 @@ export class MultiWhatsAppService {
 
     // Detect technical/control messages that should be ignored in the UI
     const isControlMessage = !!(
-      msg.message?.protocolMessage || 
+      msg.message?.protocolMessage ||
       msg.message?.senderKeyDistributionMessage ||
       msg.message?.stickerMessage || // Optional: ignore stickers if not handled
       msg.message?.reactionMessage
@@ -497,15 +497,15 @@ export class MultiWhatsAppService {
 
     if (isControlMessage) return null;
 
-    const text = msg.message?.conversation || 
-                 msg.message?.extendedTextMessage?.text || 
-                 msg.message?.imageMessage?.caption ||
-                 msg.message?.videoMessage?.caption ||
-                 msg.message?.documentMessage?.caption;
+    const text = msg.message?.conversation ||
+      msg.message?.extendedTextMessage?.text ||
+      msg.message?.imageMessage?.caption ||
+      msg.message?.videoMessage?.caption ||
+      msg.message?.documentMessage?.caption;
 
-    const buttonReply = msg.message?.buttonsResponseMessage || 
-                        msg.message?.templateButtonReplyMessage ||
-                        msg.message?.interactiveResponseMessage;
+    const buttonReply = msg.message?.buttonsResponseMessage ||
+      msg.message?.templateButtonReplyMessage ||
+      msg.message?.interactiveResponseMessage;
 
     let formattedMessage: any = {
       id: msg.key?.id || '',
@@ -517,7 +517,7 @@ export class MultiWhatsAppService {
     if (text) {
       const cleanText = text.trim();
       const numberMatch = cleanText.match(/^(\d+)$/);
-      
+
       formattedMessage.text = { body: text };
       if (numberMatch) {
         formattedMessage.isNumericButtonResponse = true;
@@ -526,21 +526,21 @@ export class MultiWhatsAppService {
     } else if (buttonReply) {
       const selectedId = (buttonReply as any).selectedButtonId || (buttonReply as any).selectedId;
       const selectedText = (buttonReply as any).selectedDisplayText || (buttonReply as any).bodyText;
-      
+
       formattedMessage.type = 'interactive';
       formattedMessage.interactive = {
         type: 'button_reply',
-        button_reply: { 
-          id: selectedId, 
+        button_reply: {
+          id: selectedId,
           title: selectedText
         }
       };
     } else if (msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.audioMessage || msg.message?.documentMessage) {
       formattedMessage.type = 'media';
       formattedMessage.media = {
-        type: msg.message?.imageMessage ? 'image' : 
-              msg.message?.videoMessage ? 'video' : 
-              msg.message?.audioMessage ? 'audio' : 'document'
+        type: msg.message?.imageMessage ? 'image' :
+          msg.message?.videoMessage ? 'video' :
+            msg.message?.audioMessage ? 'audio' : 'document'
       };
     } else {
       // If we reach here and it's not a known type, it's likely a technical message we don't want
@@ -550,7 +550,7 @@ export class MultiWhatsAppService {
     return formattedMessage;
   }
 
-  private async saveMessageData(message: any, senderPhone: string, connection: WhatsAppConnection, flow: any, profileName: string = ''): Promise<{contact: any, conversation: any}> {
+  private async saveMessageData(message: any, senderPhone: string, connection: WhatsAppConnection, flow: any, profileName: string = ''): Promise<{ contact: any, conversation: any }> {
     // Similar to existing logic but using connection-specific organization
     const isGroup = (message.jid || '').includes('@g.us');
     const messageJid = message.jid || (senderPhone ? `${senderPhone}@s.whatsapp.net` : '');
@@ -678,12 +678,12 @@ export class MultiWhatsAppService {
         const numberedOptions = buttons.map((btn, index) => `${index + 1}. ${btn.text || btn.title || 'Opción'}`).join('\n');
         const fullMessage = `${bodyText}\n\n${numberedOptions}\n\n💡 *Responde con el número de tu opción*`;
         const result = await connection.socket?.sendMessage(jid, { text: fullMessage });
-        
+
         const buttonMapping: { [key: string]: string } = {};
         buttons.forEach((btn, index) => {
           buttonMapping[(index + 1).toString()] = btn.id || `btn-${index}`;
         });
-        
+
         return {
           ...result,
           buttonMapping,
@@ -694,7 +694,7 @@ export class MultiWhatsAppService {
         const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
         const ext = url.split('.').pop()?.toLowerCase() || '';
         const type = options?.type || (['png', 'jpg', 'jpeg'].includes(ext) ? 'image' : 'document');
-        
+
         if (type === 'image') {
           return await connection.socket?.sendMessage(jid, { image: { url }, caption: options?.caption });
         }
@@ -717,8 +717,8 @@ export class MultiWhatsAppService {
     if (qr) connection.qr = qr;
     if (phoneNumber) connection.phoneNumber = phoneNumber;
 
-    const updateData: any = { 
-      status, 
+    const updateData: any = {
+      status,
       qr_code: qr || null,
       last_connected_at: status === 'connected' ? new Date().toISOString() : null
     };
@@ -769,10 +769,10 @@ export class MultiWhatsAppService {
 
   async deleteConnection(connectionId: string, userId: string) {
     const connection = this.connections.get(connectionId);
-    
+
     // Even if not in memory, we should try to delete from DB
     // But we need the userId to be sure we're deleting the right one
-    
+
     if (connection) {
       // Disconnect socket if exists
       if (connection.socket) {
@@ -791,10 +791,10 @@ export class MultiWhatsAppService {
           console.error('Error removing auth state:', err);
         }
       }
-      
+
       // Delete session from database
       await sessionPersistenceService.deleteSession(connectionId);
-      
+
       this.connections.delete(connectionId);
     }
 

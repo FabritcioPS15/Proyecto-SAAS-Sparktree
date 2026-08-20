@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { FaFacebookMessenger, FaInstagram, FaFacebook } from 'react-icons/fa';
 import {
   CheckCircle, XCircle, AlertTriangle, ExternalLink, RefreshCw,
-  LogOut, ArrowRight, Loader2, Info, Clock, Layers, Shield, MessageSquare
+  LogOut, ArrowRight, Info, Clock, Layers, Shield, MessageSquare
 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageContainer } from '../../../components/layout/PageContainer';
@@ -289,7 +290,7 @@ export const FacebookConfig = () => {
                 disabled={!selectedPage || loading}
                 className="w-full h-11 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
               >
-                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> {loadingLabel}</> : <><ArrowRight className="w-4 h-4" /> Confirmar Selección</>}
+                {loading ? <><Loader size="xs" /> {loadingLabel}</> : <><ArrowRight className="w-4 h-4" /> Confirmar Selección</>}
               </button>
             </div>
           )}
@@ -336,7 +337,7 @@ export const FacebookConfig = () => {
                   className="w-full h-12 flex items-center justify-center gap-3 bg-[#1877F2] hover:bg-[#166fe5] text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> {loadingLabel}</>
+                    <><Loader size="xs" /> {loadingLabel}</>
                   ) : (
                     <><FaFacebook size={18} /> Conectar con Facebook</>
                   )}

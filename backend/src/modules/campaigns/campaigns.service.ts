@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '../../core/config/supabase';
 import { multiWhatsAppService } from '../integrations/multiWhatsAppService';
+import { whatsappCloudService } from '../integrations/platform/whatsappCloudService';
 
 const PHONE_HEADER_PATTERN = /cel|celular|telefono|tel[eé]fono|phone|movil|m[oó]vil|whatsapp|numero|n[uú]mero|mobile|contacto/i;
 
@@ -160,20 +161,26 @@ export class CampaignsService {
     delayMs?: number;
     contacts: ParsedContact[];
     createdBy?: string | null;
+    metaTemplateName?: string | null;
+    metaTemplateLanguage?: string | null;
   }) {
     const total = data.contacts.length;
+    const insertData: any = {
+      organization_id: data.organizationId,
+      name: data.name,
+      message_template: data.messageTemplate,
+      whatsapp_connection_id: data.whatsappConnectionId,
+      delay_ms: data.delayMs && data.delayMs > 0 ? data.delayMs : 3000,
+      status: 'draft',
+      total,
+      created_by: data.createdBy || null,
+    };
+    if (data.metaTemplateName) insertData.meta_template_name = data.metaTemplateName;
+    if (data.metaTemplateLanguage) insertData.meta_template_language = data.metaTemplateLanguage;
+
     const { data: campaign, error } = await supabase
       .from('campaigns')
-      .insert({
-        organization_id: data.organizationId,
-        name: data.name,
-        message_template: data.messageTemplate,
-        whatsapp_connection_id: data.whatsappConnectionId,
-        delay_ms: data.delayMs && data.delayMs > 0 ? data.delayMs : 3000,
-        status: 'draft',
-        total,
-        created_by: data.createdBy || null,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -277,8 +284,30 @@ export class CampaignsService {
       throw new Error('La campaña no tiene una conexión WhatsApp asignada');
     }
 
-    const connection = multiWhatsAppService.getConnection(campaign.whatsapp_connection_id);
+    // Try Baileys first
+    let connection = multiWhatsAppService.getConnection(campaign.whatsapp_connection_id);
+    let isCloudApi = false;
+
+    // If not found in Baileys, try Cloud API
     if (!connection || connection.status !== 'connected') {
+      const { data: platformConn } = await supabase
+        .from('platform_connections')
+        .select('*')
+        .eq('id', campaign.whatsapp_connection_id)
+        .eq('status', 'connected')
+        .single();
+
+      if (platformConn) {
+        await whatsappCloudService.initializeConnection(platformConn);
+        const cloudConn = whatsappCloudService['connections'].get(platformConn.id);
+        if (cloudConn) {
+          connection = cloudConn as any;
+          isCloudApi = true;
+        }
+      }
+    }
+
+    if (!connection || (connection as any).status !== 'connected') {
       throw new Error('La conexión WhatsApp no está conectada. Verifica el estado del dispositivo.');
     }
 
@@ -291,7 +320,7 @@ export class CampaignsService {
     this.activeSends.set(campaignId, state);
 
     // No esperar el envío completo: se procesa en segundo plano
-    this.runSendLoop(state, campaign, connection).catch((err) => {
+    this.runSendLoop(state, campaign, connection, isCloudApi).catch((err) => {
       console.error('[Campaigns] Send loop error:', err);
       this.activeSends.delete(campaignId);
     });
@@ -329,8 +358,10 @@ export class CampaignsService {
     return { success: true, status: 'sending' };
   }
 
-  private async runSendLoop(state: SendState, campaign: any, connection: any) {
-    const adapter = multiWhatsAppService.createWaServiceAdapter(connection);
+  private async runSendLoop(state: SendState, campaign: any, connection: any, isCloudApi = false) {
+    const adapter = isCloudApi
+      ? whatsappCloudService.createServiceAdapter(connection)
+      : multiWhatsAppService.createWaServiceAdapter(connection);
     const delayMs = Math.max(Number(campaign.delay_ms) || 3000, 500);
 
     try {
@@ -356,7 +387,15 @@ export class CampaignsService {
 
         try {
           const text = renderTemplate(campaign.message_template, contact.variables);
-          await adapter.sendTextMessage(contact.phone, text);
+          if (isCloudApi && campaign.meta_template_name) {
+            const langCode = campaign.meta_template_language || 'es';
+            const renderedText = renderTemplate(campaign.message_template, contact.variables);
+            await (adapter as any).sendTemplateMessage!(contact.phone, campaign.meta_template_name, langCode, [
+              { type: 'body', parameters: [{ type: 'text', text: renderedText }] },
+            ]);
+          } else {
+            await adapter.sendTextMessage(contact.phone, text);
+          }
           await supabase
             .from('campaign_contacts')
             .update({ status: 'sent', sent_at: new Date().toISOString(), error_message: null })

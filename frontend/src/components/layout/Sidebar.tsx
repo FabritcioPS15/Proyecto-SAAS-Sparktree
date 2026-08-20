@@ -2,13 +2,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  LayoutDashboard, Users, MessageSquare, BarChart3, Settings,
+  LayoutDashboard, Users, MessageSquare, BarChart3,
   MessageCircle, CreditCard, TrendingUp, QrCode, Store,
   ChevronLeft, ChevronRight, ShieldAlert, BadgeInfo, ChevronDown,
   ShoppingBag, Tag, MessageSquareText, UserCheck, Clock,
   Bot, Bell, Webhook, CreditCard as PaymentIcon,
   Activity, Lock, History, Globe, DollarSign, User, Database,
-  LogOut, Brain, Mail, Calendar as CalendarIcon, Smartphone,
+  LogOut, Brain, Mail, Calendar as CalendarIcon,
   FileText, Megaphone
 } from 'lucide-react';
 import { SiDialogflow } from 'react-icons/si';
@@ -77,8 +77,8 @@ const empresaMenuItemsExpanded: MenuItem[] = [
         path: '/whatsapp-qr',
         icon: FaWhatsapp,
         subItems: [
-          { label: 'QR', path: '/whatsapp-qr' },
-          { label: 'Multi', path: '/multi-whatsapp' },
+          { label: 'Conexiones', path: '/whatsapp-qr' },
+          { label: 'Gestionar', path: '/multi-whatsapp' },
         ],
       },
       { label: 'Instagram', path: '/instagram-config', icon: FaInstagram },
@@ -312,10 +312,9 @@ export const Sidebar = ({ onCollapsedChange, isMobileOpen, onMobileClose }: Side
                                 <div key={sub.path}>
                                   <button
                                     onClick={() => toggleExpanded(sub.path)}
-                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200 ${
-                                      isSubActive
-                                        ? 'text-slate-900 dark:text-accent-300 font-semibold bg-slate-100 dark:bg-accent-500/10'
-                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-accent-300 hover:bg-slate-50 dark:hover:bg-white/5 font-medium'
+                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200 ${isSubActive
+                                      ? 'text-slate-900 dark:text-accent-300 font-semibold bg-slate-100 dark:bg-accent-500/10'
+                                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-accent-300 hover:bg-slate-50 dark:hover:bg-white/5 font-medium'
                                       }`}
                                   >
                                     {SubIcon && <SubIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />}
@@ -331,11 +330,10 @@ export const Sidebar = ({ onCollapsedChange, isMobileOpen, onMobileClose }: Side
                                             key={nested.path}
                                             to={nested.path}
                                             onClick={() => { if (mobile && onMobileClose) onMobileClose(); }}
-                                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200 ${
-                                              isNestedActive
-                                                  ? 'text-slate-900 dark:text-accent-300 font-semibold bg-slate-100 dark:bg-accent-500/10'
-                                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-accent-300 hover:bg-slate-50 dark:hover:bg-white/5 font-medium'
-                                            }`}
+                                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200 ${isNestedActive
+                                              ? 'text-slate-900 dark:text-accent-300 font-semibold bg-slate-100 dark:bg-accent-500/10'
+                                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-accent-300 hover:bg-slate-50 dark:hover:bg-white/5 font-medium'
+                                              }`}
                                           >
                                             <span>{nested.label}</span>
                                           </Link>
@@ -352,11 +350,10 @@ export const Sidebar = ({ onCollapsedChange, isMobileOpen, onMobileClose }: Side
                                 key={sub.path}
                                 to={sub.path}
                                 onClick={() => { if (mobile && onMobileClose) onMobileClose(); }}
-                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200 ${
-                                  isSubActive
-                                      ? 'text-slate-900 dark:text-accent-300 font-semibold bg-slate-100 dark:bg-accent-500/10'
-                                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-accent-300 hover:bg-slate-50 dark:hover:bg-white/5 font-medium'
-                                }`}
+                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200 ${isSubActive
+                                  ? 'text-slate-900 dark:text-accent-300 font-semibold bg-slate-100 dark:bg-accent-500/10'
+                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-accent-300 hover:bg-slate-50 dark:hover:bg-white/5 font-medium'
+                                  }`}
                               >
                                 {SubIcon && <SubIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />}
                                 <span>{sub.label}</span>

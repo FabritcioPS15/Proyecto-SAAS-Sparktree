@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader } from './Loader';
 
 export interface Column<T> {
   key: keyof T | string;
@@ -35,7 +36,7 @@ export function DataTable<T extends Record<string, any>>({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white"></div>
+        <Loader size="md" />
       </div>
     );
   }

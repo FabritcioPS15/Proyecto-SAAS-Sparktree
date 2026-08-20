@@ -147,7 +147,7 @@ router.post('/', async (req: any, res: any) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
-    const { name, messageTemplate, whatsappConnectionId, scheduleType, scheduledAt, recurringCron, recurringTimezone, delayMs, contacts, imageBase64 } = req.body;
+    const { name, messageTemplate, whatsappConnectionId, scheduleType, scheduledAt, recurringCron, recurringTimezone, delayMs, contacts, imageBase64, metaTemplateName, metaTemplateLanguage } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'El nombre del recordatorio es obligatorio' });
@@ -172,6 +172,8 @@ router.post('/', async (req: any, res: any) => {
       contacts,
       createdBy: (req as any).userId || null,
       imageBase64: imageBase64 || null,
+      metaTemplateName: metaTemplateName || null,
+      metaTemplateLanguage: metaTemplateLanguage || 'es',
     });
 
     res.status(201).json(reminder);

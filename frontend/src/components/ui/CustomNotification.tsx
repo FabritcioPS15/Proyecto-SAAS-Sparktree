@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Notification as NotificationType } from 'reapop';
-import { CheckCircle, AlertTriangle, Info, X, ShieldAlert, Sparkles, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Info, X, ShieldAlert, Sparkles } from 'lucide-react';
+import { Loader } from './Loader';
 
 type CustomNotificationProps = {
   notification: NotificationType;
@@ -72,7 +73,7 @@ export const CustomNotification = ({
     error:   <ShieldAlert className="w-5 h-5 text-red-500" />,
     warning: <AlertTriangle className="w-5 h-5 text-amber-500" />,
     info:    <Sparkles className="w-5 h-5 text-blue-500" />,
-    loading: <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />,
+    loading: <Loader size="sm" />,
     none:    <Info className="w-5 h-5 text-gray-400" />,
   };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Trash2, Info, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { Loader } from './Loader';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -74,7 +75,7 @@ export const ConfirmDialog = ({
                 variantStyles[variant].button
               )}
             >
-              {isLoading ? 'Procesando...' : confirmText}
+              {isLoading ? <span className="flex items-center justify-center gap-2"><Loader size="xs" /> Procesando...</span> : confirmText}
             </button>
           </div>
         </div>

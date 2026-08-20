@@ -10,7 +10,7 @@ export interface StatusBadgeProps {
 
 const statusLabels: Record<string, string> = {
   pending: 'Pendiente', paid: 'Pagado', sent: 'Enviado', delivered: 'Entregado',
-  cancelled: 'Cancelado', active: 'Activo', inactive: 'Inactivo',
+  cancelled: 'Cancelado', active: 'Activo', inactive: 'Inactivo', failed: 'Fallido',
   available: 'Disponible', busy: 'Ocupado', offline: 'Offline',
   error: 'Error', success: 'Éxito', warning: 'Advertencia', info: 'Info',
   connected: 'Conectado', connecting: 'Conectando', disconnected: 'Desconectado',
@@ -19,7 +19,7 @@ const statusLabels: Record<string, string> = {
 
 const defaultVariants: Record<string, string> = {
   pending: 'warning', paid: 'success', sent: 'info', delivered: 'success',
-  cancelled: 'danger', active: 'primary', inactive: 'default',
+  cancelled: 'danger', active: 'primary', inactive: 'default', failed: 'danger',
   available: 'success', busy: 'warning', offline: 'default',
   error: 'danger', success: 'success', warning: 'warning', info: 'info',
   connected: 'success', connecting: 'warning', disconnected: 'danger',

@@ -187,8 +187,9 @@ export async function handleIncomingMessage(
           });
           await saveOutgoingMessage('media', { url, caption, type, fileName: node.data?.fileName, viewOnce: !!node.data?.isViewOnce }, res);
         }
-      } else if (node.type === 'capture') {
-        const res = await waService.sendTextMessage(senderPhone, node.data?.question || '?', { jid: contactJid });
+      } else if (node.type === 'capture' || node.type === 'capture_phone') {
+        const question = node.data?.question || (node.type === 'capture_phone' ? 'Por favor, ingresa tu número de celular:' : '?');
+        const res = await waService.sendTextMessage(senderPhone, question, { jid: contactJid });
         await saveOutgoingMessage('capture', node.data?.question, res);
         await supabase
           .from('contacts')

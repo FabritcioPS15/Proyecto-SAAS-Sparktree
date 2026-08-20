@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import {
   Plus, Search, Trash2, Edit, BookOpen,
   Upload, Link, FileText, Database, ChevronRight,
-  Play, Check, X, Loader2
+  Play, Check, X
 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { getKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, getKnowledgeDocuments, addDocument, deleteDocument, ragQuery } from '../../../services/api';
 
@@ -184,7 +185,7 @@ export const KnowledgeBases = () => {
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              <Loader size="md" />
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12">
@@ -248,7 +249,7 @@ export const KnowledgeBases = () => {
                   <h3 className="font-black text-xs text-slate-900 dark:text-white uppercase tracking-widest mb-4">Documentos</h3>
                   {docsLoading ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                       <Loader size="sm" />
                     </div>
                   ) : documents.length === 0 ? (
                     <div className="text-center py-8 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
@@ -303,7 +304,7 @@ export const KnowledgeBases = () => {
                       onKeyDown={e => e.key === 'Enter' && handleRagQuery()} />
                     <button onClick={handleRagQuery} disabled={ragLoading}
                       className="px-5 py-2.5 bg-teal-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-teal-600 transition-all disabled:opacity-50 flex items-center gap-2">
-                      {ragLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                      {ragLoading ? <Loader size="xs" /> : <Play className="w-3.5 h-3.5" />}
                       Probar
                     </button>
                   </div>

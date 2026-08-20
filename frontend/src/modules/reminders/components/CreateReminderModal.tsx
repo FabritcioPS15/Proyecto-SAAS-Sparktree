@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud, FileSpreadsheet, ChevronLeft, ChevronRight, Send,
-  Smartphone, Zap, Check, Loader2, Wand2, Calendar, RotateCcw, Clock, FileText, Download, Image, X
+  Smartphone, Zap, Check, Wand2, Calendar, RotateCcw, Clock, FileText, Download, Image, X
 } from 'lucide-react';
 import { Modal } from '../../../components/ui/Modal';
+import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { parseReminderExcel, createReminder, sendReminder, getMessageTemplates } from '../../../services/api';
 import api from '../../../services/api';
@@ -57,6 +58,13 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
   const { addNotification } = useNotifications();
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = () => {
+    if (textareaRef.current && backdropRef.current) {
+      backdropRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
 
   const [step, setStep] = useState(1);
   const [parsing, setParsing] = useState(false);
@@ -79,6 +87,8 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [metaTemplateName, setMetaTemplateName] = useState('');
+  const [metaTemplateLanguage, setMetaTemplateLanguage] = useState('es');
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -99,15 +109,35 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
     setSelectedTemplateId('');
     setImageFile(null);
     setImagePreview(null);
+    setMetaTemplateName('');
+    setMetaTemplateLanguage('es');
     (async () => {
       try {
+        // Load Baileys connections
         const connRes = await api.get('/whatsapp-connections');
         const connData = connRes.data;
         const connList = Array.isArray(connData) ? connData : (connData?.connections || connData?.data || []);
+
+        // Load Cloud API connections
+        try {
+          const cloudRes = await api.get('/platform/connections');
+          const cloudData = cloudRes.data;
+          const cloudList = Array.isArray(cloudData) ? cloudData : (cloudData?.connections || cloudData?.data || []);
+          const cloudWhatsapp = cloudList
+            .filter((c: any) => c.platform_type === 'whatsapp' && c.status === 'connected')
+            .map((c: any) => ({
+              id: c.id,
+              display_name: `${c.display_name || 'Cloud API'} (Cloud)`,
+              phone_number: c.platform_account_id || '',
+              status: c.status,
+              source: 'cloud'
+            }));
+          connList.push(...cloudWhatsapp);
+        } catch { /* cloud API not available */ }
+
         setConnections(connList);
         const connected = connList.find((c: any) => c.status === 'connected');
         setConnectionId(connected?.id || connList[0]?.id || '');
-        console.log('[Reminders] Conexiones cargadas:', connList.length, connList.map((c: any) => `${c.display_name} (${c.status})`));
       } catch (e: any) {
         console.error('[Reminders] Error cargando conexiones:', e?.response?.data || e?.message || e);
         setConnections([]);
@@ -165,16 +195,16 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
   const insertVariable = (variable: string) => {
     const el = textareaRef.current;
     if (!el) {
-      setMessage((prev) => prev + `{{${variable}}}`);
+      setMessage((prev) => prev + `\u200B${variable}\u200B`);
       return;
     }
     const start = el.selectionStart ?? message.length;
     const end = el.selectionEnd ?? message.length;
-    const next = message.slice(0, start) + `{{${variable}}}` + message.slice(end);
+    const next = message.slice(0, start) + `\u200B${variable}\u200B` + message.slice(end);
     setMessage(next);
     requestAnimationFrame(() => {
       el.focus();
-      const pos = start + variable.length + 4;
+      const pos = start + variable.length + 2;
       el.setSelectionRange(pos, pos);
     });
   };
@@ -222,7 +252,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
 
   const renderPreview = () => {
     if (!parsed || parsed.rows.length === 0 || !message) return '';
-    let preview = message;
+    let preview = message.replace(/\u200B(.*?)\u200B/g, '{{$1}}');
     const sample = parsed.rows[0];
     for (const [key, value] of Object.entries(sample.variables)) {
       preview = preview.replace(new RegExp(`\\{\\{\\s*${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'gi'), value);
@@ -241,6 +271,11 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
       addNotification({ type: 'error', title: 'Falta el mensaje', message: 'Redacta el mensaje a enviar.' });
       return;
     }
+    const isCloudConnection = connections.find((c) => c.id === connectionId)?.source === 'cloud';
+    if (isCloudConnection && !metaTemplateName.trim()) {
+      addNotification({ type: 'error', title: 'Falta el template Meta', message: 'Cloud API requiere un template aprobado por Meta para mensajes proactivos.' });
+      return;
+    }
     setCreating(true);
     try {
       let scheduledAt = null;
@@ -251,6 +286,13 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
       } else if (scheduleType === 'recurring') {
         const selectedOpt = recurringOptions.find((o) => o.value === recurringOption);
         recurringCron = selectedOpt?.cron || '0 9 * * *';
+        // Use today (or tomorrow if past) at the selected time for the first run
+        const now = new Date();
+        const [hours, minutes] = (scheduledTime || '09:00').split(':').map(Number);
+        const firstRun = new Date();
+        firstRun.setHours(hours, minutes, 0, 0);
+        if (firstRun <= now) firstRun.setDate(firstRun.getDate() + 1);
+        scheduledAt = firstRun.toISOString();
       }
 
       let imageBase64 = null;
@@ -260,7 +302,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
 
       const reminder = await createReminder({
         name: name.trim(),
-        messageTemplate: message.trim(),
+        messageTemplate: message.trim().replace(/\u200B(.*?)\u200B/g, '{{$1}}'),
         whatsappConnectionId: connectionId || null,
         scheduleType,
         scheduledAt,
@@ -268,6 +310,8 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
         delayMs: Number(delayMs) || 6000,
         contacts: parsed.rows,
         imageBase64,
+        metaTemplateName: metaTemplateName || undefined,
+        metaTemplateLanguage: metaTemplateName ? metaTemplateLanguage : undefined,
       });
       addNotification({ type: 'success', title: 'Recordatorio creado', message: `Se cargaron ${parsed.total} contactos.` });
 
@@ -303,6 +347,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
       open={open}
       onClose={onClose}
       size="full"
+      className="!max-h-[85vh]"
       title="Nuevo Recordatorio"
       subtitle="Carga contactos, personaliza el mensaje y prográma el envío automático"
       icon={<Clock className="w-5 h-5 text-accent-500" />}
@@ -337,7 +382,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
               e.preventDefault();
               handleFile(e.dataTransfer.files?.[0]);
             }}
-            className="group border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-10 flex flex-col items-center justify-center text-center transition-all hover:border-accent-500/60 hover:bg-accent-500/5 cursor-pointer"
+            className="group border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all hover:border-accent-500/60 hover:bg-accent-500/5 cursor-pointer"
             onClick={() => fileRef.current?.click()}
           >
             <input
@@ -349,7 +394,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
             />
             {parsing ? (
               <>
-                <Loader2 className="w-10 h-10 text-accent-500 animate-spin mb-3" />
+                <Loader size="md" className="mb-3" />
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Procesando archivo...</p>
               </>
             ) : (
@@ -366,14 +411,6 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
               </>
             )}
           </div>
-
-          <div className="flex items-center gap-2 px-4 py-3 bg-blue-500/5 border border-blue-500/20 rounded-xl text-xs text-blue-600 dark:text-blue-400">
-            <Wand2 className="w-4 h-4 shrink-0" />
-            <span>
-              Las columnas del Excel se usan como variables. Ejemplos: <code className="font-mono bg-blue-500/10 px-1 rounded">{'{{nombre_completo}}'}</code>, <code className="font-mono bg-blue-500/10 px-1 rounded">{'{{placa}}'}</code>, <code className="font-mono bg-blue-500/10 px-1 rounded">{'{{fecha_revision}}'}</code>, <code className="font-mono bg-blue-500/10 px-1 rounded">{'{{dias_restantes}}'}</code>
-            </span>
-          </div>
-
           <button
             onClick={downloadTemplate}
             className="flex items-center gap-3 px-4 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer group"
@@ -432,7 +469,9 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
           <div>
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mensaje</label>
-              <span className="text-[10px] text-slate-400">{message.length} caracteres</span>
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md text-[10px] font-bold">
+                {message.replace(/\u200B/g, '').trim().split(/\s+/).filter(w => w.length > 0).length} palabras
+              </span>
             </div>
 
             {templates.length > 0 && (
@@ -448,7 +487,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
                     if (tplId) {
                       const tpl = templates.find((t) => t.id === tplId);
                       if (tpl) {
-                        setMessage(tpl.content);
+                        setMessage(tpl.content.replace(/\{\{(.*?)\}\}/g, '\u200B$1\u200B'));
                         if (!name.trim()) setName(tpl.name);
                       }
                     }
@@ -465,27 +504,61 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
               </div>
             )}
 
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={6}
-              placeholder={`Estimado(a) {{nombre_completo}}, su vehículo con placa {{placa}} pasó su revisión el día {{fecha_revision}} y está próxima a vencer.\n\nLe invitamos a pasar su revisión técnica con nosotros. Si es así, escribe "REVISIÓN" para que podamos atenderlo.\n\nSi ya pasó en otro lugar, puede dar omisión a este mensaje.`}
-              className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm text-slate-900 dark:text-white placeholder-slate-400/60 font-mono leading-relaxed resize-none"
-            />
+            <div className="relative w-full mt-1.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus-within:border-accent-500/50 focus-within:ring-4 focus-within:ring-accent-500/5 transition-all">
+              {/* Backdrop for syntax highlighting */}
+              <div
+                ref={backdropRef}
+                className="absolute inset-0 px-4 py-3 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words pointer-events-none overflow-hidden"
+              >
+                {!message ? (
+                  <span className="text-slate-400/60">Escribe tu mensaje aquí... Usa los botones de abajo para insertar datos del contacto</span>
+                ) : (
+                  message.split(/(\u200B.*?\u200B)/g).map((part: string, i: number) => {
+                    if (part.startsWith('\u200B') && part.endsWith('\u200B')) {
+                      const variable = part.slice(1, -1);
+                      return <span key={i} className="text-accent-600 dark:text-accent-400 bg-accent-500/10">{variable}</span>;
+                    }
+                    return <span key={i} className="text-slate-900 dark:text-white">{part}</span>;
+                  })
+                )}
+                {message.endsWith('\n') && <br />}
+              </div>
+
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  val = val.replace(/\{\{(.*?)\}\}/g, '\u200B$1\u200B');
+                  setMessage(val);
+                }}
+                onScroll={handleScroll}
+                rows={4}
+                spellCheck={false}
+                className="w-full h-full px-4 py-3 bg-transparent text-transparent caret-slate-900 dark:caret-white outline-none font-mono text-sm leading-relaxed resize-none relative z-10"
+              />
+            </div>
             {parsed.headers.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <span className="text-[10px] text-slate-400 self-center mr-1">Variables:</span>
-                {parsed.headers.map((h) => (
-                  <button
-                    key={h}
-                    onClick={() => insertVariable(h)}
-                    className="px-2 py-1 text-[10px] font-mono font-bold rounded-lg bg-accent-500/10 text-accent-600 dark:text-accent-400 hover:bg-accent-500/20 transition-all border border-accent-500/20"
-                    title={`Insertar {{${h}}}`}
-                  >
-                    {'{{'}{h}{'}}'}
-                  </button>
-                ))}
+              <div className="mt-2.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-5 h-5 rounded-md bg-accent-500/10 flex items-center justify-center">
+                    <span className="text-accent-500 text-[10px] font-black">+</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Toca para insertar</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.headers.map((h) => (
+                    <button
+                      key={h}
+                      onClick={() => insertVariable(h)}
+                      className="group flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-white/5 dark:to-white/[0.02] text-slate-600 dark:text-slate-300 hover:from-accent-500/10 hover:to-accent-500/5 hover:text-accent-600 dark:hover:text-accent-400 transition-all duration-200 border border-slate-200/60 dark:border-white/10 hover:border-accent-500/30 hover:shadow-sm active:scale-95"
+                      title={`Insertar: ${h.replace(/_/g, ' ')}`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-400/60 group-hover:bg-accent-500 transition-colors" />
+                      {h.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -503,7 +576,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
             />
             {imagePreview ? (
               <div className="mt-1.5 relative inline-block">
-                <img src={imagePreview} alt="Vista previa" className="w-32 h-32 object-cover rounded-xl border border-slate-200 dark:border-slate-700" />
+                <img src={imagePreview} alt="Vista previa" className="w-24 h-24 object-cover rounded-xl border border-slate-200 dark:border-slate-700" />
                 <button
                   onClick={removeImage}
                   className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-all shadow-lg"
@@ -526,58 +599,86 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
             )}
           </div>
 
-          <div>
-            <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Smartphone className="w-3 h-3" /> Conexión WhatsApp
-            </label>
-            <select
-              value={connectionId}
-              onChange={(e) => setConnectionId(e.target.value)}
-              className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
-            >
-              <option value="">{connections.length === 0 ? 'No hay conexiones' : 'Seleccionar conexión'}</option>
-              {connections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.display_name}{c.phone_number ? ' · ' + c.phone_number : ''} ({c.status})
-                </option>
-              ))}
-            </select>
-            {connections.length === 0 && (
-              <p className="text-[10px] text-amber-500 mt-1">Conecta un WhatsApp en el módulo de Conexiones antes de enviar.</p>
-            )}
-            {connectedCount === 0 && connections.length > 0 && (
-              <p className="text-[10px] text-amber-500 mt-1">Ninguna conexión está conectada actualmente.</p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Smartphone className="w-3 h-3" /> Conexión WhatsApp
+              </label>
+              <select
+                value={connectionId}
+                onChange={(e) => setConnectionId(e.target.value)}
+                className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+              >
+                <option value="">{connections.length === 0 ? 'No hay conexiones' : 'Seleccionar conexión'}</option>
+                {connections.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.display_name}{c.phone_number ? ' · ' + c.phone_number : ''} ({c.status})
+                  </option>
+                ))}
+              </select>
+              {connections.length === 0 && (
+                <p className="text-[10px] text-amber-500 mt-1">Conecta un WhatsApp antes de enviar.</p>
+              )}
+              {connectedCount === 0 && connections.length > 0 && (
+                <p className="text-[10px] text-amber-500 mt-1">Ninguna conexión en línea.</p>
+              )}
+              {connections.find((c) => c.id === connectionId)?.source === 'cloud' && (
+                <div className="mt-3">
+                  <label className="text-[11px] font-bold text-violet-500 uppercase tracking-wider">
+                    Cloud API — Nombre del template Meta
+                  </label>
+                  <input
+                    type="text"
+                    value={metaTemplateName}
+                    onChange={(e) => setMetaTemplateName(e.target.value)}
+                    placeholder="ej: hola_mundo"
+                    className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+                  />
+                  <p className="text-[10px] text-violet-400 mt-1">
+                    Cloud API requiere un template aprobado por Meta para mensajes proactivos. El mensaje se enviará como parámetro del template.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Velocidad de envío
+              </label>
+              <select
+                value={delayMs}
+                onChange={(e) => setDelayMs(e.target.value)}
+                className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+              >
+                {delayOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">Recomendado: 6s para evitar bloqueos.</p>
+            </div>
           </div>
 
-          <div>
-            <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Zap className="w-3 h-3" /> Velocidad de envío
-            </label>
-            <select
-              value={delayMs}
-              onChange={(e) => setDelayMs(e.target.value)}
-              className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
-            >
-              {delayOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            <p className="text-[10px] text-slate-400 mt-1">Recomendado: 6s para evitar bloqueos de WhatsApp.</p>
-          </div>
-
-          <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Vista previa (primer contacto)</p>
-            <div className="flex items-start gap-2">
-              <div className="w-8 h-8 rounded-full bg-accent-500/10 flex items-center justify-center shrink-0">
-                <Smartphone className="w-4 h-4 text-accent-500" />
+          <div className="px-4 py-4 bg-[#efeae2] dark:bg-[#0b141a] bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-cover bg-center bg-blend-soft-light rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-3 bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 rounded-lg backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Vista previa</p>
+              <div className="flex items-center gap-1">
+                <Smartphone className="w-3 h-3 text-slate-400" />
+                <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">{parsed.rows[0].phone}</span>
               </div>
-              <div className="flex-1">
-                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{parsed.rows[0].phone}</p>
+            </div>
+
+            <div className="flex flex-col items-end">
+              <div className="max-w-[85%] bg-[#d9fdd3] dark:bg-[#005c4b] rounded-2xl rounded-tr-none p-1.5 shadow-sm relative">
                 {imagePreview && (
-                  <img src={imagePreview} alt="Imagen" className="w-32 h-32 object-cover rounded-lg mb-2" />
+                  <img src={imagePreview} alt="Imagen adjunta" className="w-full h-auto max-h-48 object-cover rounded-xl mb-1" />
                 )}
-                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{renderPreview() || 'Escribe un mensaje para ver la vista previa...'}</p>
+                <div className="px-1.5 pb-4">
+                  <p className="text-[13px] leading-relaxed text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap">{renderPreview() || 'Escribe un mensaje...'}</p>
+                </div>
+                <div className="absolute bottom-1.5 right-2 text-[9px] text-[#667781] dark:text-[#8696a0] flex items-center gap-1">
+                  12:00
+                  <svg viewBox="0 0 16 11" width="14" height="10" fill="currentColor" className="text-[#53bdeb]"><path d="M11.8 1.6L13.8 3.6L6.5 10.9L2.5 6.9L4.5 4.9L6.5 6.9L11.8 1.6ZM16 3.6L8.7 10.9L6.7 8.9L14 1.6L16 3.6ZM4.2 10.9L0 6.7L2 4.7L6.2 8.9L4.2 10.9Z"></path></svg>
+                </div>
               </div>
             </div>
           </div>
@@ -608,11 +709,10 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
                 <button
                   key={opt.value}
                   onClick={() => setScheduleType(opt.value)}
-                  className={`px-4 py-4 rounded-xl border-2 text-center transition-all ${
-                    isActive
+                  className={`px-4 py-4 rounded-xl border-2 text-center transition-all ${isActive
                       ? 'border-accent-500 bg-accent-500/10'
                       : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
+                    }`}
                 >
                   <Icon className={`w-6 h-6 mx-auto mb-2 ${isActive ? 'text-accent-500' : 'text-slate-400'}`} />
                   <p className={`text-sm font-bold ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>{opt.label}</p>
@@ -654,11 +754,10 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
                   <button
                     key={opt.value}
                     onClick={() => setRecurringOption(opt.value)}
-                    className={`w-full px-4 py-3 rounded-xl border-2 text-left transition-all ${
-                      recurringOption === opt.value
+                    className={`w-full px-4 py-3 rounded-xl border-2 text-left transition-all ${recurringOption === opt.value
                         ? 'border-accent-500 bg-accent-500/10'
                         : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                    }`}
+                      }`}
                   >
                     <p className={`text-sm font-bold ${recurringOption === opt.value ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>{opt.label}</p>
                   </button>
@@ -708,8 +807,8 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Contactos</p>
             </div>
             <div className="px-4 py-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center">
-              <p className="text-2xl font-black text-emerald-500">{message.replace(/\{\{\s*[\w\s-]+\s*\}\}/g, '').length}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Caracteres</p>
+              <p className="text-2xl font-black text-emerald-500">{message.replace(/\u200B/g, '').trim().split(/\s+/).filter(w => w.length > 0).length}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Palabras</p>
             </div>
             <div className="px-4 py-4 bg-blue-500/5 border border-blue-500/20 rounded-xl text-center">
               <p className="text-2xl font-black text-blue-500">{connections.find((c) => c.id === connectionId)?.status === 'connected' ? '✓' : '—'}</p>
@@ -724,7 +823,15 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
 
           <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mensaje</p>
-            <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{message}</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono">
+              {message.replace(/\u200B(.*?)\u200B/g, '{{$1}}').split(/(\{\{[\w\s-]+\}\})/g).map((part: string, i: number) => {
+                if (part.startsWith('{{') && part.endsWith('}}')) {
+                  const variable = part.slice(2, -2).trim();
+                  return <span key={i} className="font-bold text-accent-600 dark:text-accent-400 bg-accent-500/10 px-1 rounded">{variable}</span>;
+                }
+                return <span key={i}>{part}</span>;
+              })}
+            </p>
           </div>
 
           {imagePreview && (
@@ -758,7 +865,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
               disabled={creating}
               className="flex items-center gap-2 px-6 h-11 rounded-xl text-sm font-black bg-gradient-to-r from-accent-500 to-emerald-500 text-black hover:opacity-90 transition-all shadow-lg shadow-accent-500/20 disabled:opacity-50"
             >
-              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {creating ? <Loader size="xs" /> : <Send className="w-4 h-4" />}
               {creating ? 'Creando...' : sendNow && scheduleType === 'now' ? 'Crear y Enviar' : 'Crear Recordatorio'}
             </button>
           </div>

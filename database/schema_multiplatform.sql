@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.platform_connections (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  platform_type text NOT NULL CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'tiktok')),
+  platform_type text NOT NULL CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'tiktok')),
   display_name text NOT NULL,
   platform_account_id text, -- e.g., phone number, bot username, instagram business id
   status text DEFAULT 'disconnected' CHECK (status IN ('connected', 'disconnected', 'connecting', 'error')),
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS public.platform_connections (
 -- ========================================
 -- Add platform-specific identifier to contacts
 ALTER TABLE public.contacts 
-ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'tiktok')),
+ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'tiktok')),
 ADD COLUMN IF NOT EXISTS platform_user_id text, -- e.g., telegram user_id, instagram igid
 ADD COLUMN IF NOT EXISTS platform_connection_id uuid REFERENCES public.platform_connections(id) ON DELETE SET NULL;
 
@@ -36,14 +36,14 @@ ADD COLUMN IF NOT EXISTS platform_connection_id uuid REFERENCES public.platform_
 -- UPDATE CONVERSATIONS TABLE FOR MULTI-PLATFORM
 -- ========================================
 ALTER TABLE public.conversations
-ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'tiktok')),
+ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'tiktok')),
 ADD COLUMN IF NOT EXISTS platform_connection_id uuid REFERENCES public.platform_connections(id) ON DELETE SET NULL;
 
 -- ========================================
 -- UPDATE MESSAGES TABLE FOR MULTI-PLATFORM
 -- ========================================
 ALTER TABLE public.messages
-ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'tiktok')),
+ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'tiktok')),
 ADD COLUMN IF NOT EXISTS platform_connection_id uuid REFERENCES public.platform_connections(id) ON DELETE SET NULL,
 ADD COLUMN IF NOT EXISTS platform_message_id text; -- Platform-specific message ID
 
@@ -64,14 +64,14 @@ ADD CONSTRAINT unique_flow_connection UNIQUE (flow_id, whatsapp_connection_id, p
 -- UPDATE FLOW EXECUTIONS FOR MULTI-PLATFORM
 -- ========================================
 ALTER TABLE public.flow_executions
-ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'tiktok')),
+ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'tiktok')),
 ADD COLUMN IF NOT EXISTS platform_connection_id uuid REFERENCES public.platform_connections(id) ON DELETE SET NULL;
 
 -- ========================================
 -- UPDATE ANALYTICS FOR MULTI-PLATFORM
 -- ========================================
 ALTER TABLE public.analytics
-ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'telegram', 'instagram', 'tiktok')),
+ADD COLUMN IF NOT EXISTS platform_type text DEFAULT 'whatsapp' CHECK (platform_type IN ('whatsapp', 'whatsapp_cloud', 'telegram', 'instagram', 'tiktok')),
 ADD COLUMN IF NOT EXISTS platform_connection_id uuid REFERENCES public.platform_connections(id) ON DELETE SET NULL;
 
 -- ========================================

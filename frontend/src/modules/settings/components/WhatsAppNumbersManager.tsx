@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useWhatsApp } from '../../../contexts/WhatsAppContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Plus, Trash2, Smartphone, QrCode, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 
 export const WhatsAppNumbersManager = () => {
   const { addNumber, removeNumber, getNumbersByOrganization, canAddMoreNumbers, loading } = useWhatsApp();
@@ -59,7 +60,7 @@ export const WhatsAppNumbersManager = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-500"></div>
+        <Loader size="md" />
       </div>
     );
   }

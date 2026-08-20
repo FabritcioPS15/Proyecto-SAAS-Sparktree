@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { FaTiktok } from 'react-icons/fa';
 import {
   CheckCircle, XCircle, AlertTriangle, AlertCircle, ExternalLink, RefreshCw,
-  LogOut, ArrowRight, Loader2, Info, Clock, MessageSquare, Shield
+  LogOut, ArrowRight, Info, Clock, MessageSquare, Shield
 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageContainer } from '../../../components/layout/PageContainer';
@@ -316,7 +317,7 @@ export const TikTokConfig = () => {
                   className="w-full h-12 flex items-center justify-center gap-3 bg-gradient-to-r from-black to-gray-800 hover:from-gray-800 hover:to-gray-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   {loading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> {loadingLabel}</>
+                    <><Loader size="xs" /> {loadingLabel}</>
                   ) : (
                     <><FaTiktok size={16} /> Conectar cuenta de TikTok Business</>
                   )}

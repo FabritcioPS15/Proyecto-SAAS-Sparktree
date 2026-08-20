@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
     if (connectionMethod !== undefined) updates.whatsapp_connection_method = connectionMethod;
 
     const { error } = await supabase.from('organizations').update(updates).eq('id', orgId);
-    
+
     if (error) throw error;
     res.status(200).json({ message: 'Settings saved successfully' });
   } catch (error) {

@@ -25,6 +25,7 @@ import debugRoutes from './modules/system/debug.routes';
 import multiWhatsAppRoutes from './modules/integrations/multiWhatsApp.routes';
 import platformRoutes from './modules/integrations/platform.routes';
 import webhookRoutes from './modules/system/webhooks.routes';
+import { verifyWebhook, handleIncomingWebhook } from './modules/system/webhookController';
 import assignmentRoutes from './modules/chat/assignment.routes';
 import internalNotesRoutes from './modules/chat/internalNotes.routes';
 import inboxRoutes from './modules/chat/inbox.routes';
@@ -269,7 +270,9 @@ app.use('/api/auth', authRoutes);
 import { authenticateToken } from './core/middleware/auth';
 import { tenantMiddleware } from './core/middleware/tenant';
 
-// Webhook routes (no auth required)
+// Webhook routes (no auth required - Meta sends no auth headers)
+app.get('/api/webhook', verifyWebhook);
+app.post('/api/webhook', handleIncomingWebhook);
 app.use('/api/webhooks', webhookRoutes);
 
 // Enforce authentication + tenant isolation on every /api request
@@ -423,6 +426,9 @@ httpServer.listen(PORT, async () => {
   } catch (error) {
     console.error('Failed to recover interrupted reminders:', error);
   }
+
+  // Iniciar scheduler de recordatorios programados/recurrentes
+  remindersService.startScheduler();
 
   console.log(`📊 API Documentation: http://localhost:${PORT}/api`);
   console.log(`🔗 Health Check: http://localhost:${PORT}/health`);

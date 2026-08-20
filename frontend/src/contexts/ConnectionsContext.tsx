@@ -82,23 +82,24 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
         platform_type: (conn.platformType || conn.platform_type || '') === 'facebook_messenger' ? 'facebook_messenger' : (conn.platformType || conn.platform_type) as PlatformType,
         display_name: conn.displayName || conn.display_name || 'Conexión',
         status: conn.status,
-        phone_number: conn.phone_number,
+        phone_number: conn.phone_number || conn.platform_account_id || conn.platformAccountId || conn.config?.phone_number_id,
         username: conn.botUsername || conn.username || conn.platformAccountId || conn.platform_account_id,
         connected_at: conn.lastConnectedAt || conn.connected_at
       }));
 
       // Combine both lists
       const combined: PlatformConnection[] = [];
-      if (whatsappConn) {
+
+      // 1. Add all platform connections (including WhatsApp Cloud)
+      mappedPlatformConns.forEach(conn => {
+        combined.push(conn);
+      });
+
+      // 2. If no WhatsApp Cloud connection exists, fallback to QR status
+      const hasCloudWhatsApp = combined.some(c => c.platform_type === 'whatsapp');
+      if (!hasCloudWhatsApp && whatsappConn) {
         combined.push(whatsappConn);
       }
-      
-      // Exclude duplicate whatsapp connections if any returned by platformConns
-      mappedPlatformConns.forEach(conn => {
-        if (conn.platform_type !== 'whatsapp') {
-          combined.push(conn);
-        }
-      });
 
       setConnections(combined);
     } catch (error) {
@@ -197,9 +198,10 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeConnection = async (id: string) => {
-    // Check if it's the WhatsApp connection
     const conn = connections.find(c => c.id === id);
-    if (conn && conn.platform_type === 'whatsapp') {
+
+    // QR session (Baileys) — in-memory logout
+    if (conn && conn.platform_type === 'whatsapp' && id === 'whatsapp_session') {
       try {
         await logoutQR();
       } catch (error) {
@@ -209,6 +211,7 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Cloud API WhatsApp or any other platform — delete from DB
     if (id) {
       try {
         await deletePlatformConnection(id);

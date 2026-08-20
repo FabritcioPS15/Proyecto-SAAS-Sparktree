@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud, FileSpreadsheet, ChevronLeft, ChevronRight, Send,
-  Smartphone, Zap, Check, Loader2, Wand2
+  Smartphone, Zap, Check, Wand2
 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { useNotifications } from '../../../contexts/NotificationContext';
@@ -58,6 +59,8 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
   const [sendNow, setSendNow] = useState(true);
   const [connections, setConnections] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
+  const [metaTemplateName, setMetaTemplateName] = useState('');
+  const [metaTemplateLanguage, setMetaTemplateLanguage] = useState('es');
 
   useEffect(() => {
     if (!open) return;
@@ -70,12 +73,33 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
     setDelayMs('3000');
     setSendNow(true);
     setCreating(false);
+    setMetaTemplateName('');
+    setMetaTemplateLanguage('es');
     (async () => {
       try {
         const res = await api.get('/whatsapp-connections');
-        setConnections(Array.isArray(res.data) ? res.data : []);
-        const connected = (Array.isArray(res.data) ? res.data : []).find((c: any) => c.status === 'connected');
-        setConnectionId(connected?.id || '');
+        const connList = Array.isArray(res.data) ? res.data : [];
+
+        // Load Cloud API connections
+        try {
+          const cloudRes = await api.get('/platform/connections');
+          const cloudData = cloudRes.data;
+          const cloudList = Array.isArray(cloudData) ? cloudData : (cloudData?.connections || cloudData?.data || []);
+          const cloudWhatsapp = cloudList
+            .filter((c: any) => c.platform_type === 'whatsapp' && c.status === 'connected')
+            .map((c: any) => ({
+              id: c.id,
+              display_name: `${c.display_name || 'Cloud API'} (Cloud)`,
+              phone_number: c.platform_account_id || '',
+              status: c.status,
+              source: 'cloud'
+            }));
+          connList.push(...cloudWhatsapp);
+        } catch { /* cloud API not available */ }
+
+        setConnections(connList);
+        const connected = connList.find((c: any) => c.status === 'connected');
+        setConnectionId(connected?.id || connList[0]?.id || '');
       } catch (e) {
         setConnections([]);
         setConnectionId('');
@@ -160,6 +184,11 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
       addNotification({ type: 'error', title: 'Falta el mensaje', message: 'Redacta el mensaje a enviar.' });
       return;
     }
+    const isCloudConnection = connections.find((c) => c.id === connectionId)?.source === 'cloud';
+    if (isCloudConnection && !metaTemplateName.trim()) {
+      addNotification({ type: 'error', title: 'Falta el template Meta', message: 'Cloud API requiere un template aprobado por Meta para mensajes proactivos.' });
+      return;
+    }
     setCreating(true);
     try {
       const campaign = await createCampaign({
@@ -168,6 +197,8 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
         whatsappConnectionId: connectionId || null,
         delayMs: Number(delayMs) || 3000,
         contacts: parsed.rows,
+        metaTemplateName: metaTemplateName || undefined,
+        metaTemplateLanguage: metaTemplateName ? metaTemplateLanguage : undefined,
       });
       addNotification({ type: 'success', title: 'Campaña creada', message: `Se cargaron ${parsed.total} contactos.` });
       if (sendNow) {
@@ -239,7 +270,7 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
             />
             {parsing ? (
               <>
-                <Loader2 className="w-10 h-10 text-accent-500 animate-spin mb-3" />
+                <Loader size="md" className="mb-3" />
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Procesando archivo...</p>
               </>
             ) : (
@@ -257,11 +288,13 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
             )}
           </div>
 
-          <div className="flex items-center gap-2 px-4 py-3 bg-blue-500/5 border border-blue-500/20 rounded-xl text-xs text-blue-600 dark:text-blue-400">
-            <Wand2 className="w-4 h-4 shrink-0" />
-            <span>
-              Las demás columnas del Excel se usan como variables. Podrás insertarlas en el mensaje, por ejemplo: <code className="font-mono bg-blue-500/10 px-1 rounded">{'{{nombre}}'}</code>, <code className="font-mono bg-blue-500/10 px-1 rounded">{'{{ciudad}}'}</code>
-            </span>
+          <div className="flex items-start gap-3 px-4 py-3 bg-gradient-to-r from-blue-500/5 to-accent-500/5 border border-blue-500/15 rounded-xl">
+            <div className="p-1.5 bg-blue-500/10 rounded-lg shrink-0 mt-0.5">
+              <Wand2 className="w-3.5 h-3.5 text-blue-500" />
+            </div>
+            <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              <span className="font-bold text-blue-600 dark:text-blue-400">Variables del Excel:</span> Las columnas de tu archivo se usan automáticamente. Ejemplo: si tu Excel tiene columna "nombre", usa <code className="px-1.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md font-mono text-[10px] font-bold">nombre</code> en el mensaje.
+            </div>
           </div>
 
           {parseError && (
@@ -311,27 +344,51 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
               <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mensaje</label>
               <span className="text-[10px] text-slate-400">{message.length} caracteres</span>
             </div>
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={6}
-              placeholder={`Hola {{nombre}}, 🎉 gracias por tu interés en nuestros productos.\n\nEsta semana tenemos un 20% de descuento solo para ti.\n\n¡No pierdas la oportunidad! 🚀`}
-              className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm text-slate-900 dark:text-white placeholder-slate-400/60 font-mono leading-relaxed resize-none"
-            />
+            <div className="relative">
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={6}
+                placeholder="Escribe tu mensaje aquí... Usa los botones de abajo para insertar datos del contacto"
+                className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm text-slate-900 dark:text-white placeholder-slate-400/60 font-mono leading-relaxed resize-none"
+              />
+              {message && parsed.headers.length > 0 && (
+                <div className="absolute top-2.5 right-3 pointer-events-none">
+                  {parsed.headers.filter(h => message.includes(`{{${h}}}`)).length > 0 && (
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {parsed.headers.filter(h => message.includes(`{{${h}}}`)).map(h => (
+                        <span key={h} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-accent-500/15 text-accent-600 dark:text-accent-400 rounded-md text-[9px] font-bold border border-accent-500/20">
+                          <span className="w-1 h-1 bg-accent-500 rounded-full" />
+                          {h.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {parsed.headers.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <span className="text-[10px] text-slate-400 self-center mr-1">Variables:</span>
-                {parsed.headers.map((h) => (
-                  <button
-                    key={h}
-                    onClick={() => insertVariable(h)}
-                    className="px-2 py-1 text-[10px] font-mono font-bold rounded-lg bg-accent-500/10 text-accent-600 dark:text-accent-400 hover:bg-accent-500/20 transition-all border border-accent-500/20"
-                    title={`Insertar {{${h}}}`}
-                  >
-                    {'{{'}{h}{'}}'}
-                  </button>
-                ))}
+              <div className="mt-2.5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-5 h-5 rounded-md bg-accent-500/10 flex items-center justify-center">
+                    <span className="text-accent-500 text-[10px] font-black">+</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Toca para insertar</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.headers.map((h) => (
+                    <button
+                      key={h}
+                      onClick={() => insertVariable(h)}
+                      className="group flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-white/5 dark:to-white/[0.02] text-slate-600 dark:text-slate-300 hover:from-accent-500/10 hover:to-accent-500/5 hover:text-accent-600 dark:hover:text-accent-400 transition-all duration-200 border border-slate-200/60 dark:border-white/10 hover:border-accent-500/30 hover:shadow-sm active:scale-95"
+                      title={`Insertar: ${h.replace(/_/g, ' ')}`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-400/60 group-hover:bg-accent-500 transition-colors" />
+                      {h.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -357,6 +414,23 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
               )}
               {connectedCount === 0 && connections.length > 0 && (
                 <p className="text-[10px] text-amber-500 mt-1">Ninguna conexión está conectada actualmente.</p>
+              )}
+              {connections.find((c) => c.id === connectionId)?.source === 'cloud' && (
+                <div className="mt-3">
+                  <label className="text-[11px] font-bold text-violet-500 uppercase tracking-wider">
+                    Cloud API — Nombre del template Meta
+                  </label>
+                  <input
+                    type="text"
+                    value={metaTemplateName}
+                    onChange={(e) => setMetaTemplateName(e.target.value)}
+                    placeholder="ej: hola_mundo"
+                    className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+                  />
+                  <p className="text-[10px] text-violet-400 mt-1">
+                    Cloud API requiere un template aprobado por Meta para mensajes proactivos. El mensaje se enviará como parámetro del template.
+                  </p>
+                </div>
               )}
             </div>
             <div>
@@ -449,7 +523,7 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
               disabled={creating}
               className="flex items-center gap-2 px-6 h-11 rounded-xl text-sm font-black bg-gradient-to-r from-accent-500 to-emerald-500 text-black hover:opacity-90 transition-all shadow-lg shadow-accent-500/20 disabled:opacity-50"
             >
-              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {creating ? <Loader size="xs" /> : <Send className="w-4 h-4" />}
               {creating ? 'Creando...' : sendNow ? 'Crear y Enviar' : 'Crear Campaña'}
             </button>
           </div>

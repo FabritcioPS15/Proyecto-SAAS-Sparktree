@@ -39,6 +39,13 @@ export interface PlatformServiceAdapter {
   sendTextMessage: (to: string, body: string, options?: any) => Promise<any>;
   sendButtonMessage: (to: string, bodyText: string, buttons: any[], options?: any) => Promise<any>;
   sendMediaMessage: (to: string, url: string, options?: any) => Promise<any>;
+  /** Solo disponible en WhatsApp Cloud API. Envía un template aprobado por Meta. */
+  sendTemplateMessage?: (
+    to: string,
+    templateName: string,
+    languageCode: string,
+    components?: any[]
+  ) => Promise<any>;
 }
 
 export abstract class BasePlatformService {

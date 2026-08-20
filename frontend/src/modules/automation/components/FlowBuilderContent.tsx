@@ -18,6 +18,7 @@ import { TextNode } from './TextNode';
 import { InteractiveNode } from './InteractiveNode';
 import { MediaNode } from './MediaNode';
 import { CaptureNode } from './CaptureNode';
+import { CapturePhoneNode } from './CapturePhoneNode';
 import { WebhookNode } from './WebhookNode';
 import { HandoffNode } from './HandoffNode';
 import { DelayNode } from './DelayNode';
@@ -48,6 +49,7 @@ import {
   HiMiniStar
 } from "react-icons/hi2";
 import { saveFlows, getActiveConnectionsForFlow } from '../../../services/api';
+import { Loader } from '../../../components/ui/Loader';
 
 
 
@@ -85,6 +87,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
     interactive: InteractiveNode,
     media: MediaNode,
     capture: CaptureNode,
+  capture_phone: CapturePhoneNode,
     webhook: WebhookNode,
     handoff: HandoffNode,
     delay: DelayNode,
@@ -321,11 +324,17 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
     if (!type) return;
 
     const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    const defaultData: Record<string, any> = { label: type, text: '' };
+    if (type === 'capture_phone') {
+      defaultData.question = 'Por favor, ingresa tu número de celular:';
+      defaultData.variableName = 'telefono';
+      defaultData.validationType = 'phone';
+    }
     const newNode = {
       id: `node_${Date.now()}`,
       type,
       position,
-      data: { label: type, text: '' },
+      data: defaultData,
     };
     setNodes((nds) => nds.concat(newNode));
     pushToHistory();
@@ -369,6 +378,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
 
   const integrationNodes = [
     { id: 'capture', label: 'Captura', sub: 'Pedir Dato', icon: HiMiniVariable, color: 'cyan', helpText: 'Hace una pregunta y guarda la respuesta del usuario en una variable (ej. @nombre).' },
+    { id: 'capture_phone', label: 'Capturar Celular', sub: 'Pedir Número', icon: HiMiniVariable, color: 'emerald', helpText: 'Pide al usuario su número de celular. Se valida y guarda automáticamente en el contacto.' },
     { id: 'condition', label: 'Condición', sub: 'Si / Entonces', icon: GitBranch, color: 'amber', helpText: 'Evalúa una condición (ej. variable existe, valor es igual) y bifurca el flujo según el resultado.' },
     { id: 'delay', label: 'Espera', sub: 'Escribiendo...', icon: HiMiniClock, color: 'slate', helpText: 'Pausa el flujo temporalmente simulando que el bot está escribiendo o esperando.' },
     { id: 'webhook', label: 'Webhook', sub: 'API Externa', icon: HiMiniGlobeAlt, color: 'orange', helpText: 'Envía datos a un sistema externo o API de tu empresa.' },
@@ -404,11 +414,17 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
           onDragStart={(e) => e.dataTransfer.setData('application/reactflow', node.id)}
           onClick={() => {
             const position = { x: 250, y: 250 };
+            const defaultData: Record<string, any> = { label: node.id, text: '' };
+            if (node.id === 'capture_phone') {
+              defaultData.question = 'Por favor, ingresa tu número de celular:';
+              defaultData.variableName = 'telefono';
+              defaultData.validationType = 'phone';
+            }
             const newNode = {
               id: `node_${Date.now()}`,
               type: node.id,
               position,
-              data: { label: node.id, text: '' },
+              data: defaultData,
             };
             setNodes((nds) => nds.concat(newNode));
             pushToHistory();
@@ -600,7 +616,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
               }`}
           >
             {isSaving ? (
-              <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-current" />
+              <Loader size="xs" />
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
@@ -643,6 +659,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                     media: '#f43f5e',
                     catalog: '#f59e0b',
                     capture: '#06b6d4',
+                    capture_phone: '#10b981',
                     condition: '#f59e0b',
                     delay: '#64748b',
                     webhook: '#f97316',
@@ -660,6 +677,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                     media: '#e11d48',
                     catalog: '#d97706',
                     capture: '#0891b2',
+                    capture_phone: '#059669',
                     condition: '#d97706',
                     delay: '#475569',
                     webhook: '#ea580c',
@@ -947,6 +965,12 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
 
                   {selectedNode.type === 'interactive' && (
                     <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                      <div className="p-3 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-800/50 rounded-xl">
+                        <p className="text-[10px] font-bold text-violet-700 dark:text-violet-300 leading-relaxed">
+                          <span className="font-black uppercase">Cloud API:</span> Botones reales clickeables (máx. 3).{' '}
+                          <span className="font-black uppercase">QR:</span> Opciones numeradas como texto (sin límite).
+                        </p>
+                      </div>
                       <div>
                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 block">Cuerpo del Mensaje</label>
                         <textarea id="node-interactive" value={selectedNode.data.bodyText || ''} onChange={(e) => updateNodeData({ bodyText: e.target.value })} className="w-full p-5 bg-slate-50 dark:bg-slate-800/50 rounded-sm text-sm outline-none border-2 border-transparent focus:border-accent-500 transition-all font-medium" rows={4} />
@@ -1119,6 +1143,40 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                             Se guardará como el número de teléfono del contacto.
                           </p>
                         )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedNode.type === 'capture_phone' && (
+                    <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800/50 rounded-xl">
+                        <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                          Este nodo pide al usuario su número de celular. Se valida automáticamente y se guarda en <span className="font-black">@telefono</span> del contacto.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 block">Mensaje al Usuario</label>
+                        <textarea
+                          value={selectedNode.data.question || ''}
+                          onChange={(e) => updateNodeData({ question: e.target.value })}
+                          placeholder="Por favor, ingresa tu número de celular:"
+                          className="w-full p-5 bg-slate-50 dark:bg-slate-800/50 rounded-sm text-sm outline-none border-2 border-transparent focus:border-accent-500 transition-all min-h-[120px]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 block">Variable de Guardado</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-accent-500 font-black">@</span>
+                          <input
+                            type="text"
+                            value="telefono"
+                            disabled
+                            className="w-full pl-8 pr-5 py-4 bg-slate-100 dark:bg-slate-800 rounded-sm text-xs font-bold outline-none text-slate-400 cursor-not-allowed"
+                          />
+                        </div>
+                        <p className="mt-2 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                          Se guarda automáticamente como el número de teléfono del contacto.
+                        </p>
                       </div>
                     </div>
                   )}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Edit, Trash2, MessageSquare, List, LayoutGrid, FileText, BarChart3, Loader2, Copy } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, MessageSquare, List, LayoutGrid, FileText, BarChart3, Copy } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -164,8 +165,9 @@ export const MessageTemplates = () => {
       key: 'variables', header: 'Variables', render: (v: string[]) => (
         <div className="flex flex-wrap gap-1 max-w-[200px]">
           {v.slice(0, 3).map((varName) => (
-            <span key={varName} className="px-1.5 py-0.5 text-[9px] font-mono bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded">
-              {'{{'}{varName}{'}}'}
+            <span key={varName} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold bg-gradient-to-br from-accent-500/10 to-accent-500/5 text-accent-600 dark:text-accent-400 rounded-full border border-accent-500/15">
+              <span className="w-1 h-1 bg-accent-500 rounded-full" />
+              {varName.replace(/_/g, ' ')}
             </span>
           ))}
           {v.length > 3 && <span className="text-[9px] text-slate-400">+{v.length - 3}</span>}
@@ -308,7 +310,7 @@ export const MessageTemplates = () => {
               Cancelar
             </button>
             <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-5 h-10 rounded-xl text-sm font-bold bg-accent-500 text-black hover:bg-accent-600 transition-all disabled:opacity-40">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {saving ? <Loader size="xs" /> : null}
               {editTemplate ? 'Guardar cambios' : 'Crear plantilla'}
             </button>
           </div>
@@ -342,10 +344,13 @@ export const MessageTemplates = () => {
               value={formData.content}
               onChange={(e) => setFormData((prev) => ({ ...prev, content: e.target.value }))}
               rows={6}
-              placeholder="Hola {{nombre}}, este es tu recordatorio..."
+              placeholder="Escribe tu mensaje aquí... Puedes usar variables como nombre, placa, etc."
               className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm text-slate-900 dark:text-white placeholder-slate-400/60 font-mono leading-relaxed resize-none"
             />
-            <p className="text-[10px] text-slate-400 mt-1">Usa {'{{variable}}'} para insertar valores dinámicos del Excel.</p>
+            <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-accent-500/5 border border-accent-500/10 rounded-lg">
+              <span className="text-accent-500 text-[11px] font-bold">Tip:</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">Usa <code className="px-1 py-0.5 bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded font-mono text-[10px]">{'{{nombre}}'}</code> para personalizar el mensaje con datos del contacto</span>
+            </div>
           </div>
         </div>
       </Modal>

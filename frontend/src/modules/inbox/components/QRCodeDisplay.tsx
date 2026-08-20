@@ -1,6 +1,7 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { RefreshCw, QrCode, Smartphone, CheckCircle, Loader2 } from 'lucide-react';
+import { RefreshCw, QrCode, Smartphone, CheckCircle } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 
 interface QRCodeDisplayProps {
   qrValue: string | null;
@@ -32,7 +33,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({ qrValue, status, o
           <div className={`relative aspect-square w-64 overflow-hidden rounded-2xl flex items-center justify-center ${status === 'loading' || status === 'expired' ? 'bg-slate-50 dark:bg-slate-800/50' : 'bg-white'}`}>
             {status === 'loading' && (
               <div className="flex flex-col items-center gap-3 animate-pulse">
-                <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
+                <Loader size="md" />
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generando...</span>
               </div>
             )}

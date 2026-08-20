@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { MessageCircle, Mail, Lock, ArrowRight, Loader2, Info, Sparkles, CheckCircle2, Shield, UserCog, Building2, Terminal, Zap } from 'lucide-react';
+import { MessageCircle, Mail, Lock, ArrowRight, Info, Sparkles, CheckCircle2, Shield, UserCog, Building2, Terminal, Zap } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { login } from '../../../services/api';
 
 const HOME_BY_ROLE: Record<string, string> = {
@@ -180,7 +181,7 @@ export const Login = () => {
               className="w-full py-4 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary-600/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group mt-4 relative overflow-hidden"
             >
               {isLoading && !quickAccount ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader size="sm" />
               ) : (
                 <>
                   <span className="relative z-10">Acceder al Panel</span>
@@ -210,7 +211,7 @@ export const Login = () => {
                     className="group flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-xl hover:bg-white/[0.06] hover:border-white/15 transition-all text-left active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${acc.bg}`}>
-                      {loadingThis ? <Loader2 className={`w-5 h-5 animate-spin ${acc.color}`} /> : <Icon className={`w-5 h-5 ${acc.color}`} />}
+                      {loadingThis ? <Loader size="sm" /> : <Icon className={`w-5 h-5 ${acc.color}`} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

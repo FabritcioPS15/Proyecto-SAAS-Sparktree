@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 import { ChevronRight, MessageSquare, CheckSquare, Square } from 'lucide-react';
+import { Loader } from './Loader';
 
 export interface ResponsiveColumn<T> {
   key: keyof T | string;
@@ -79,7 +80,7 @@ export function ResponsiveList<T extends Record<string, any>>({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-white"></div>
+        <Loader size="md" />
       </div>
     );
   }

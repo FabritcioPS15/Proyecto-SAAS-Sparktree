@@ -10,7 +10,7 @@ const authenticateUser = async (req: any, res: any, next: any) => {
   // In a real app, you'd verify JWT token here
   // For now, we'll use a simple user ID from the request
   const userId = req.headers['x-user-id'] as string;
-  
+
   if (!userId) {
     return res.status(401).json({ error: 'User ID required' });
   }
@@ -59,7 +59,7 @@ router.post('/connections', authenticateUser, async (req: any, res: any) => {
     }
 
     const connection = await multiWhatsAppService.createConnection(
-      req.user.id, 
+      req.user.id,
       displayName.trim()
     );
 
@@ -73,9 +73,9 @@ router.post('/connections', authenticateUser, async (req: any, res: any) => {
 router.get('/connections/:id/qr', authenticateUser, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    
+
     const qrImage = await multiWhatsAppService.getConnectionQR(id, req.user.id);
-    
+
     if (!qrImage) {
       return res.status(404).json({ error: 'QR not available' });
     }
@@ -90,9 +90,9 @@ router.get('/connections/:id/qr', authenticateUser, async (req: any, res: any) =
 router.get('/connections/:id/status', authenticateUser, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    
+
     const connection = multiWhatsAppService.getConnection(id);
-    
+
     if (!connection || connection.userId !== req.user.id) {
       return res.status(404).json({ error: 'Connection not found' });
     }
@@ -113,9 +113,9 @@ router.get('/connections/:id/status', authenticateUser, async (req: any, res: an
 router.delete('/connections/:id', authenticateUser, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    
+
     await multiWhatsAppService.deleteConnection(id, req.user.id);
-    
+
     res.json({ message: 'Connection deleted successfully' });
   } catch (error: any) {
     res.status(400).json({ error: error.message });

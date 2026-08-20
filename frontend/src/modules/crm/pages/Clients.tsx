@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User, Loader2 } from 'lucide-react';
+import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
 import { Mail } from 'lucide-react';
@@ -541,7 +542,7 @@ return channel ? (
           <input type="tel" name="phone" placeholder="Teléfono" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <input type="text" name="company" placeholder="Empresa (opcional)" className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
           <button type="submit" disabled={creating} className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+            {creating ? <Loader size="xs" /> : <UserPlus className="w-4 h-4" />}
             {creating ? 'Creando...' : 'Crear Cliente'}
           </button>
         </form>

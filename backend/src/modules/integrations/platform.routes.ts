@@ -38,7 +38,7 @@ router.get('/connections/:id', tenantMiddleware, async (req: TenantRequest, res:
   try {
     const { id } = req.params;
     const orgId = req.organizationId;
-    
+
     if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
 
     const { data: connection, error } = await supabase
@@ -119,7 +119,7 @@ router.post('/connections/:id/start', tenantMiddleware, async (req: TenantReques
   try {
     const { id } = req.params;
     const orgId = req.organizationId;
-    
+
     if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
 
     // Verify connection belongs to organization
@@ -148,7 +148,7 @@ router.post('/connections/:id/delete', tenantMiddleware, async (req: TenantReque
     const { id } = req.params;
     const orgId = req.organizationId;
     const userId = Array.isArray(req.headers['x-user-id']) ? req.headers['x-user-id'][0] : req.headers['x-user-id'] as string;
-    
+
     if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
     if (!userId) return res.status(400).json({ error: 'User ID required. Add X-User-ID header.' });
 
@@ -176,20 +176,21 @@ router.post('/connections/:id/delete', tenantMiddleware, async (req: TenantReque
 router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res: Response) => {
   try {
     const orgId = req.organizationId;
-    const userId = Array.isArray(req.headers['x-user-id']) ? req.headers['x-user-id'][0] : req.headers['x-user-id'] as string;
+    const userId = (req as any).user?.id
+      || (Array.isArray(req.headers['x-user-id']) ? req.headers['x-user-id'][0] : req.headers['x-user-id'])
+      || (req as any).userId;
     const { phoneNumberId, accessToken, displayName, webhookVerifyToken } = req.body;
 
-    if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
-    if (!userId) return res.status(400).json({ error: 'User ID required. Add X-User-ID header.' });
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required.' });
     if (!phoneNumberId) return res.status(400).json({ error: 'Phone Number ID required' });
     if (!accessToken) return res.status(400).json({ error: 'Access Token required' });
     if (!displayName) return res.status(400).json({ error: 'Display name required' });
 
-    // Create connection in database
+    // Create or update connection in database (upsert)
     const { data: connection, error } = await supabase
       .from('platform_connections')
-      .insert({
-        user_id: userId,
+      .upsert({
+        ...(userId ? { user_id: userId } : {}),
         organization_id: orgId,
         platform_type: 'whatsapp',
         display_name: displayName,
@@ -197,25 +198,25 @@ router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res:
         config: {
           phone_number_id: phoneNumberId,
           access_token: accessToken,
-          webhook_verify_token: webhookVerifyToken || null
+          webhook_verify_token: webhookVerifyToken || `sparktree_${orgId?.slice(0, 8)}_${Date.now().toString(36)}`
         },
         status: 'connected',
         last_connected_at: new Date().toISOString()
-      })
+      }, { onConflict: 'organization_id,platform_type,platform_account_id' })
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating WhatsApp Cloud connection:', error);
-      return res.status(500).json({ error: 'Failed to create connection' });
+      console.error('Error creating WhatsApp Cloud connection DB:', error);
+      return res.status(500).json({ error: error.message || error.details || 'Failed to create connection in database' });
     }
 
     // Initialize connection in service
     await whatsappCloudService.initializeConnection(connection);
     await whatsappCloudService.startConnection(connection.id);
 
-    res.json({ 
-      message: 'WhatsApp Cloud connection created successfully', 
+    res.json({
+      message: 'WhatsApp Cloud connection created successfully',
       connection: {
         id: connection.id,
         platformType: 'whatsapp',
@@ -225,7 +226,7 @@ router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res:
     });
   } catch (error: any) {
     console.error('Error in /platform/whatsapp-cloud:', error);
-    if (!res.headersSent) res.status(500).json({ error: error.message });
+    if (!res.headersSent) res.status(500).json({ error: error.message || 'Server error' });
   }
 });
 

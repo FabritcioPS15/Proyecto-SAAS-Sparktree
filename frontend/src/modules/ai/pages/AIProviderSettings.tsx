@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Brain, Check, X, Loader2, Eye, EyeOff, Plus, Trash2, RefreshCw, AlertTriangle, Sparkles, Settings2 } from 'lucide-react';
+import { Brain, Check, X, Eye, EyeOff, Plus, Trash2, RefreshCw, AlertTriangle, Sparkles, Settings2 } from 'lucide-react';
+import { Loader } from '../../../components/ui/Loader';
 import { SiOpenai, SiAnthropic } from 'react-icons/si';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -268,7 +269,7 @@ export const AIProviderSettings = () => {
                         <div className="flex gap-2">
                           <button onClick={() => handleTest(key)} disabled={prov.testing}
                             className="flex-1 h-9 flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all disabled:opacity-50">
-                            {prov.testing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                            {prov.testing ? <Loader size="xs" /> : <RefreshCw className="w-3 h-3" />}
                             Probar Conexión
                           </button>
                           <button onClick={() => handleRemove(key)} disabled={saving === key}
@@ -357,7 +358,7 @@ export const AIProviderSettings = () => {
                         <div className="flex gap-2">
                           <button onClick={() => handleSave(key)} disabled={saving === key}
                             className="flex-1 h-10 flex items-center justify-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 shadow-md">
-                            {saving === key ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</> : 'Guardar Configuración'}
+                            {saving === key ? <><Loader size="xs" /> Guardando...</> : 'Guardar Configuración'}
                           </button>
                           {isEditing && (
                             <button onClick={() => setEditing(null)}
