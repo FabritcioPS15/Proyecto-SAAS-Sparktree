@@ -5,6 +5,8 @@ import { BasePlatformService, PlatformConnection, PlatformMessage, PlatformServi
 
 export class TelegramService extends BasePlatformService {
   private botInstances: Map<string, any> = new Map();
+  private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private pollingOffsets: Map<string, number> = new Map();
   
   getPlatformType(): 'telegram' {
     return 'telegram';
@@ -88,6 +90,7 @@ export class TelegramService extends BasePlatformService {
         }
       }
       
+      this.stopPolling(connectionId);
       this.connections.delete(connectionId);
     }
 
@@ -290,7 +293,16 @@ export class TelegramService extends BasePlatformService {
 
   private async setupWebhook(connection: PlatformConnection, botConfig: any): Promise<void> {
     try {
-      const webhookUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/webhooks/telegram?token=${botConfig.bot_token}`;
+      const backendUrl = process.env.BACKEND_URL;
+      const isLocal = !backendUrl || backendUrl.includes('localhost') || backendUrl.includes('127.0.0.1');
+
+      if (isLocal) {
+        console.log(`[Telegram] Backend URL is local — using polling mode for ${connection.displayName}`);
+        this.startPolling(connection, botConfig.bot_token);
+        return;
+      }
+
+      const webhookUrl = `${backendUrl}/api/webhooks/telegram?token=${botConfig.bot_token}`;
       
       await axios.post(`https://api.telegram.org/bot${botConfig.bot_token}/setWebhook`, {
         url: webhookUrl,
@@ -299,7 +311,54 @@ export class TelegramService extends BasePlatformService {
 
       console.log(`[Telegram] Webhook set for ${connection.displayName}: ${webhookUrl}`);
     } catch (error) {
-      console.error('Error setting Telegram webhook:', error);
+      console.error('[Telegram] Webhook setup failed, falling back to polling:', (error as Error).message || error);
+      this.startPolling(connection, botConfig.bot_token);
+    }
+  }
+
+  private startPolling(connection: PlatformConnection, botToken: string): void {
+    if (this.pollingIntervals.has(connection.id)) return;
+
+    console.log(`[Telegram] Starting polling for ${connection.displayName} (bot: ${connection.platformAccountId})`);
+
+    const poll = async () => {
+      try {
+        const offset = this.pollingOffsets.get(connection.id) || 0;
+        const response = await axios.get(`https://api.telegram.org/bot${botToken}/getUpdates`, {
+          params: {
+            offset,
+            timeout: 10,
+            allowed_updates: JSON.stringify(['message', 'callback_query'])
+          }
+        });
+
+        if (response.data.ok && response.data.result?.length > 0) {
+          for (const update of response.data.result) {
+            this.pollingOffsets.set(connection.id, update.update_id + 1);
+            await this.processIncomingMessage(update, connection);
+          }
+        }
+      } catch (error: any) {
+        if (error?.code !== 'ECONNABORTED') {
+          console.error(`[Telegram] Polling error for ${connection.displayName}:`, error.message);
+        }
+      }
+    };
+
+    // Initial poll
+    poll();
+
+    // Poll every 3 seconds
+    const interval = setInterval(poll, 3000);
+    this.pollingIntervals.set(connection.id, interval);
+  }
+
+  private stopPolling(connectionId: string): void {
+    const interval = this.pollingIntervals.get(connectionId);
+    if (interval) {
+      clearInterval(interval);
+      this.pollingIntervals.delete(connectionId);
+      this.pollingOffsets.delete(connectionId);
     }
   }
 

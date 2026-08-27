@@ -17,6 +17,7 @@ import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageLoader } from '../../../components/layout/PageLoader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
 
 export const Billing = () => {
   const [billingData, setBillingData] = useState<any>(null);
@@ -127,18 +128,20 @@ export const Billing = () => {
         icon={CreditCard}
         action={
           <div className="flex flex-wrap gap-2">
-            <button
+            <HeaderButton
+              variant="secondary"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-4 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-200 rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-black hover:text-accent-500 dark:hover:bg-white dark:hover:text-black transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+              icon={<RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Sincronizar
-            </button>
-            <button className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-              <ExternalLink className="w-3.5 h-3.5" />
+            </HeaderButton>
+            <HeaderButton
+              variant="secondary"
+              icon={<ExternalLink className="w-4 h-4" />}
+            >
               Meta Portal
-            </button>
+            </HeaderButton>
           </div>
         }
       />

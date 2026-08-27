@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Send, Play, Pause, Trash2, Eye, Plus, Megaphone, RefreshCw, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -176,25 +180,26 @@ export const Campaigns = () => {
             <span className="text-accent-500">{pct}%</span>
           </div>
           <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${row.failed > 0 && row.sent === 0 ? 'bg-red-500' : 'bg-gradient-to-r from-accent-500 to-emerald-500'}`} style={{ width: `${pct}%` }} />
+            <div className={`h-full rounded-full transition-all ${row.failed > 0 && row.sent === 0 ? 'bg-red-500' : 'bg-gradient-to-r from-accent-500 to-accent-600'}`} style={{ width: `${pct}%` }} />
           </div>
           {row.failed > 0 && <p className="text-[9px] text-red-400 mt-0.5">{row.failed} fallaron</p>}
         </div>
       );
     }},
-    { key: 'actions', header: 'Acciones', className: 'text-center', render: (_v: unknown, row: Campaign) => (
-      <div className="flex items-center justify-center gap-1">
-        <button onClick={() => openDetail(row)} title="Ver detalle" className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Eye className="w-4 h-4" /></button>
-        {row.status === 'sending' ? (
-          <button onClick={() => handlePause(row)} title="Pausar envío" className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 transition-all"><Pause className="w-4 h-4" /></button>
-        ) : row.status === 'paused' ? (
-          <button onClick={() => handleResume(row)} title="Reanudar envío" className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"><Play className="w-4 h-4" /></button>
-        ) : (
-          <button onClick={() => handleSend(row)} disabled={!canSend(row)} title="Enviar" className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"><Send className="w-4 h-4" /></button>
-        )}
-        <button onClick={() => setDeleteTarget(row)} title="Eliminar" className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
-      </div>
-    )},
+    { key: 'actions', header: '', className: 'w-12', render: (_v: unknown, row: Campaign) => {
+      const actions: Array<{ label: string; icon: React.ReactNode; onClick: (e: React.MouseEvent) => void; variant?: 'default' | 'danger'; disabled?: boolean }> = [
+        { label: 'Ver detalle', icon: <Eye className="w-3.5 h-3.5" />, onClick: () => openDetail(row) },
+      ];
+      if (row.status === 'sending') {
+        actions.push({ label: 'Pausar', icon: <Pause className="w-3.5 h-3.5" />, onClick: () => handlePause(row) });
+      } else if (row.status === 'paused') {
+        actions.push({ label: 'Reanudar', icon: <Play className="w-3.5 h-3.5" />, onClick: () => handleResume(row) });
+      } else {
+        actions.push({ label: 'Enviar', icon: <Send className="w-3.5 h-3.5" />, onClick: () => handleSend(row), disabled: !canSend(row) });
+      }
+      actions.push({ label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(row), variant: 'danger' });
+      return <KebabMenu actions={actions} />;
+    }},
   ];
 
   const detailProgress = detail && detail.total > 0
@@ -212,9 +217,12 @@ export const Campaigns = () => {
           { label: 'Activas', value: campaigns.filter((c) => c.status === 'sending' || c.status === 'paused').length, icon: Send, color: 'emerald' },
         ]}
         action={
-          <button onClick={() => setShowCreate(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" /> Nueva Campaña
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={campaigns.length} />
+            <HeaderButton onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
+              Nueva Campaña
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>
@@ -228,7 +236,7 @@ export const Campaigns = () => {
               <p className="text-xs text-slate-400 max-w-sm mb-5">
                 Carga un Excel con los teléfonos de tus clientes y envía mensajes personalizados automáticamente.
               </p>
-              <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
+              <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
                 <Plus className="w-4 h-4" /> Crear mi primera campaña
               </button>
             </div>
@@ -305,7 +313,7 @@ export const Campaigns = () => {
                   <span className="text-accent-500">{detailProgress}%</span>
                 </div>
                 <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-accent-500 to-emerald-500 rounded-full transition-all" style={{ width: `${detailProgress}%` }} />
+                  <div className="h-full bg-gradient-to-r from-accent-500 to-accent-600 rounded-full transition-all" style={{ width: `${detailProgress}%` }} />
                 </div>
               </div>
               <p className="text-xs text-slate-400">
@@ -365,69 +373,16 @@ export const Campaigns = () => {
         )}
       </Modal>
 
-      {deleteTarget && (
-        <Modal
-          open={!!deleteTarget}
-          onClose={() => !deleting && setDeleteTarget(null)}
-          title="Eliminar campaña"
-          icon={<Trash2 className="w-5 h-5 text-red-500" />}
-          footer={
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-40"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex items-center gap-2 px-5 h-10 rounded-xl text-sm font-bold bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-60"
-              >
-                {deleting ? <Loader size="xs" /> : <Trash2 className="w-4 h-4" />}
-                {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
-              </button>
-            </div>
-          }
-        >
-          <div className="space-y-4">
-            <div className="px-4 py-3 bg-red-500/5 border border-red-500/20 rounded-xl">
-              <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                ¿Estás seguro de eliminar esta campaña?
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Esta acción no se puede deshacer. Se eliminará permanentemente toda la información de esta campaña.
-              </p>
-            </div>
-
-            <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{deleteTarget.name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estado</span>
-                <StatusBadge status={deleteTarget.status} variant={statusVariant(deleteTarget.status)} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contactos</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{deleteTarget.total}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Enviados</span>
-                <span className="text-sm font-bold text-emerald-500">{deleteTarget.sent}</span>
-              </div>
-              {deleteTarget.failed > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fallidos</span>
-                  <span className="text-sm font-bold text-red-500">{deleteTarget.failed}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Eliminar campaña"
+        message={`¿Eliminar "${deleteTarget?.name || ''}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+        isLoading={deleting}
+      />
     </PageContainer>
   );
 };

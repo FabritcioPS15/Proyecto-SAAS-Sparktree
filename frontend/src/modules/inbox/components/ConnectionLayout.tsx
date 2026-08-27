@@ -131,9 +131,9 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
         </div>
         <div className="p-3.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Bots Activos</p>
-          <p className="text-sm font-black text-slate-900 dark:text-white">
+          <div className="text-sm font-black text-slate-900 dark:text-white">
             {flowsLoading ? <Loader size="xs" /> : flows.length}
-          </p>
+          </div>
         </div>
       </div>
 

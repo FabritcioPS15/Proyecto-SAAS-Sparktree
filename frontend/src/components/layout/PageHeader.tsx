@@ -4,7 +4,7 @@ interface PageHeaderMeta {
   label: string;
   value: string | number;
   icon?: any;
-  color?: 'accent' | 'emerald' | 'blue' | 'amber' | 'violet';
+  color?: 'accent' | 'emerald' | 'blue' | 'amber' | 'violet' | 'red';
 }
 
 interface PageHeaderProps {
@@ -22,6 +22,7 @@ const pillColors: Record<string, string> = {
   blue: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
   amber: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
   violet: 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/20',
+  red: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
 };
 
 export const PageHeader = ({ title, highlight, description, icon: Icon, action, meta }: PageHeaderProps) => {

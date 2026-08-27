@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Mail, Building, Crown, Clock, User, Lock, Info, Trash2, Settings as SettingsIcon, Search } from 'lucide-react';
+import { UserPlus, Mail, Building, Crown, Clock, User, Lock, Info, Trash2, Settings as SettingsIcon } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
@@ -9,8 +11,12 @@ import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Badge } from '../../../components/ui/Badge';
 import { TagChip } from '../../../components/ui/TagChip';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { adminService } from '../../../services/adminService';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { SystemUser, Organization, CreateUserDTO, UserRole } from '../../../types/admin';
 
 export const StaffManagement = () => {
@@ -19,9 +25,10 @@ export const StaffManagement = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [showRolesInfo, setShowRolesInfo] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const itemsPerPage = 10;
   const [newUser, setNewUser] = useState<CreateUserDTO>({
     email: '',
@@ -78,11 +85,11 @@ export const StaffManagement = () => {
 
   const getUserRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'super admin': return 'text-purple-600 bg-purple-50 border-purple-200';
-      case 'admin': return 'text-emerald-600 bg-emerald-50 border-emerald-200';
-      case 'staff': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'viewer': return 'text-slate-600 border-slate-200';
-      default: return 'text-slate-600 border-slate-200';
+      case 'super admin': return 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/30';
+      case 'admin': return 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30';
+      case 'staff': return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30';
+      case 'viewer': return 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-500/30';
+      default: return 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-500/30';
     }
   };
 
@@ -148,15 +155,17 @@ export const StaffManagement = () => {
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminService.deleteUser(id);
+      await adminService.deleteUser(deleteTarget);
       addNotification({ type: 'success', title: 'Usuario eliminado', message: 'El usuario fue eliminado del sistema.' });
       fetchData();
     } catch (err) {
       addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el usuario.' });
       console.error('Error deleting user:', err);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -235,25 +244,13 @@ export const StaffManagement = () => {
     },
     {
       key: 'actions',
-      header: 'Acciones',
-      className: 'text-center',
+      header: '',
+      className: 'w-12',
       render: (_: any, user: SystemUser) => (
-        <div className="flex items-center gap-1 justify-center">
-          <button
-            onClick={() => setEditingUser(user)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"
-            title="Editar"
-          >
-            <SettingsIcon className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => handleDeleteUser(user.id)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"
-            title="Eliminar"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <KebabMenu actions={[
+          { label: 'Editar', icon: <SettingsIcon className="w-3.5 h-3.5" />, onClick: () => setEditingUser(user) },
+          { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(user.id), variant: 'danger' },
+        ]} />
       )
     }
   ];
@@ -269,52 +266,37 @@ export const StaffManagement = () => {
         icon={UserPlus}
         action={
           <div className="flex items-center gap-3">
-            <button
+            <HeaderButton
+              variant="ghost"
               onClick={() => setShowRolesInfo(true)}
-              className="p-2.5 dark:bg-white/5 rounded-xl text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all border border-slate-200 dark:border-slate-700"
-              title="Información de Roles"
+              icon={<Info className="w-4 h-4" />}
             >
-              <Info className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95"
-            >
-              <UserPlus className="w-4 h-4" />
+            </HeaderButton>
+            <CountBadge count={users.length} />
+            <HeaderButton variant="secondary" onClick={() => setIsModalOpen(true)} icon={<UserPlus className="w-4 h-4" />}>
               Nuevo Usuario
-            </button>
+            </HeaderButton>
           </div>
         }
       />
 
       <PageBody>
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
-            <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
-              <input
-                type="text"
-                placeholder="Buscar usuarios por nombre o email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Dropdown
-                value={roleFilter}
-                onChange={(v) => setRoleFilter(v)}
-                options={[
-                  { value: 'all', label: 'Todos los roles' },
-                  { value: 'super_admin', label: 'Super Admin' },
-                  { value: 'admin', label: 'Administrador' },
-                  { value: 'empresa', label: 'Empresa' },
-                  { value: 'staff', label: 'Staff' },
-                  { value: 'agent', label: 'Agente' },
-                ]}
-              />
-            </div>
+          <div className="flex items-center gap-3 mb-4">
+            <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar usuarios por nombre o email..." className="flex-1" />
+            <Dropdown
+              value={roleFilter}
+              onChange={(v) => setRoleFilter(v)}
+              options={[
+                { value: 'all', label: 'Todos los roles' },
+                { value: 'super_admin', label: 'Super Admin' },
+                { value: 'admin', label: 'Administrador' },
+                { value: 'empresa', label: 'Empresa' },
+                { value: 'staff', label: 'Staff' },
+                { value: 'agent', label: 'Agente' },
+              ]}
+            />
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
 
           <DataTable
@@ -415,43 +397,47 @@ export const StaffManagement = () => {
         onClose={() => setShowRolesInfo(false)}
         title="Roles del Sistema"
         size="lg"
-        icon={<div className="w-10 h-10 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg"><Info className="w-5 h-5 text-black" /></div>}
-        footer={
-          <button onClick={() => setShowRolesInfo(false)}
-            className="w-full h-11 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
-            Entendido
-          </button>
-        }
+        icon={<Info className="w-5 h-5 text-accent-500" />}
       >
-        <div className="space-y-3">
+        <div className="space-y-2">
           {[
-            { role: 'super_admin', title: 'Super Admin', desc: 'Acceso total al sistema', perms: ['Global', 'Todas las orgs', 'Config'] },
-            { role: 'admin', title: 'Administrador', desc: 'Gestión completa de organización', perms: ['Usuarios', 'Config', 'Reportes'] },
-            { role: 'empresa', title: 'Empresa', desc: 'Acceso a datos de negocio', perms: ['Clientes', 'Reportes', 'Campañas'] },
-            { role: 'staff', title: 'Staff', desc: 'Soporte técnico y flujos', perms: ['Soporte', 'Flujos', 'Usuarios'] },
-            { role: 'agent', title: 'Agente', desc: 'Atención básica a clientes', perms: ['Chat', 'Atención', 'Básico'] }
-          ].map((roleInfo) => (
-            <div key={roleInfo.role} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50">
-              <div className="flex items-start gap-3">
-                <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl text-xs font-black uppercase tracking-widest bg-accent-500/10 text-accent-600 dark:text-accent-400 border border-accent-500/20">
-                  {roleInfo.title.slice(0, 3)}
+            { role: 'super_admin', title: 'Super Admin', desc: 'Acceso total al sistema', perms: ['Global', 'Todas las orgs', 'Config'], color: 'text-red-500 bg-red-50 dark:bg-red-500/10' },
+            { role: 'admin', title: 'Administrador', desc: 'Gestión completa de organización', perms: ['Usuarios', 'Config', 'Reportes'], color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10' },
+            { role: 'empresa', title: 'Empresa', desc: 'Acceso a datos de negocio', perms: ['Clientes', 'Reportes', 'Campañas'], color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10' },
+            { role: 'staff', title: 'Staff', desc: 'Soporte técnico y flujos', perms: ['Soporte', 'Flujos', 'Usuarios'], color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' },
+            { role: 'agent', title: 'Agente', desc: 'Atención básica a clientes', perms: ['Chat', 'Atención', 'Básico'], color: 'text-slate-500 bg-slate-50 dark:bg-slate-500/10' },
+          ].map((r) => (
+            <div key={r.role} className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <div className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[10px] font-bold ${r.color}`}>
+                {r.title.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{r.title}</h4>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">{r.desc}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-black text-slate-900 dark:text-white mb-0.5">{roleInfo.title}</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{roleInfo.desc}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {roleInfo.perms.map((perm, idx) => (
-                      <TagChip key={idx} color="default" size="xs">
-                        {perm}
-                      </TagChip>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {r.perms.map((perm, i) => (
+                    <span key={i} className="px-2 py-0.5 text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md">
+                      {perm}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
           ))}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteUser}
+        title="Eliminar usuario"
+        message="¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        variant="danger"
+      />
     </PageContainer>
   );
 };

@@ -40,6 +40,16 @@ export const getUsers = async () => {
   }
 };
 
+export const getSystemUsers = async () => {
+  try {
+    const response = await api.get('/admin/users');
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    console.error('Error fetching system users:', error);
+    return [];
+  }
+};
+
 export const getClients = async () => {
   try {
     const response = await api.get('/crm/clients');
@@ -78,29 +88,29 @@ export const getContacts = async () => {
     const contactsMap = new Map();
     
     conversations.forEach((conv: any) => {
-      console.log('Processing conversation:', conv);
-      if (conv.contactId && conv.contactId.phoneNumber) {
-        const key = conv.contactId.phoneNumber;
-        console.log('Contact found:', conv.contactId);
-        
-        // Usar el phoneNumber directamente (el backend está enviando IDs internos)
-        let realPhoneNumber = conv.contactId.phoneNumber;
-        
-        if (!contactsMap.has(key)) {
-          contactsMap.set(key, {
-            id: conv.contactId.id || conv.contactId._id,
-            phone_number: realPhoneNumber,
-            profile_name: conv.contactId.name,
-            profile_picture: conv.contactId.profilePicture,
-            platform_type: 'whatsapp', // Asumir whatsapp por ahora
-            last_active_at: conv.lastMessageAt,
-            whatsapp_line_number: whatsappLineNumber, // Número de la conexión activa
-            custom_attributes: {
-              whatsapp_jid: conv.contactId.phoneNumber,
-              real_phone_number: realPhoneNumber !== conv.contactId.phoneNumber ? realPhoneNumber : undefined
-            }
-          });
-        }
+      const contactObj = conv.contactId || conv.contact || {};
+      const contactId = contactObj.id || contactObj._id || conv.contact_id || conv.id || conv._id;
+      const phoneNumber = contactObj.phoneNumber || contactObj.phone_number || '';
+      const key = contactId || phoneNumber || conv.id;
+
+      if (key && !contactsMap.has(key)) {
+        contactsMap.set(key, {
+          id: contactId,
+          conversation_id: conv.id || conv._id,
+          phone_number: phoneNumber || 'Desconocido',
+          profile_name: contactObj.name || contactObj.profile_name || phoneNumber || 'Sin nombre',
+          profile_picture: contactObj.profilePicture || contactObj.profile_picture || null,
+          platform_type: conv.channel || conv.platform_type || 'whatsapp',
+          bot_state: conv.botState || conv.bot_state || 'main_menu',
+          assigned_to: conv.assignedTo || conv.assigned_to || null,
+          assigned_agent: conv.assignedAgent || conv.assigned_agent || null,
+          last_active_at: conv.lastMessageAt || conv.last_message_at,
+          whatsapp_line_number: whatsappLineNumber,
+          custom_attributes: {
+            whatsapp_jid: phoneNumber,
+            real_phone_number: phoneNumber
+          }
+        });
       }
     });
     
@@ -111,6 +121,16 @@ export const getContacts = async () => {
     return contacts;
   } catch (error) {
     console.error('Error fetching contacts:', error);
+    throw error;
+  }
+};
+
+export const assignAgentToConversation = async (conversationId: string, userId: string) => {
+  try {
+    const response = await api.post('/assignment/assign', { conversationId, userId });
+    return response.data;
+  } catch (error) {
+    console.error('Error assigning agent to conversation:', error);
     throw error;
   }
 };
@@ -171,6 +191,16 @@ export const getAnalytics = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching analytics:', error);
+    throw error;
+  }
+};
+
+export const getDashboardAnalytics = async (range: string = '7d') => {
+  try {
+    const response = await api.get(`/analytics/dashboard?range=${range}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching dashboard analytics:', error);
     throw error;
   }
 };
@@ -1421,6 +1451,11 @@ export const parseReminderExcel = async (fileName: string, base64Data: string) =
   }
 };
 
+export const downloadDynamicTemplateExcel = async (variables: string[], templateName?: string): Promise<Blob> => {
+  const response = await api.post('/reminders/template-excel-dynamic', { variables, templateName }, { responseType: 'blob' });
+  return response.data;
+};
+
 export const getReminders = async () => {
   try {
     const response = await api.get('/reminders');
@@ -1589,6 +1624,47 @@ export const deleteMessageTemplate = async (id: string) => {
     return response.data;
   } catch (error) {
     console.error('Error deleting message template:', error);
+    throw error;
+  }
+};
+
+// ─── WhatsApp Cloud API — Templates de Meta ────────────────────────────────
+
+/** Obtiene todos los templates de Meta (APPROVED, PENDING, REJECTED…) de una conexión */
+export const getConnectionTemplates = async (connectionId: string) => {
+  try {
+    const response = await api.get(`/platform/connections/${connectionId}/templates`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching connection templates:', error);
+    throw error;
+  }
+};
+
+/** Envía un nuevo template a Meta para aprobación */
+export const createConnectionTemplate = async (connectionId: string, data: {
+  name: string;
+  category: string;
+  language: string;
+  components: any[];
+}) => {
+  try {
+    const response = await api.post(`/platform/connections/${connectionId}/templates`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating connection template:', error);
+    throw error;
+  }
+};
+
+/** Elimina un template de Meta */
+export const deleteConnectionTemplate = async (connectionId: string, templateName: string, templateId?: string) => {
+  try {
+    const params = templateId ? `?templateId=${templateId}` : '';
+    const response = await api.delete(`/platform/connections/${connectionId}/templates/${encodeURIComponent(templateName)}${params}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting connection template:', error);
     throw error;
   }
 };

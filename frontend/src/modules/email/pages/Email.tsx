@@ -6,6 +6,7 @@ import {
   Package, BookTemplate, User, Eye
 } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -197,6 +198,7 @@ export const Email = () => {
   ]);
   const [editingSig, setEditingSig] = useState<Signature | null>(null);
   const [sigForm, setSigForm] = useState<Signature>(() => createEmptySig());
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const filtered = useMemo(() =>
     sentEmails.filter(e =>
@@ -235,12 +237,15 @@ export const Email = () => {
 
   const handleClear = () => {
     if (!to && !subject && !body) return;
-    if (window.confirm('¿Descartar el correo en redacción?')) {
-      if (bodyRef.current) bodyRef.current.innerHTML = '';
-      setTo(''); setCc(''); setBcc(''); setSubject(''); setBody('');
-      setShowCc(false); setShowBcc(false);
-      setActiveTemplateKey(null);
-    }
+    setShowDiscardConfirm(true);
+  };
+
+  const confirmClear = () => {
+    if (bodyRef.current) bodyRef.current.innerHTML = '';
+    setTo(''); setCc(''); setBcc(''); setSubject(''); setBody('');
+    setShowCc(false); setShowBcc(false);
+    setActiveTemplateKey(null);
+    setShowDiscardConfirm(false);
   };
 
   const toggleStar = (id: string) =>
@@ -989,6 +994,16 @@ export const Email = () => {
           </div>
         </div>
       </PageBody>
+
+      <ConfirmDialog
+        open={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={confirmClear}
+        title="Descartar correo"
+        message="¿Descartar el correo en redacción? Esta acción no se puede deshacer."
+        confirmText="Descartar"
+        variant="warning"
+      />
     </PageContainer>
   );
 };

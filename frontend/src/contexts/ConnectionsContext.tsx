@@ -158,7 +158,8 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
       config = {
         instagram_business_account_id: data.instagramBusinessAccountId,
         facebook_page_id: data.facebookPageId,
-        access_token: data.accessToken
+        access_token: data.accessToken,
+        webhook_verify_token: `sparktree_ig_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
       };
     } else if (platform === 'tiktok') {
       config = {

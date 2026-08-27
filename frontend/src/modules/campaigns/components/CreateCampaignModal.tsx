@@ -61,6 +61,9 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
   const [creating, setCreating] = useState(false);
   const [metaTemplateName, setMetaTemplateName] = useState('');
   const [metaTemplateLanguage, setMetaTemplateLanguage] = useState('es');
+  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [metaTemplatesLoading, setMetaTemplatesLoading] = useState(false);
+  const [metaTemplatesError, setMetaTemplatesError] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -90,7 +93,7 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
             .map((c: any) => ({
               id: c.id,
               display_name: `${c.display_name || 'Cloud API'} (Cloud)`,
-              phone_number: c.platform_account_id || '',
+              phone_number: c.config?.phone_number || c.platform_account_id || '',
               status: c.status,
               source: 'cloud'
             }));
@@ -106,6 +109,32 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
       }
     })();
   }, [open]);
+
+  useEffect(() => {
+    if (!connectionId) return;
+    const conn = connections.find((c) => c.id === connectionId);
+    console.log('[Campaign] Connection changed:', connectionId, 'source:', conn?.source, 'name:', conn?.display_name);
+    if (!conn || conn.source !== 'cloud') {
+      setMetaTemplates([]);
+      setMetaTemplatesError('');
+      return;
+    }
+    setMetaTemplatesLoading(true);
+    setMetaTemplatesError('');
+    console.log('[Campaign] Fetching templates from:', `/platform/connections/${connectionId}/templates`);
+    api.get(`/platform/connections/${connectionId}/templates`)
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        console.log('[Campaign] Templates loaded:', data.length, data.map((t: any) => t.name));
+        setMetaTemplates(data);
+      })
+      .catch((err) => {
+        console.error('[Campaign] Templates error:', err?.response?.data || err.message);
+        setMetaTemplates([]);
+        setMetaTemplatesError(err?.response?.data?.error || 'No se pudieron cargar los templates de Meta.');
+      })
+      .finally(() => setMetaTemplatesLoading(false));
+  }, [connectionId, connections]);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -418,18 +447,67 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
               {connections.find((c) => c.id === connectionId)?.source === 'cloud' && (
                 <div className="mt-3">
                   <label className="text-[11px] font-bold text-violet-500 uppercase tracking-wider">
-                    Cloud API — Nombre del template Meta
+                    Cloud API — Template Meta
                   </label>
-                  <input
-                    type="text"
-                    value={metaTemplateName}
-                    onChange={(e) => setMetaTemplateName(e.target.value)}
-                    placeholder="ej: hola_mundo"
-                    className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
-                  />
+                  {metaTemplatesLoading ? (
+                    <div className="mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl flex items-center gap-2">
+                      <Loader size="xs" />
+                      <span className="text-xs text-violet-400">Cargando templates de Meta...</span>
+                    </div>
+                  ) : metaTemplates.length > 0 ? (
+                    <select
+                      value={metaTemplateName}
+                      onChange={(e) => {
+                        const tpl = metaTemplates.find((t: any) => t.name === e.target.value);
+                        setMetaTemplateName(e.target.value);
+                        setMetaTemplateLanguage(tpl?.language || 'es');
+                        if (tpl) {
+                          const bodyComp = tpl.components?.find((c: any) => c.type === 'BODY');
+                          if (bodyComp?.text) {
+                            setMessage(bodyComp.text.replace(/\{\{(.*?)\}\}/g, '\u200B$1\u200B'));
+                          }
+                        }
+                      }}
+                      className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+                    >
+                      <option value="">Seleccionar template...</option>
+                      {metaTemplates.map((t: any) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name} — {t.language} ({t.status})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={metaTemplateName}
+                      onChange={(e) => setMetaTemplateName(e.target.value)}
+                      placeholder="ej: plantillaenvios"
+                      className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+                    />
+                  )}
+                  {metaTemplateName && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="text-[10px] text-violet-400">Idioma:</span>
+                      <input
+                        type="text"
+                        value={metaTemplateLanguage}
+                        onChange={(e) => setMetaTemplateLanguage(e.target.value)}
+                        className="px-2 py-0.5 w-16 text-[10px] font-mono font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-lg outline-none focus:border-violet-500/50"
+                      />
+                      <span className="text-[9px] text-slate-400">(ej: es, es_PE, en, en_US)</span>
+                    </div>
+                  )}
                   <p className="text-[10px] text-violet-400 mt-1">
-                    Cloud API requiere un template aprobado por Meta para mensajes proactivos. El mensaje se enviará como parámetro del template.
+                    Cloud API requiere un template aprobado por Meta. El mensaje se enviará como parámetro del template.
                   </p>
+                </div>
+              )}
+              {metaTemplatesError && connections.find((c) => c.id === connectionId)?.source === 'cloud' && (
+                <div className="mt-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500">
+                  <p className="font-bold mb-1">Error cargando templates:</p>
+                  <p>{metaTemplatesError}</p>
+                  <p className="text-[10px] text-red-400 mt-1">Verifica: Phone Number ID correcto, Access Token con permisos, y que tengas templates creados en Meta Business Suite.</p>
                 </div>
               )}
             </div>
@@ -521,7 +599,7 @@ export const CreateCampaignModal = ({ open, onClose, onCreated }: CreateCampaign
             <button
               onClick={handleCreate}
               disabled={creating}
-              className="flex items-center gap-2 px-6 h-11 rounded-xl text-sm font-black bg-gradient-to-r from-accent-500 to-emerald-500 text-black hover:opacity-90 transition-all shadow-lg shadow-accent-500/20 disabled:opacity-50"
+              className="flex items-center gap-2 px-6 h-11 rounded-xl text-sm font-black bg-gradient-to-r from-accent-500 to-accent-600 text-black hover:opacity-90 transition-all shadow-lg shadow-accent-500/20 disabled:opacity-50"
             >
               {creating ? <Loader size="xs" /> : <Send className="w-4 h-4" />}
               {creating ? 'Creando...' : sendNow ? 'Crear y Enviar' : 'Crear Campaña'}

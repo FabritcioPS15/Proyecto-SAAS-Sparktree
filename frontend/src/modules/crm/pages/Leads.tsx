@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Phone, Mail, MessageSquare, TrendingUp, User, Eye, Tag } from 'lucide-react';
-import { getLeads } from '../../../services/api';
+import { Phone, Mail, MessageSquare, TrendingUp, Plus, User, Eye, Tag, UserPlus } from 'lucide-react';
+import { getLeads, updateCrmClient } from '../../../services/api';
+import { formatPhoneNumber } from '../../../utils/phone';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
@@ -12,6 +15,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { TagChip } from '../../../components/ui/TagChip';
 import { TableCard } from '../../../components/ui/TableCard';
 import { Modal } from '../../../components/ui/Modal';
+import { useNotifications } from '../../../contexts/NotificationContext';
 
 interface Lead {
   id: string;
@@ -38,6 +42,7 @@ interface Lead {
 }
 
 export const Leads = () => {
+  const { addNotification } = useNotifications();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,6 +50,9 @@ export const Leads = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', phone: '', email: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -136,6 +144,32 @@ export const Leads = () => {
     }
   };
 
+  const handleEditLead = (lead: Lead) => {
+    setEditingLead(lead);
+    setEditForm({ name: lead.name, phone: lead.phone, email: lead.email || '' });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingLead) return;
+    setSavingEdit(true);
+    try {
+      await updateCrmClient(editingLead.id, { ...editForm, company: '', status: editingLead.status, source: 'whatsapp', notes: '' });
+      addNotification({ type: 'success', title: 'Lead actualizado', message: `${editForm.name} fue actualizado.` });
+      setEditingLead(null);
+      // Refresh leads
+      const data = await getLeads();
+      const rawLeads = Array.isArray(data) ? data : [];
+      setLeads(rawLeads.map((c: any) => ({
+        ...c, id: c.id || c._id, name: c.profile_name || c.name || 'Sin nombre',
+        phone: c.phone_number || c.phone || 'Sin número',
+      })));
+    } catch {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo guardar.' });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
   const paginatedLeads = filteredLeads.slice(
     (currentPage - 1) * itemsPerPage,
@@ -178,7 +212,7 @@ export const Leads = () => {
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
             <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded"><Phone className="w-3 h-3" /></div>
-            {lead.phone}
+            {(() => { const p = formatPhoneNumber(lead.phone); return p.prefix ? <><span className="text-accent-500">{p.prefix}</span> {p.number}</> : <span>{lead.phone}</span>; })()}
           </div>
         </div>
       )
@@ -220,10 +254,12 @@ export const Leads = () => {
         description="Monitoriza a los usuarios que están listos para la conversión."
         icon={TrendingUp}
         action={
-          <button className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <User className="w-4 h-4" />
-            Nuevo Lead
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={leads.length} />
+            <HeaderButton onClick={() => {}} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Lead
+            </HeaderButton>
+          </div>
         }
       />
 
@@ -370,7 +406,9 @@ export const Leads = () => {
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp</p>
-                            <p className="text-sm font-bold truncate">{selectedLead.phone}</p>
+                            <p className="text-sm font-bold truncate">
+                              {(() => { const p = formatPhoneNumber(selectedLead.phone); return p.prefix ? <><span className="text-accent-500">{p.prefix}</span> {p.number}</> : selectedLead.phone; })()}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -384,12 +422,36 @@ export const Leads = () => {
                   <MessageSquare className="w-5 h-5" />
                   Iniciar Chat WhatsApp
                 </button>
-                <button className="px-8 py-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-black rounded-2xl shadow-sm hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 transition-all text-sm uppercase tracking-widest">
+                <button onClick={() => { handleEditLead(selectedLead); setSelectedLead(null); }} className="px-8 py-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-black rounded-2xl shadow-sm hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 transition-all text-sm uppercase tracking-widest">
                   Editar
                 </button>
               </div>
             </div>
           )}
+        </Modal>
+
+        {/* Modal Editar Lead */}
+        <Modal open={editingLead !== null} onClose={() => setEditingLead(null)} title="Editar Lead" icon={<UserPlus className="w-5 h-5 text-accent-500" />}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Nombre</label>
+              <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Teléfono</label>
+              <input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
+              <input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white" />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setEditingLead(null)} className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">Cancelar</button>
+              <button onClick={handleSaveEdit} disabled={savingEdit} className="flex-1 py-3 bg-accent-500 text-black text-sm font-bold rounded-xl hover:bg-accent-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                {savingEdit ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
         </Modal>
       </PageBody>
     </PageContainer>

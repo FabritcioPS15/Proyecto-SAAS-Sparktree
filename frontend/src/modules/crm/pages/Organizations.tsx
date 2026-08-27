@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { Building2, Plus, Users, Crown, Clock, Edit2, Trash2, Info, Search } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { DataTable } from '../../../components/ui/DataTable';
 import { Badge } from '../../../components/ui/Badge';
+import { Modal } from '../../../components/ui/Modal';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 const MOCK_ORGS = [
   { id: '1', name: 'Acme Corp', plan: 'enterprise', userCount: 150, created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
@@ -33,6 +38,7 @@ export const Organizations = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   const getOrgUsageTime = (org: any) => {
@@ -99,9 +105,10 @@ export const Organizations = () => {
     setIsModalOpen(false);
   };
 
-  const handleDeleteOrg = (id: string) => {
-    if (!window.confirm('¿Eliminar esta organización?')) return;
-    setOrgs(orgs.filter(org => org.id !== id));
+  const handleDeleteOrg = () => {
+    if (!deleteTarget) return;
+    setOrgs(orgs.filter(org => org.id !== deleteTarget));
+    setDeleteTarget(null);
   };
 
   const handleSort = (field: SortField) => {
@@ -193,26 +200,13 @@ export const Organizations = () => {
     },
     {
       key: 'actions',
-      header: 'Acciones',
+      header: '',
+      className: 'w-12',
       render: (_: any, org: any) => (
-        <div className="flex items-center gap-1 justify-end">
-          <button
-            onClick={() => {
-              setEditingOrg(org);
-              setFormData({ name: org.name, plan: org.plan });
-              setIsModalOpen(true);
-            }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"
-          >
-            <Edit2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => handleDeleteOrg(org.id)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <KebabMenu actions={[
+          { label: 'Editar', icon: <Edit2 className="w-3.5 h-3.5" />, onClick: () => { setEditingOrg(org); setFormData({ name: org.name, plan: org.plan }); setIsModalOpen(true); } },
+          { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(org.id), variant: 'danger' },
+        ]} />
       )
     }
   ];
@@ -220,254 +214,204 @@ export const Organizations = () => {
   if (loading) return <PageLoader sectionName="Organizaciones" />;
 
   return (
-    <PageContainer>
-      <PageHeader
-        title="Gestión de"
-        highlight="Empresas"
-        description="Administra el ecosistema de tenantes."
-        icon={Building2}
-        action={
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowPlansInfo(true)}
-              className="p-2.5 dark:bg-white/5 rounded-xl text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all border border-slate-200 dark:border-slate-700"
-              title="Información de Planes"
-            >
-              <Info className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              Nueva Empresa
-            </button>
-          </div>
-        }
-      />
-
-      <PageBody>
-        <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
-            <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
-              <input
-                type="text"
-                placeholder="Buscar empresas por nombre..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={planFilter}
-                onChange={(e) => setPlanFilter(e.target.value)}
-                className="px-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm cursor-pointer min-w-[160px]"
+    <>
+      <PageContainer>
+        <PageHeader
+          title="Gestión de"
+          highlight="Empresas"
+          description="Administra el ecosistema de tenantes."
+          icon={Building2}
+          action={
+            <div className="flex items-center gap-3">
+              <HeaderButton
+                variant="ghost"
+                onClick={() => setShowPlansInfo(true)}
+                icon={<Info className="w-4 h-4" />}
               >
-                <option value="all">Todos los planes</option>
-                <option value="free">Starter</option>
-                <option value="pro">Growth</option>
-                <option value="enterprise">Global</option>
-              </select>
+              </HeaderButton>
+              <CountBadge count={orgs.length} />
+              <HeaderButton variant="secondary" onClick={() => setIsModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
+                Nueva Empresa
+              </HeaderButton>
             </div>
-          </div>
+          }
+        />
 
-          <DataTable
-            columns={columns}
-            data={paginatedOrgs}
-            pagination={{
-              currentPage,
-              totalPages,
-              onPageChange: setCurrentPage
-            }}
-          />
-        </div>
-      </PageBody>
-
-      {/* Modal Reusable Structure */}
-      {(isModalOpen || editingOrg) && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-[#0f1115] w-full max-w-md rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-2xl overflow-hidden relative">
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-accent-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
-
-            <div className="p-8 relative z-10">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 bg-accent-500/10 rounded-2xl text-accent-500 shadow-lg shadow-accent-500/10">
-                  <Building2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {editingOrg ? 'Editar Empresa' : 'Nueva Empresa'}
-                  </h2>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                    {editingOrg ? 'Modifica los datos de la organizaciÃ³n' : 'Registra una nueva empresa en el sistema'}
-                  </p>
-                </div>
+        <PageBody>
+          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
+            <div className="flex flex-col lg:flex-row gap-4 mb-4">
+              <div className="flex-1 relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Buscar empresas por nombre..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
+                />
               </div>
 
-              <form onSubmit={editingOrg ? handleUpdateOrg : handleCreateOrg} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nombre Comercial</label>
-                  <div className="relative">
-                    <input
-                      type="text" required
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3.5 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60"
-                      placeholder="Ej. SparkBot Corporation"
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                      <Building2 className="w-4 h-4" />
-                    </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={planFilter}
+                  onChange={(e) => setPlanFilter(e.target.value)}
+                  className="px-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm cursor-pointer min-w-[160px]"
+                >
+                  <option value="all">Todos los planes</option>
+                  <option value="free">Starter</option>
+                  <option value="pro">Growth</option>
+                  <option value="enterprise">Global</option>
+                </select>
+              </div>
+            </div>
+
+            <DataTable
+              columns={columns}
+              data={paginatedOrgs}
+              pagination={{
+                currentPage,
+                totalPages,
+                onPageChange: setCurrentPage
+              }}
+            />
+          </div>
+        </PageBody>
+
+        {/* Modal Reusable Structure */}
+        {(isModalOpen || editingOrg) && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-[#0f1115] w-full max-w-md rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-2xl overflow-hidden relative">
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-accent-500/5 blur-3xl rounded-full -mr-16 -mt-16" />
+
+              <div className="p-8 relative z-10">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="p-3 bg-accent-500/10 rounded-2xl text-accent-500 shadow-lg shadow-accent-500/10">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                      {editingOrg ? 'Editar Empresa' : 'Nueva Empresa'}
+                    </h2>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                      {editingOrg ? 'Modifica los datos de la organizaciÃ³n' : 'Registra una nueva empresa en el sistema'}
+                    </p>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Tipo de Plan</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { value: 'free', label: 'Starter', desc: 'BÃ¡sico', color: 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700' },
-                      { value: 'pro', label: 'Growth', desc: 'Profesional', color: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' },
-                      { value: 'enterprise', label: 'Global', desc: 'Empresarial', color: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' }
-                    ].map((plan) => (
-                      <button
-                        key={plan.value}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, plan: plan.value })}
-                        className={`relative p-3 rounded-xl border-2 transition-all font-black text-[10px] uppercase tracking-widest ${formData.plan === plan.value
-                          ? `${plan.color} border-accent-500 shadow-lg shadow-accent-500/20`
-                          : `${plan.color} border-transparent hover:border-accent-500/30`
-                          }`}
-                      >
-                        <div className="font-black">{plan.label}</div>
-                        <div className="text-[8px] opacity-60 mt-0.5">{plan.desc}</div>
-                        {formData.plan === plan.value && (
-                          <div className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => { setIsModalOpen(false); setEditingOrg(null); setFormData({ name: '', plan: 'free' }); }}
-                    className="flex-1 py-3.5 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:text-slate-700 transition-colors rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-3.5 bg-accent-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-accent-600 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-accent-500/25"
-                  >
-                    {editingOrg ? 'Actualizar Empresa' : 'Crear Empresa'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Plans Info Modal */}
-      {showPlansInfo && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-[#0f1115] w-full max-w-lg rounded-[1.5rem] border border-slate-200 dark:border-white/5 shadow-2xl overflow-hidden relative">
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-24 h-24 bg-accent-500/5 blur-2xl rounded-full -mr-12 -mt-12" />
-
-            <div className="p-6 relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-accent-500/10 rounded-xl text-accent-500 shadow-lg shadow-accent-500/10">
-                  <Info className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                    Planes Disponibles
-                  </h2>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
-                    CaracterÃ­sticas por nivel
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-6">
-                {[
-                  {
-                    key: 'free',
-                    title: 'Starter',
-                    desc: 'Perfecto para empezar',
-                    features: ['5 usuarios', '1K mensajes', 'Soporte bÃ¡sico'],
-                    color: 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700',
-                    accent: 'text-slate-500',
-                    badge: 'bg-slate-500'
-                  },
-                  {
-                    key: 'pro',
-                    title: 'Growth',
-                    desc: 'Ideal para equipos',
-                    features: ['25 usuarios', '10K mensajes', 'Soporte prioritario'],
-                    color: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800',
-                    accent: 'text-emerald-500',
-                    badge: 'bg-emerald-500'
-                  },
-                  {
-                    key: 'enterprise',
-                    title: 'Global',
-                    desc: 'MÃ¡xima capacidad',
-                    features: ['Usuarios âˆž', 'Mensajes âˆž', 'Soporte 24/7'],
-                    color: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
-                    accent: 'text-purple-500',
-                    badge: 'bg-purple-500'
-                  }
-                ].map((planInfo) => (
-                  <div key={planInfo.key} className={`rounded-xl p-4 border ${planInfo.color} relative overflow-hidden`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className={`p-1.5 rounded-lg text-white text-[10px] font-black uppercase tracking-widest ${planInfo.badge}`}>
-                        {planInfo.title.slice(0, 3)}
-                      </div>
-                      <div className={`text-[9px] font-black uppercase tracking-widest ${planInfo.accent}`}>
-                        {planInfo.desc}
+                <form onSubmit={editingOrg ? handleUpdateOrg : handleCreateOrg} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nombre Comercial</label>
+                    <div className="relative">
+                      <input
+                        type="text" required
+                        value={formData.name}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-3.5 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60"
+                        placeholder="Ej. SparkBot Corporation"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                        <Building2 className="w-4 h-4" />
                       </div>
                     </div>
-                    <h4 className={`text-base font-black mb-2 ${planInfo.key === 'free' ? 'text-slate-900' :
-                      planInfo.key === 'pro' ? 'text-emerald-900' :
-                        'text-purple-900'
-                      }`}>
-                      {planInfo.title}
-                    </h4>
-                    <div className="space-y-1">
-                      {planInfo.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <div className={`w-1 h-1 rounded-full ${planInfo.key === 'free' ? 'bg-slate-400' :
-                            planInfo.key === 'pro' ? 'bg-emerald-400' :
-                              'bg-purple-400'
-                            }`} />
-                          <span className="text-[10px] text-slate-700 dark:text-slate-300">{feature}</span>
-                        </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Tipo de Plan</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'free', label: 'Starter', desc: 'BÃ¡sico', color: 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700' },
+                        { value: 'pro', label: 'Growth', desc: 'Profesional', color: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' },
+                        { value: 'enterprise', label: 'Global', desc: 'Empresarial', color: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' }
+                      ].map((plan) => (
+                        <button
+                          key={plan.value}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, plan: plan.value })}
+                          className={`relative p-3 rounded-xl border-2 transition-all font-black text-[10px] uppercase tracking-widest ${formData.plan === plan.value
+                            ? `${plan.color} border-accent-500 shadow-lg shadow-accent-500/20`
+                            : `${plan.color} border-transparent hover:border-accent-500/30`
+                            }`}
+                        >
+                          <div className="font-black">{plan.label}</div>
+                          <div className="text-[8px] opacity-60 mt-0.5">{plan.desc}</div>
+                          {formData.plan === plan.value && (
+                            <div className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+                          )}
+                        </button>
                       ))}
                     </div>
                   </div>
-                ))}
-              </div>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  onClick={() => setShowPlansInfo(false)}
-                  className="w-full py-3 bg-accent-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-accent-600 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-accent-500/25"
-                >
-                  Entendido
-                </button>
+                  <div className="flex gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => { setIsModalOpen(false); setEditingOrg(null); setFormData({ name: '', plan: 'free' }); }}
+                      className="flex-1 py-3.5 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:text-slate-700 transition-colors rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-3.5 bg-accent-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-accent-600 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-accent-500/25"
+                    >
+                      {editingOrg ? 'Actualizar Empresa' : 'Crear Empresa'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </PageContainer>
+        )}
+
+        {/* Plans Info Modal */}
+        <Modal
+          open={showPlansInfo}
+          onClose={() => setShowPlansInfo(false)}
+          title="Planes Disponibles"
+          size="lg"
+          icon={<Info className="w-5 h-5 text-accent-500" />}
+        >
+          <div className="space-y-2">
+            {[
+              { key: 'free', title: 'Starter', desc: 'Perfecto para empezar', features: ['5 usuarios', '1K mensajes', 'Soporte básico'], dot: 'bg-slate-400', badge: 'text-slate-500 bg-slate-50 dark:bg-slate-800' },
+              { key: 'pro', title: 'Growth', desc: 'Ideal para equipos', features: ['25 usuarios', '10K mensajes', 'Soporte prioritario'], dot: 'bg-emerald-400', badge: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' },
+              { key: 'enterprise', title: 'Global', desc: 'Máxima capacidad', features: ['Usuarios ∞', 'Mensajes ∞', 'Soporte 24/7'], dot: 'bg-purple-400', badge: 'text-purple-500 bg-purple-50 dark:bg-purple-500/10' },
+            ].map((p) => (
+              <div key={p.key} className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <div className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[10px] font-bold ${p.badge}`}>
+                  {p.title.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{p.title}</h4>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">{p.desc}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {p.features.map((f, i) => (
+                      <span key={i} className="flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md">
+                        <span className={`w-1 h-1 rounded-full ${p.dot}`} />
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      </PageContainer>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteOrg}
+        title="Eliminar organización"
+        message="¿Eliminar esta organización? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        variant="danger"
+      />
+    </>
   );
 };
 

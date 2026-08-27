@@ -86,6 +86,7 @@ export const FacebookConfig = () => {
         pageAccessToken: 'mock_page_token',
         displayName: page.name,
       });
+      addNotification({ type: 'success', title: 'Messenger conectado', message: `${page.name} se conectó correctamente.` });
       setData({
         pageId: page.id,
         pageName: page.name,
@@ -96,6 +97,7 @@ export const FacebookConfig = () => {
       });
     } catch (err) {
       console.error('Error connecting Messenger:', err);
+      addNotification({ type: 'error', title: 'Error de conexión', message: 'No se pudo conectar Messenger. Intenta de nuevo.' });
     }
     setLoading(false);
   };

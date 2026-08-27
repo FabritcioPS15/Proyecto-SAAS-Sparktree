@@ -58,9 +58,8 @@ export const CustomNotification = ({
     }, 400);
   };
 
-  // Colores de la raya izquierda y barra de progreso
   const accentStyles: Record<string, { border: string; progressColor: string }> = {
-    success: { border: 'border-l-emerald-500', progressColor: 'bg-emerald-500' },
+    success: { border: 'border-l-accent-500', progressColor: 'bg-accent-500' },
     error:   { border: 'border-l-red-500',     progressColor: 'bg-red-500'     },
     warning: { border: 'border-l-amber-500',   progressColor: 'bg-amber-500'   },
     info:    { border: 'border-l-blue-500',     progressColor: 'bg-blue-500'    },
@@ -69,7 +68,7 @@ export const CustomNotification = ({
   };
 
   const icons: Record<string, React.ReactNode> = {
-    success: <CheckCircle className="w-5 h-5 text-emerald-500" />,
+    success: <CheckCircle className="w-5 h-5 text-accent-500" />,
     error:   <ShieldAlert className="w-5 h-5 text-red-500" />,
     warning: <AlertTriangle className="w-5 h-5 text-amber-500" />,
     info:    <Sparkles className="w-5 h-5 text-blue-500" />,

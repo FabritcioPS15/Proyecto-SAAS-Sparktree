@@ -47,20 +47,24 @@ export const TelegramConfig = () => {
       return;
     }
 
-    // TODO: reemplazar con llamada real a POST /api/channels/telegram/connect con { botToken }
     setLoading(true);
     setError('');
-    await new Promise(r => setTimeout(r, 1000));
-    setLoading(false);
-
-    const cleanUsername = botToken.split(':')[0];
-    await addConnection('telegram', {
-      botToken: botToken,
-      botUsername: cleanUsername,
-      displayName: 'Telegram Bot',
-      username: cleanUsername,
-    });
-    setBotToken('');
+    try {
+      const cleanUsername = botToken.split(':')[0];
+      await addConnection('telegram', {
+        botToken: botToken,
+        botUsername: cleanUsername,
+        displayName: 'Telegram Bot',
+        username: cleanUsername,
+      });
+      addNotification({ type: 'success', title: 'Telegram conectado', message: 'El bot de Telegram se conectó correctamente.' });
+      setBotToken('');
+    } catch (err) {
+      console.error('Error connecting Telegram:', err);
+      addNotification({ type: 'error', title: 'Error de conexión', message: 'No se pudo conectar Telegram. Verifica el token.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDisconnect = async () => {

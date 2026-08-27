@@ -27,11 +27,12 @@ export interface ResponsiveListProps<T> {
   className?: string;
   getId?: (row: T) => string;
   actions?: (row: T) => Array<{
-    icon: React.ReactNode;
-    label: string;
-    onClick: (e: React.MouseEvent) => void;
+    icon?: React.ReactNode;
+    label?: string;
+    onClick?: (e: React.MouseEvent) => void;
     variant?: 'default' | 'danger';
     tooltip?: string;
+    element?: React.ReactNode;
   }>;
 }
 
@@ -178,19 +179,23 @@ export function ResponsiveList<T extends Record<string, any>>({
                     {actions && actions(row).length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-2 mt-4 border-t border-slate-100 dark:border-slate-700/30">
                         {actions(row).map((action, idx) => (
-                          <button
-                            key={idx}
-                            onClick={(e) => { e.stopPropagation(); action.onClick(e); }}
-                            className={cn(
-                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                              action.variant === 'danger'
-                                ? "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20"
-                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                            )}
-                          >
-                            {action.icon}
-                            {action.label}
-                          </button>
+                          action.element ? (
+                            <React.Fragment key={idx}>{action.element}</React.Fragment>
+                          ) : (
+                            <button
+                              key={idx}
+                              onClick={(e) => { e.stopPropagation(); action.onClick?.(e); }}
+                              className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                action.variant === 'danger'
+                                  ? "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20"
+                                  : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                              )}
+                            >
+                              {action.icon}
+                              {action.label}
+                            </button>
+                          )
                         ))}
                       </div>
                     )}
@@ -303,21 +308,25 @@ export function ResponsiveList<T extends Record<string, any>>({
                   ))}
                   {actions && (
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        {actions(row).slice(0, 2).map((action, idx) => (
-                          <button
-                            key={idx}
-                            onClick={(e) => { e.stopPropagation(); action.onClick(e); }}
-                            className={cn(
-                              "p-1.5 rounded-lg transition-all",
-                              action.variant === 'danger'
-                                ? "text-slate-400 hover:text-red-500 hover:bg-red-500/10"
-                                : "text-slate-400 hover:text-accent-500 hover:bg-accent-500/10"
-                            )}
-                            title={action.tooltip}
-                          >
-                            {action.icon}
-                          </button>
+                      <div className="flex items-center gap-1 justify-end">
+                        {actions(row).map((action, idx) => (
+                          action.element ? (
+                            <React.Fragment key={idx}>{action.element}</React.Fragment>
+                          ) : (
+                            <button
+                              key={idx}
+                              onClick={(e) => { e.stopPropagation(); action.onClick?.(e); }}
+                              className={cn(
+                                "p-1.5 rounded-lg transition-all",
+                                action.variant === 'danger'
+                                  ? "text-slate-400 hover:text-red-500 hover:bg-red-500/10"
+                                  : "text-slate-400 hover:text-accent-500 hover:bg-accent-500/10"
+                              )}
+                              title={action.tooltip}
+                            >
+                              {action.icon}
+                            </button>
+                          )
                         ))}
                       </div>
                     </td>

@@ -1,7 +1,33 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { handleIncomingMessage } from '../bots/engine/flow-core';
 import { supabase } from '../../core/config/supabase';
 import WhatsAppService from '../integrations/whatsappService';
+
+/**
+ * Validates X-Hub-Signature-256 HMAC signature from Meta.
+ * Required env var: WHATSAPP_APP_SECRET (from Meta App Dashboard > Settings > Basic)
+ */
+function verifySignature(req: Request): boolean {
+  const signature = req.headers['x-hub-signature-256'] as string | undefined;
+  if (!signature) return false;
+
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    console.warn('[Webhook] WHATSAPP_APP_SECRET not configured — skipping HMAC validation (INSECURE)');
+    return true; // Allow if not configured (dev mode), but warn
+  }
+
+  const payload = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+  const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(payload).digest('hex');
+
+  // Constant-time comparison to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Validates the WhatsApp Webhook Verification Request
@@ -38,7 +64,7 @@ export const verifyWebhook = async (req: Request, res: Response) => {
     .map(c => c.config?.webhook_verify_token)
     .filter(Boolean);
 
-  const allTokens = [...new Set([...orgTokens, ...platformTokens, process.env.WHATSAPP_VERIFY_TOKEN, 'sparktree_webhook'].filter(Boolean))];
+  const allTokens = [...new Set([...orgTokens, ...platformTokens, process.env.WHATSAPP_VERIFY_TOKEN].filter(Boolean))];
 
   if (allTokens.includes(token as string)) {
     console.log('[Webhook] Verified successfully');
@@ -55,6 +81,12 @@ export const verifyWebhook = async (req: Request, res: Response) => {
  */
 export const handleIncomingWebhook = async (req: Request, res: Response) => {
   try {
+    // Validate HMAC signature first
+    if (!verifySignature(req)) {
+      console.warn('[Webhook] Invalid HMAC signature — rejecting request');
+      return res.sendStatus(401);
+    }
+
     const body = req.body;
 
     // Meta spec: always respond 200 first, then process
@@ -67,13 +99,25 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
       return;
     }
 
-    if (!body.entry?.[0]?.changes?.[0]) {
+    if (!body.entry || !Array.isArray(body.entry)) {
       return;
     }
 
-    const change = body.entry[0].changes[0];
-    const changeValue = change.value;
+    // Process ALL entries (Meta can batch multiple WABAs)
+    for (const entry of body.entry) {
+      if (!entry.changes || !Array.isArray(entry.changes)) continue;
+      for (const change of entry.changes) {
+        if (change.value) {
+          await processChange(change.value);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Webhook] Error handling webhook:', error);
+  }
+};
 
+async function processChange(changeValue: any) {
     // Process messages (Meta can send multiple messages in one payload)
     if (changeValue.messages && Array.isArray(changeValue.messages)) {
       for (const message of changeValue.messages) {
@@ -85,13 +129,21 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
     if (changeValue.statuses && Array.isArray(changeValue.statuses)) {
       for (const status of changeValue.statuses) {
         console.log(`[Webhook] Status update: ${status.status} for message ${status.id}`);
-        // TODO: update message status in DB if needed
+        // Update message status in DB
+        if (status.id && status.status) {
+          const dbStatus = status.status === 'read' ? 'read' :
+                          status.status === 'delivered' ? 'delivered' :
+                          status.status === 'sent' ? 'sent' :
+                          status.status === 'failed' ? 'failed' : null;
+          if (dbStatus) {
+            await supabase
+              .from('messages')
+              .update({ status: dbStatus })
+              .eq('whatsapp_message_id', status.id);
+          }
+        }
       }
     }
-  } catch (error) {
-    console.error('[Webhook] Error handling webhook:', error);
-    // Don't send error response - we already sent 200
-  }
 };
 
 /**
@@ -137,18 +189,8 @@ async function processIncomingMessage(message: any, changeValue: any) {
       }
     }
 
-    // Final fallback to first org for testing
     if (!organization) {
-      const { data: firstOrg } = await supabase
-        .from('organizations')
-        .select('*')
-        .limit(1)
-        .single();
-      organization = firstOrg;
-    }
-
-    if (!organization) {
-      console.warn('[Webhook] No organization found for phone_number_id:', receivingPhoneId);
+      console.warn('[Webhook] No organization found for phone_number_id:', receivingPhoneId, '— message dropped');
       return;
     }
 
@@ -225,7 +267,21 @@ async function processIncomingMessage(message: any, changeValue: any) {
         .eq('id', conversation.id);
     }
 
-    // Save Incoming Message
+    // Save Incoming Message (with deduplication)
+    if (message.id) {
+      const { data: existing } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('whatsapp_message_id', message.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`[Webhook] Duplicate message ${message.id} — skipping`);
+        return;
+      }
+    }
+
     await supabase.from('messages').insert({
       organization_id: organization.id,
       conversation_id: conversation?.id,

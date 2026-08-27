@@ -65,6 +65,7 @@ export const TikTokConfig = () => {
         advertiserId: 'tb_789012345',
         displayName: 'TikTok Business',
       });
+      addNotification({ type: 'success', title: 'TikTok conectado', message: 'La cuenta de TikTok se conectó correctamente.' });
       setData({
         businessAccountId: 'tb_789012345',
         username: 'sparkbot_oficial',
@@ -75,6 +76,7 @@ export const TikTokConfig = () => {
       });
     } catch (err) {
       console.error('Error connecting TikTok:', err);
+      addNotification({ type: 'error', title: 'Error de conexión', message: 'No se pudo conectar TikTok. Intenta de nuevo.' });
     }
   };
 

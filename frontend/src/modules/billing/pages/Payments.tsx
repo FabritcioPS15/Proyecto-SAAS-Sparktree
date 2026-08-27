@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/Button';
 import { DataTable } from '../../../components/ui/DataTable';
 import { SearchBar } from '../../../components/ui/SearchBar';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
-import { TableActions } from '../../../components/ui/TableActions';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
 
 interface Payment {
   id: string;
@@ -40,14 +40,12 @@ export const Payments = () => {
     { key: 'date', header: 'Fecha' },
     { key: 'invoice', header: 'Factura' },
     {
-      key: 'actions', header: 'Acciones', className: 'text-center',
+      key: 'actions', header: '', className: 'w-12',
       render: () => (
-        <TableActions
-          actions={[
-            { icon: <Eye className="w-4 h-4" />, label: 'Ver Detalle', onClick: (e) => e.stopPropagation(), tooltip: 'Ver Detalle' },
-            { icon: <Download className="w-4 h-4" />, label: 'Descargar', onClick: (e) => e.stopPropagation(), tooltip: 'Descargar Factura' },
-          ]}
-        />
+        <KebabMenu actions={[
+          { label: 'Ver detalle', icon: <Eye className="w-3.5 h-3.5" />, onClick: (e) => e.stopPropagation() },
+          { label: 'Descargar', icon: <Download className="w-3.5 h-3.5" />, onClick: (e) => e.stopPropagation() },
+        ]} />
       )
     },
   ];

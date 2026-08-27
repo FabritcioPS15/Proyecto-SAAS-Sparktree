@@ -142,7 +142,7 @@ export const RecoverPassword = () => {
             </form>
           ) : (
             <div className="space-y-6">
-              <div className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-emerald-500 text-[13px] font-bold animate-in slide-in-from-top-1">
+              <div className="flex items-center gap-3 p-4 bg-accent-500/5 border border-accent-500/10 rounded-xl text-accent-500 text-[13px] font-bold animate-in slide-in-from-top-1">
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
                 <span>Enlace enviado exitosamente. Revisa tu bandeja de entrada.</span>
               </div>

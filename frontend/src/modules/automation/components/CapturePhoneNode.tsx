@@ -7,7 +7,7 @@ export const CapturePhoneNode = ({ id, data: initialData }: any) => {
 
   return (
     <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-emerald-200 dark:border-emerald-900/50 w-[320px] overflow-hidden transition-all hover:shadow-emerald-500/10 group node-container">
-      <Handle type="target" position={Position.Top} className="!bg-white !border-emerald-400 group-hover:!bg-emerald-500" />
+      <Handle type="target" position={Position.Top} className="!bg-white dark:!bg-slate-700 !border-emerald-400 group-hover:!bg-emerald-500" />
       <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center gap-2">
         <Phone className="w-4 h-4 text-emerald-400" />
         <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Capturar Celular</h3>
@@ -29,7 +29,7 @@ export const CapturePhoneNode = ({ id, data: initialData }: any) => {
           </span>
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-white !border-emerald-400 group-hover:!bg-emerald-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white dark:!bg-slate-700 !border-emerald-400 group-hover:!bg-emerald-500" />
     </div>
   );
 };

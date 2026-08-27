@@ -1,5 +1,5 @@
 import { useAuth } from '../../../contexts/AuthContext';
-import { Users, Check } from 'lucide-react';
+import { Users, Check, X } from 'lucide-react';
 import { useState } from 'react';
 
 // Mock profiles data based on what was used in Conversations
@@ -14,10 +14,12 @@ const MOCK_PROFILES = [
 export const ProfileSelection = () => {
   const { selectProfile } = useAuth();
   const [selected, setSelected] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSelect = (profile: any) => {
     if (profile.inUse) {
-      alert('Este perfil ya está siendo usado por otro dispositivo. Por favor, selecciona otro.');
+      setErrorMsg('Este perfil ya está en uso por otro dispositivo. Selecciona otro.');
+      setTimeout(() => setErrorMsg(null), 4000);
       return;
     }
     setSelected(profile.id);
@@ -39,6 +41,13 @@ export const ProfileSelection = () => {
         <p className="text-gray-400 font-medium tracking-wide mb-12 text-center">
           Selecciona tu perfil de equipo para continuar
         </p>
+
+        {errorMsg && (
+          <div className="mb-6 flex items-center gap-3 px-5 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-medium animate-in fade-in duration-200">
+            <X className="w-4 h-4 flex-shrink-0" />
+            {errorMsg}
+          </div>
+        )}
 
         <div className="flex flex-wrap justify-center gap-6">
           {MOCK_PROFILES.map((profile) => (
@@ -64,7 +73,7 @@ export const ProfileSelection = () => {
                 )}
 
                 {selected === profile.id && (
-                  <div className="absolute -top-3 -right-3 w-8 h-8 bg-white text-black rounded-full flex items-center justify-center shadow-lg border-2 border-dark-bg">
+                  <div className="absolute -top-3 -right-3 w-8 h-8 bg-white dark:bg-accent-500 text-black dark:text-white rounded-full flex items-center justify-center shadow-lg border-2 border-dark-bg">
                     <Check className="w-5 h-5" />
                   </div>
                 )}

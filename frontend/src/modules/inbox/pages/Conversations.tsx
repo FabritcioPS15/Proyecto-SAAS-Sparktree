@@ -9,6 +9,7 @@ import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } fr
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Loader } from '../../../components/ui/Loader';
+import { AnimatedButton } from '../../../components/ui/AnimatedButton';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
 const MOCK_AGENTS = [
@@ -723,6 +724,51 @@ export const Conversations = () => {
     }
   };
 
+  const parseButtons = (content: any): { id: string; text: string }[] => {
+    if (!content) return [];
+    try {
+      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      if (parsed?.buttons && Array.isArray(parsed.buttons) && parsed.buttons.length > 0) {
+        return parsed.buttons.map((b: any, i: number) => ({
+          id: b.id || `btn_${i}`,
+          text: b.text || b.title || `Opción ${i + 1}`,
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const handleBotButtonClick = async (button: { id: string; text: string }) => {
+    if (!selectedConv || sending) return;
+    setMessageText('');
+    setSending(true);
+
+    const optimistic = {
+      _id: `tmp-${Date.now()}`,
+      direction: 'outbound',
+      content: button.text,
+      createdAt: new Date().toISOString(),
+      type: 'text',
+      status: 'sending',
+    };
+    setMessages((prev) => [...prev, optimistic]);
+
+    try {
+      const response = await api.post(`/conversations/${selectedConv._id}/send`, {
+        text: button.text,
+        whatsapp_connection_id: selectedConnectionId || undefined,
+      });
+      setMessages((prev) => prev.map((m) => (m._id === optimistic._id ? response.data : m)));
+    } catch (err: any) {
+      setMessages((prev) => prev.filter((m) => m._id !== optimistic._id));
+      addNotification({ type: 'error', title: 'Error', message: err?.response?.data?.error || 'No se pudo enviar la respuesta.' });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const chatSearchResults = useMemo(() => {
     if (!chatSearchTerm) return [];
     return messages
@@ -785,7 +831,7 @@ export const Conversations = () => {
       if (selectedConv?._id === conversationId) setSelectedConv(null);
     } catch (err) {
       console.error('Failed to delete', err);
-      alert('Error al eliminar. Inténtelo de nuevo.');
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar. Inténtalo de nuevo.' });
     }
   };
 
@@ -1219,10 +1265,10 @@ export const Conversations = () => {
                             </>
                           )}
                         </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
               </div>
 
             {/* Chat Body */}
@@ -1337,6 +1383,20 @@ export const Conversations = () => {
                         </div>
                       </div>
                     </div>
+                    {!isMe && parseButtons(m.content).length > 0 && (
+                      <div className="flex flex-col gap-1.5 mt-1.5 ml-9 max-w-[80%] lg:max-w-[70%]">
+                        {parseButtons(m.content).map((btn) => (
+                          <AnimatedButton
+                            key={btn.id}
+                            variant="ghost"
+                            onClick={() => handleBotButtonClick(btn)}
+                            className="!text-[10px] !py-2 !px-4 !rounded-full w-full !justify-center"
+                          >
+                            {btn.text}
+                          </AnimatedButton>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

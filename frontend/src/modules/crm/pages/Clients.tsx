@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User, SlidersHorizontal, Filter, MoreVertical, RotateCcw, UserX } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
 import { Mail } from 'lucide-react';
-import { getContacts, deleteUser, deleteUsersBulk, createCrmClient } from '../../../services/api';
+import { getContacts, deleteUser, deleteUsersBulk, createCrmClient, updateCrmClient, getSystemUsers, assignAgentToConversation } from '../../../services/api';
+import { formatPhoneNumber } from '../../../utils/phone';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
@@ -21,6 +24,118 @@ import { useNotifications } from '../../../contexts/NotificationContext';
 type SortField = 'phoneNumber' | 'firstInteraction' | 'lastInteraction' | 'totalMessages' | 'attendedBy' | 'usageTime';
 type SortOrder = 'asc' | 'desc';
 
+// Dropdown de 3 Puntos para las acciones del cliente
+const ClientActionsDropdown = ({
+  user,
+  onViewChat,
+  onAssignAgent,
+  onEdit,
+  onDelete,
+}: {
+  user: any;
+  onViewChat: () => void;
+  onAssignAgent: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.right - 180 });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open, updatePos]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        !(e.target instanceof Element && e.target.closest('[data-actions-panel]'))
+      ) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="relative inline-block">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          updatePos();
+          setOpen(!open);
+        }}
+        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+        title="Más opciones"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+
+      {open && createPortal(
+        <div
+          data-actions-panel
+          style={{ position: 'fixed', top: pos.top, left: Math.max(10, pos.left), zIndex: 9999 }}
+          className="w-48 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xl shadow-black/20 py-1.5 animate-in fade-in duration-100 space-y-0.5"
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onViewChat(); }}
+            className="w-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors flex items-center gap-2"
+          >
+            <Eye className="w-3.5 h-3.5 text-accent-500" />
+            <span>Ver Chat</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onAssignAgent(); }}
+            className="w-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors flex items-center gap-2"
+          >
+            <UserCheck className="w-3.5 h-3.5 text-blue-500" />
+            <span>Asignar Agente</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onEdit(); }}
+            className="w-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors flex items-center gap-2"
+          >
+            <User className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Editar Cliente</span>
+          </button>
+
+          <div className="my-1 border-t border-slate-100 dark:border-slate-700/40" />
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
+            className="w-full px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center gap-2"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Eliminar Cliente</span>
+          </button>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
 export const Clients = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
@@ -31,15 +146,31 @@ export const Clients = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  
+  // Filtros
   const [filterChannel, setFilterChannel] = useState('all');
+  const [filterAgent, setFilterAgent] = useState('all');
+  const [filterState, setFilterState] = useState('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [systemAgents, setSystemAgents] = useState<any[]>([]);
+
+  // Modales
   const [confirmDelete, setConfirmDelete] = useState<{ id: string } | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  
+  // Modal de Asignar Agente
+  const [assignModalUser, setAssignModalUser] = useState<any>(null);
+  const [selectedAgentForAssign, setSelectedAgentForAssign] = useState('');
+  const [assigningAgent, setAssigningAgent] = useState(false);
+
   const itemsPerPage = 8;
 
   useEffect(() => {
     fetchClients();
+    fetchAgents();
   }, []);
 
   const fetchClients = () => {
@@ -48,18 +179,19 @@ export const Clients = () => {
       .then(data => {
         const usersArray = Array.isArray(data) ? data : [];
         console.log('Datos de contactos recibidos:', usersArray);
-        console.log('Cantidad de contactos:', usersArray.length);
-        if (usersArray.length > 0) {
-          console.log('Primer contacto:', usersArray[0]);
-        }
         setUsers(usersArray);
       })
       .catch(err => {
         console.error('Failed to fetch contacts', err);
-        console.error('Error details:', err.response?.data || err.message);
         setUsers([]);
       })
       .finally(() => setLoading(false));
+  };
+
+  const fetchAgents = () => {
+    getSystemUsers()
+      .then(agents => setSystemAgents(agents || []))
+      .catch(err => console.error('Error fetching system agents:', err));
   };
 
   const handleDelete = async () => {
@@ -72,9 +204,10 @@ export const Clients = () => {
         next.delete(confirmDelete.id);
         return next;
       });
+      addNotification({ type: 'success', title: 'Cliente eliminado', message: 'El cliente ha sido eliminado exitosamente.' });
     } catch (err) {
       console.error('Error deleting user:', err);
-      alert('No se pudo eliminar el cliente. Vuelve a intentarlo.');
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el cliente. Vuelve a intentarlo.' });
     } finally {
       setConfirmDelete(null);
     }
@@ -85,9 +218,10 @@ export const Clients = () => {
       await deleteUsersBulk(Array.from(selectedIds));
       setUsers(prev => prev.filter(u => !selectedIds.has(u.id)));
       setSelectedIds(new Set());
+      addNotification({ type: 'success', title: 'Eliminación masiva', message: 'Los clientes seleccionados han sido eliminados.' });
     } catch (err) {
       console.error('Error deleting users bulk:', err);
-      alert('Error al eliminar masivamente. Algunos clientes podrían no haberse borrado.');
+      addNotification({ type: 'error', title: 'Error', message: 'Error al eliminar masivamente. Algunos clientes podrían no haberse borrado.' });
     } finally {
       setConfirmBulkDelete(false);
     }
@@ -96,22 +230,60 @@ export const Clients = () => {
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
-    const name = (form.elements.namedItem('name') as HTMLInputElement).value;
-    const email = (form.elements.namedItem('email') as HTMLInputElement).value;
-    const phone = (form.elements.namedItem('phone') as HTMLInputElement).value;
-    const company = (form.elements.namedItem('company') as HTMLInputElement)?.value || '';
+    const phone = (form.elements.namedItem('phone') as HTMLInputElement).value.trim();
+    const name = (form.elements.namedItem('name') as HTMLInputElement).value.trim() || 'Sin nombre';
+    const email = (form.elements.namedItem('email') as HTMLInputElement)?.value.trim() || '';
+
+    if (!phone) return;
 
     setCreating(true);
     try {
-      await createCrmClient({ name, email, phone, company, status: 'lead', source: 'manual', notes: '' });
-      addNotification({ type: 'success', title: 'Cliente creado', message: `Se ha creado el cliente ${name}` });
+      if (editingUser) {
+        await updateCrmClient(editingUser.id, { name, email, phone, company: '', status: editingUser.status || 'lead', source: 'manual', notes: '' });
+        addNotification({ type: 'success', title: 'Cliente actualizado', message: `Se ha actualizado ${name}` });
+      } else {
+        await createCrmClient({ name, email, phone, company: '', status: 'lead', source: 'manual', notes: '' });
+        addNotification({ type: 'success', title: 'Cliente creado', message: `Se ha creado ${name}` });
+      }
       setShowCreateModal(false);
+      setEditingUser(null);
       fetchClients();
     } catch (err: any) {
-      console.error('Error creating client:', err);
-      addNotification({ type: 'error', title: 'Error', message: err.response?.data?.error || 'No se pudo crear el cliente. Vuelve a intentarlo.' });
+      console.error('Error saving client:', err);
+      addNotification({ type: 'error', title: 'Error', message: err.response?.data?.error || 'No se pudo guardar el cliente.' });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setShowCreateModal(true);
+  };
+
+  const handleAssignAgent = async () => {
+    if (!assignModalUser || !selectedAgentForAssign) return;
+    const conversationId = assignModalUser.conversation_id || assignModalUser.id;
+    setAssigningAgent(true);
+    try {
+      await assignAgentToConversation(conversationId, selectedAgentForAssign);
+      const agent = systemAgents.find(a => a.id === selectedAgentForAssign);
+      addNotification({
+        type: 'success',
+        title: 'Agente asignado',
+        message: `Se asignó el agente ${agent?.name || ''} al cliente.`
+      });
+      setAssignModalUser(null);
+      fetchClients();
+    } catch (err: any) {
+      console.error('Error assigning agent:', err);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: err.response?.data?.error || 'No se pudo asignar el agente.'
+      });
+    } finally {
+      setAssigningAgent(false);
     }
   };
 
@@ -128,51 +300,18 @@ export const Clients = () => {
   const detectChannel = (user: any) => {
     let channel = null;
 
-    // 1. Desde user.platform_type (campo correcto según esquema BD)
-    if (user.platform_type) {
-      channel = user.platform_type;
-    }
-
-    // 2. Desde user.channels (objeto)
-    if (!channel && user.channels && Object.keys(user.channels).length > 0) {
-      channel = Object.keys(user.channels)[0];
-    }
-
-    // 3. Desde user.channel (string directo - como en Conversations.tsx)
-    if (!channel && user.channel) {
-      channel = user.channel;
-    }
-
-    // 4. Desde user.source (campo alternativo)
-    if (!channel && user.source) {
-      channel = user.source;
-    }
-
-    // 5. Desde user.platform (campo alternativo)
-    if (!channel && user.platform) {
-      channel = user.platform;
-    }
-
-    // 6. Desde user.lastChannel (último canal usado)
-    if (!channel && user.lastChannel) {
-      channel = user.lastChannel;
-    }
-
-    // 7. Desde user.conversationChannel (canal de la conversación)
-    if (!channel && user.conversationChannel) {
-      channel = user.conversationChannel;
-    }
-
-    // 8. Desde user.origin (origen del mensaje)
-    if (!channel && user.origin) {
-      channel = user.origin;
-    }
+    if (user.platform_type) channel = user.platform_type;
+    if (!channel && user.channels && Object.keys(user.channels).length > 0) channel = Object.keys(user.channels)[0];
+    if (!channel && user.channel) channel = user.channel;
+    if (!channel && user.source) channel = user.source;
+    if (!channel && user.platform) channel = user.platform;
+    if (!channel && user.lastChannel) channel = user.lastChannel;
+    if (!channel && user.conversationChannel) channel = user.conversationChannel;
+    if (!channel && user.origin) channel = user.origin;
 
     if (!channel) return '';
 
-    // Normalizar el nombre del canal
     const normalizedChannel = String(channel).toLowerCase().trim();
-    // Mapeo de nombres alternativos a nombres estándar
     const channelMapping: Record<string, string> = {
       'whatsapp': 'whatsapp',
       'wa': 'whatsapp',
@@ -193,11 +332,40 @@ export const Clients = () => {
     return channelMapping[normalizedChannel] || normalizedChannel;
   };
 
+  const activeAdvancedFiltersCount = (filterAgent !== 'all' ? 1 : 0) + (filterState !== 'all' ? 1 : 0);
+
+  const clearAllFilters = () => {
+    setFilterChannel('all');
+    setFilterAgent('all');
+    setFilterState('all');
+    setSearchTerm('');
+    setCurrentPage(1);
+  };
+
   const filteredUsers = (users || []).filter(user => {
-    const matchesSearch = user.phone_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.profile_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = (searchTerm || '').trim().toLowerCase();
+    const matchesSearch = !term ||
+      (user.phone_number && String(user.phone_number).toLowerCase().includes(term)) ||
+      (user.profile_name && String(user.profile_name).toLowerCase().includes(term)) ||
+      (user.assigned_agent?.name && String(user.assigned_agent.name).toLowerCase().includes(term));
+
     const matchesChannel = filterChannel === 'all' || detectChannel(user) === filterChannel;
-    return matchesSearch && matchesChannel;
+
+    let matchesAgent = true;
+    if (filterAgent === 'unassigned') {
+      matchesAgent = !user.assigned_to && !user.assigned_agent;
+    } else if (filterAgent !== 'all') {
+      matchesAgent = user.assigned_to === filterAgent || user.assigned_agent?.id === filterAgent;
+    }
+
+    let matchesState = true;
+    if (filterState === 'human') {
+      matchesState = user.bot_state === 'handoff';
+    } else if (filterState === 'bot') {
+      matchesState = user.bot_state !== 'handoff';
+    }
+
+    return Boolean(matchesSearch && matchesChannel && matchesAgent && matchesState);
   });
 
   const sortedUsers = [...filteredUsers].sort((a, b) => {
@@ -214,12 +382,13 @@ export const Clients = () => {
   const paginatedUsers = sortedUsers.slice(startIndex, startIndex + itemsPerPage);
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Sin fecha';
     return new Date(dateString).toLocaleDateString('es-ES', {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
   };
 
-const getChannelColor = (channel: string) => {
+  const getChannelColor = (channel: string) => {
     const channelLower = channel.toLowerCase();
     switch (channelLower) {
       case 'whatsapp':
@@ -256,79 +425,10 @@ const getChannelColor = (channel: string) => {
         return <Mail className="w-3.5 h-3.5" />;
       default:
         return <MessageSquare className="w-3.5 h-3.5" />;
-      }
+    }
   };
 
-  const formatPhoneNumber = (phone: string) => {
-    if (!phone) return { prefix: '', number: '' };
-    
-    // Convertir a string y limpiar espacios y caracteres especiales
-    let cleanPhone = String(phone).trim();
-    
-    // Eliminar caracteres comunes de WhatsApp (como @c.us, @s.whatsapp.net, etc.)
-    cleanPhone = cleanPhone.replace(/@c\.us$/i, '');
-    cleanPhone = cleanPhone.replace(/@s\.whatsapp\.net$/i, '');
-    cleanPhone = cleanPhone.replace(/@g\.us$/i, '');
-    cleanPhone = cleanPhone.replace(/@whatsapp\.net$/i, '');
-    
-    // Eliminar cualquier otro carácter no numérico excepto el +
-    cleanPhone = cleanPhone.replace(/[^\d+]/g, '');
-    
-    // Si el número está vacío después de limpiar
-    if (!cleanPhone) return { prefix: '', number: '' };
-    
-    // Códigos de país comunes (ISO 3166-1)
-    const countryCodes = ['1', '7', '20', '27', '30', '31', '32', '33', '34', '36', '39', '40', '41', '43', '44', '45', '46', '47', '48', '49', '51', '52', '53', '54', '55', '56', '57', '58', '60', '61', '62', '63', '64', '65', '66', '81', '82', '84', '86', '88', '91', '92', '93', '94', '95', '98'];
-    
-    // Detectar si tiene prefijo internacional (+)
-    if (cleanPhone.startsWith('+')) {
-      const match = cleanPhone.match(/^\+(\d{1,3})(.*)$/);
-      if (match) {
-        const potentialPrefix = match[1];
-        // Verificar si es un código de país válido
-        if (countryCodes.includes(potentialPrefix)) {
-          return {
-            prefix: '+' + potentialPrefix,
-            number: match[2].trim()
-          };
-        }
-        // Si no es código de país conocido, intentar con 2 dígitos
-        if (potentialPrefix.length === 3) {
-          const twoDigitPrefix = potentialPrefix.substring(0, 2);
-          if (countryCodes.includes(twoDigitPrefix)) {
-            return {
-              prefix: '+' + twoDigitPrefix,
-              number: potentialPrefix.substring(2) + match[2].trim()
-            };
-          }
-        }
-      }
-    }
-    
-    // Intentar detectar prefijo sin + (ej: 51 para Perú, 1 para USA, etc.)
-    const digitsOnly = cleanPhone.replace(/\D/g, '');
-    if (digitsOnly.length >= 10) {
-      // Intentar coincidir con códigos de país conocidos
-      for (const code of countryCodes.sort((a, b) => b.length - a.length)) {
-        if (digitsOnly.startsWith(code)) {
-          const remainingLength = digitsOnly.length - code.length;
-          // Verificar que el número restante tenga longitud razonable (8-10 dígitos)
-          if (remainingLength >= 8 && remainingLength <= 10) {
-            return {
-              prefix: '+' + code,
-              number: digitsOnly.substring(code.length)
-            };
-          }
-        }
-      }
-    }
-    
-    // Si no tiene prefijo detectado, asumir formato local
-    return {
-      prefix: '',
-      number: cleanPhone
-    };
-  };
+  // formatPhoneNumber imported from utils/phone
 
   if (loading) return <PageLoader sectionName="Directorio" />;
 
@@ -338,22 +438,14 @@ const getChannelColor = (channel: string) => {
       header: 'Teléfono',
       mobilePriority: 'high',
       render: (_: any, user: any) => {
-        // Intentar obtener el número real de múltiples fuentes
         let realPhone = user.phone_number;
-        
-        // Si phone_number parece un ID (muy largo), buscar en custom_attributes
         if (!realPhone || realPhone.length > 15) {
-          // Revisar custom_attributes donde podría estar el número real
           if (user.custom_attributes) {
             const attrs = user.custom_attributes;
             realPhone = attrs.real_phone_number || attrs.whatsapp_jid || attrs.whatsapp_number || attrs.phone || attrs.phoneNumber;
           }
         }
-        
-        // Si aún no hay número válido, usar el phone_number original como fallback
-        if (!realPhone) {
-          realPhone = user.phone_number;
-        }
+        if (!realPhone) realPhone = user.phone_number;
         
         const { prefix, number } = formatPhoneNumber(realPhone);
         const displayNumber = number || realPhone;
@@ -400,8 +492,7 @@ const getChannelColor = (channel: string) => {
       mobilePriority: 'high',
       render: (_: any, user: any) => {
         const channel = detectChannel(user);
-
-return channel ? (
+        return channel ? (
           <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase border ${getChannelColor(channel)}`}>
             {getChannelIcon(channel)}
             <span>{channel}</span>
@@ -412,11 +503,36 @@ return channel ? (
       }
     },
     {
+      key: 'assignedAgent',
+      header: 'Agente Asignado',
+      mobilePriority: 'medium',
+      render: (_: any, user: any) => {
+        const agent = user.assigned_agent || user.assignedAgent;
+        const agentName = agent?.name || (user.assigned_to ? 'Agente asignado' : null);
+        
+        return agentName ? (
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center border border-emerald-500/20 shadow-sm shrink-0">
+              {agentName.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-tight truncate max-w-[130px]">{agentName}</span>
+              {agent?.email && <span className="text-[10px] text-slate-400 truncate max-w-[130px]">{agent.email}</span>}
+            </div>
+          </div>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+            <UserX className="w-3 h-3 text-slate-400" />
+            Sin asignar
+          </span>
+        );
+      }
+    },
+    {
       key: 'serviceNumber',
       header: 'Línea',
       mobilePriority: 'high',
       render: (_: any, user: any) => {
-        // Usar whatsapp_line_number (número de la conexión WhatsApp activa)
         const lineNumber = user.whatsapp_line_number || user.phone_number;
         const { prefix, number } = formatPhoneNumber(lineNumber);
         return (
@@ -447,21 +563,21 @@ return channel ? (
         action={
           <div className="flex items-center gap-3">
             {selectedIds.size > 0 && (
-              <button
+              <HeaderButton
+                variant="ghost"
                 onClick={() => setConfirmBulkDelete(true)}
-                className="flex items-center gap-2 px-4 h-10 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 rounded-lg text-sm font-semibold hover:bg-red-100 dark:hover:bg-red-500/20 transition-all border border-red-100 dark:border-red-500/20"
+                icon={<Trash2 className="w-4 h-4" />}
+                className="hover:!text-red-500 hover:!bg-red-50 dark:hover:!bg-red-500/10"
               >
-                <Trash2 className="w-4 h-4" />
                 Eliminar ({selectedIds.size})
-              </button>
+              </HeaderButton>
             )}
             <div className="bg-gray-50 dark:bg-dark-card px-4 h-10 flex items-center gap-3 rounded-lg border border-gray-200 dark:border-white/5">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total: {users.length}</p>
             </div>
-            <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-              <UserPlus className="w-4 h-4" />
+            <HeaderButton variant="secondary" onClick={() => setShowCreateModal(true)} icon={<UserPlus className="w-4 h-4" />}>
               Nuevo Cliente
-            </button>
+            </HeaderButton>
           </div>
         }
       />
@@ -470,7 +586,7 @@ return channel ? (
         <TableCard>
           <div className="flex flex-col lg:flex-row gap-4 mb-4">
             <SearchBar
-              placeholder="Buscar por número o agente..."
+              placeholder="Buscar por número, nombre o agente..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
@@ -487,8 +603,73 @@ return channel ? (
                   { value: 'messenger', label: 'Messenger' },
                 ]}
               />
+
+              <button
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className={`flex items-center gap-2 px-3.5 h-10 rounded-xl text-sm font-semibold border transition-all ${
+                  showAdvancedFilters || activeAdvancedFiltersCount > 0
+                    ? 'bg-accent-500/10 border-accent-500/40 text-accent-600 dark:text-accent-400'
+                    : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>Filtros Avanzados</span>
+                {activeAdvancedFiltersCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-accent-500 text-black text-xs font-black flex items-center justify-center">
+                    {activeAdvancedFiltersCount}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
+
+          {showAdvancedFilters && (
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 mb-4 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Filter className="w-3.5 h-3.5 text-accent-500" />
+                  Filtros Avanzados
+                </h4>
+                {activeAdvancedFiltersCount > 0 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-xs font-semibold text-red-500 hover:text-red-600 flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Agente Asignado</label>
+                  <FilterSelect
+                    value={filterAgent}
+                    onChange={(v) => { setFilterAgent(v); setCurrentPage(1); }}
+                    options={[
+                      { value: 'all', label: 'Todos los Agentes' },
+                      { value: 'unassigned', label: 'Sin Asignar' },
+                      ...systemAgents.map(a => ({ value: a.id, label: a.name }))
+                    ]}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Estado de Atención</label>
+                  <FilterSelect
+                    value={filterState}
+                    onChange={(v) => { setFilterState(v); setCurrentPage(1); }}
+                    options={[
+                      { value: 'all', label: 'Todos los Estados' },
+                      { value: 'human', label: 'Humano (Handoff)' },
+                      { value: 'bot', label: 'Bot (Automático)' }
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <ResponsiveList
             columns={responsiveColumns}
@@ -498,8 +679,26 @@ return channel ? (
             selectedIds={selectedIds}
             getId={(user) => user.id}
             actions={(user) => [
-              { icon: <Eye className="w-4 h-4" />, label: 'Ver Chat', onClick: (e) => { e.stopPropagation(); navigate('/conversations'); }, tooltip: 'Ver Chat' },
-              { icon: <Trash2 className="w-4 h-4" />, label: 'Eliminar', onClick: (e) => { e.stopPropagation(); setConfirmDelete({ id: user.id }); }, variant: 'danger', tooltip: 'Eliminar Cliente' },
+              {
+                icon: <Eye className="w-4 h-4" />,
+                label: 'Ver Chat',
+                onClick: (e) => { e.stopPropagation(); navigate('/conversations'); },
+                tooltip: 'Ver Chat'
+              },
+              {
+                element: (
+                  <ClientActionsDropdown
+                    user={user}
+                    onViewChat={() => navigate('/conversations')}
+                    onAssignAgent={() => {
+                      setSelectedAgentForAssign(user.assigned_to || user.assigned_agent?.id || '');
+                      setAssignModalUser(user);
+                    }}
+                    onEdit={() => handleEditUser(user)}
+                    onDelete={() => setConfirmDelete({ id: user.id })}
+                  />
+                )
+              }
             ]}
             pagination={{
               currentPage,
@@ -532,20 +731,99 @@ return channel ? (
 
       <Modal
         open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Nuevo Cliente"
+        onClose={() => { setShowCreateModal(false); setEditingUser(null); }}
+        title={editingUser ? "Editar Cliente" : "Agregar Cliente"}
         icon={<UserPlus className="w-5 h-5 text-accent-500" />}
       >
         <form onSubmit={handleCreateClient} className="space-y-4">
-          <input type="text" name="name" placeholder="Nombre del cliente" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
-          <input type="email" name="email" placeholder="Correo electrónico" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
-          <input type="tel" name="phone" placeholder="Teléfono" required className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
-          <input type="text" name="company" placeholder="Empresa (opcional)" className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60" />
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Teléfono *</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-accent-500 font-bold text-sm">+</span>
+              <input
+                type="tel"
+                name="phone"
+                placeholder="5491112345678"
+                defaultValue={editingUser?.phone_number || editingUser?.phone || ''}
+                required
+                className="w-full pl-7 pr-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60"
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">Escribe el número con código de país, ej: 5491112345678</p>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Nombre</label>
+            <input
+              type="text"
+              name="name"
+              placeholder="Nombre del contacto (opcional)"
+              defaultValue={editingUser?.profile_name || editingUser?.name || ''}
+              className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="correo@ejemplo.com (opcional)"
+              defaultValue={editingUser?.email || ''}
+              className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-800 rounded-2xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all font-bold text-sm text-slate-900 dark:text-white placeholder-slate-400/60"
+            />
+          </div>
           <button type="submit" disabled={creating} className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
             {creating ? <Loader size="xs" /> : <UserPlus className="w-4 h-4" />}
-            {creating ? 'Creando...' : 'Crear Cliente'}
+            {creating ? 'Guardando...' : editingUser ? 'Guardar Cambios' : 'Agregar Cliente'}
           </button>
         </form>
+      </Modal>
+
+      <Modal
+        open={assignModalUser !== null}
+        onClose={() => setAssignModalUser(null)}
+        title="Asignar Agente"
+        icon={<UserCheck className="w-5 h-5 text-accent-500" />}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Selecciona el agente responsable para el cliente <span className="font-bold text-slate-900 dark:text-white">{assignModalUser?.profile_name || assignModalUser?.phone_number}</span>.
+          </p>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Agente de Atención</label>
+            <select
+              value={selectedAgentForAssign}
+              onChange={(e) => setSelectedAgentForAssign(e.target.value)}
+              className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-accent-500/20"
+            >
+              <option value="">-- Seleccionar agente --</option>
+              {systemAgents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name} ({agent.email})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setAssignModalUser(null)}
+              className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={!selectedAgentForAssign || assigningAgent}
+              onClick={handleAssignAgent}
+              className="flex-1 py-2.5 bg-accent-500 text-black text-sm font-bold rounded-xl hover:bg-accent-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {assigningAgent ? <Loader size="xs" /> : <UserCheck className="w-4 h-4" />}
+              {assigningAgent ? 'Guardando...' : 'Asignar'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </PageContainer>
   );

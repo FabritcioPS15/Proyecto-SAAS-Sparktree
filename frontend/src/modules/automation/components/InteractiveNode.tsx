@@ -8,7 +8,7 @@ export const InteractiveNode = ({ id, data: initialData }: any) => {
 
   return (
     <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-violet-200 dark:border-violet-900/50 w-[320px] overflow-hidden transition-all hover:shadow-violet-500/10 group node-container">
-      <Handle type="target" position={Position.Top} className="!bg-white !border-violet-400 group-hover:!bg-violet-500" />
+      <Handle type="target" position={Position.Top} className="!bg-white dark:!bg-slate-700 !border-violet-400 group-hover:!bg-violet-500" />
       <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center gap-2">
         <ListPlus className="w-4 h-4 text-violet-400" />
         <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Botones Interactivos</h3>
@@ -25,7 +25,7 @@ export const InteractiveNode = ({ id, data: initialData }: any) => {
               <div className="px-4 py-2.5 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-800/50 rounded-xl text-xs font-black text-violet-700 dark:text-violet-300 text-center uppercase tracking-widest">
                 {btn.text || btn.title}
               </div>
-              <Handle type="source" position={Position.Right} id={btn.id || `btn-${i}`} className="!w-3.5 !h-3.5 !bg-white !border-violet-400 !right-[-7px] !top-1/2 !translate-y-[-50%] group-hover:!bg-violet-500" />
+              <Handle type="source" position={Position.Right} id={btn.id || `btn-${i}`} className="!w-3.5 !h-3.5 !bg-white dark:!bg-slate-700 !border-violet-400 !right-[-7px] !top-1/2 !translate-y-[-50%] group-hover:!bg-violet-500" />
             </div>
           ))}
           {buttons.length === 0 && (
@@ -35,7 +35,7 @@ export const InteractiveNode = ({ id, data: initialData }: any) => {
           )}
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-white !border-violet-400 group-hover:!bg-violet-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white dark:!bg-slate-700 !border-violet-400 group-hover:!bg-violet-500" />
     </div>
   );
 };

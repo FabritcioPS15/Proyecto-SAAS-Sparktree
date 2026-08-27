@@ -89,6 +89,51 @@ router.get('/template-excel', async (req: any, res: any) => {
   }
 });
 
+// POST /api/reminders/template-excel-dynamic - Generar Excel dinámico desde variables del template
+router.post('/template-excel-dynamic', async (req: any, res: any) => {
+  try {
+    const { variables, templateName } = req.body;
+    if (!Array.isArray(variables) || variables.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de variables' });
+    }
+
+    const wb = XLSX.utils.book_new();
+    const headers = ['telefono', ...variables];
+    const sampleRow = variables.map((v: string) => `[ej: ${v}]`);
+    const wsData = [headers, ['999888777', ...sampleRow], ['999777666', ...sampleRow]];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = headers.map((h: string) => ({ wch: Math.max(h.length + 4, 18) }));
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
+
+    const instrucciones = [
+      ['PLANTILLA DINÁMICA'],
+      templateName ? [`Template Meta: ${templateName}`] : [''],
+      [''],
+      ['Columna', 'Descripción', 'Requerido'],
+      ['telefono', 'Número de WhatsApp (solo dígitos)', 'SÍ'],
+      ...variables.map((v: string) => [v, `Variable {{${v}}} del template`, 'SÍ']),
+      [''],
+      ['NOTAS:'],
+      ['1. La columna "telefono" es obligatoria.'],
+      ['2. Cada columna corresponde a una variable {{nombre}} del template Meta.'],
+      ['3. Guarda como .xlsx antes de subir.'],
+    ];
+
+    const wsInst = XLSX.utils.aoa_to_sheet(instrucciones);
+    wsInst['!cols'] = [{ wch: 20 }, { wch: 50 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, wsInst, 'Instrucciones');
+
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=plantilla_${templateName || 'template'}.xlsx`);
+    res.send(Buffer.from(buffer));
+  } catch (err: any) {
+    console.error('[Reminders] Error generating dynamic template:', err);
+    res.status(500).json({ error: 'No se pudo generar la plantilla' });
+  }
+});
+
 // POST /api/reminders/parse-excel - Parsear Excel y devolver contactos
 router.post('/parse-excel', async (req: any, res: any) => {
   try {
@@ -126,6 +171,8 @@ router.get('/:id', async (req: any, res: any) => {
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
     const reminder = await remindersService.getReminder(req.params.id, orgId);
+    if (!reminder) return res.status(404).json({ error: 'Recordatorio no encontrado' });
+
     const contacts = await remindersService.getReminderContacts(
       req.params.id,
       orgId,
@@ -136,7 +183,6 @@ router.get('/:id', async (req: any, res: any) => {
 
     res.json({ ...reminder, ...contacts, logs });
   } catch (err: any) {
-    console.error('[Reminders] Error fetching reminder:', err);
     res.status(404).json({ error: 'Recordatorio no encontrado' });
   }
 });

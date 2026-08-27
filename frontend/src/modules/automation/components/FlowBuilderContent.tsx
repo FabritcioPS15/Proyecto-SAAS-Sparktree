@@ -50,6 +50,7 @@ import {
 } from "react-icons/hi2";
 import { saveFlows, getActiveConnectionsForFlow } from '../../../services/api';
 import { Loader } from '../../../components/ui/Loader';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 
 
@@ -116,6 +117,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
   const [reactivationTime, setReactivationTime] = useState<number>(flowData.reactivationTime || 30);
   const [activeConnections, setActiveConnections] = useState<any[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     const flowId = flowData.id || flowData._id;
@@ -247,11 +249,14 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
   };
 
   const clearCanvas = () => {
-    if (window.confirm('¿Limpiar todo el flow?')) {
-      setNodes([]);
-      setEdges([]);
-      pushToHistory();
-    }
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearCanvas = () => {
+    setNodes([]);
+    setEdges([]);
+    pushToHistory();
+    setShowClearConfirm(false);
   };
 
   const onReconnect = useCallback((oldEdge: any, newConnection: any) => {
@@ -553,7 +558,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                 )}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5 px-2">
-                <span className={`text-[8px] font-black uppercase tracking-widest ${isFlowActive ? 'text-emerald-500' : 'text-slate-400'}`}>
+                <span className={`text-[8px] font-black uppercase tracking-widest ${isFlowActive ? 'text-accent-500' : 'text-slate-400'}`}>
                   {isFlowActive ? 'En Línea' : 'Borrador'}
                 </span>
                 {activeConnections.length > 0 && (
@@ -585,14 +590,14 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
           <button
             onClick={() => setIsFlowActive(!isFlowActive)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all border ${isFlowActive
-              ? 'bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'
+              ? 'bg-accent-50 border-accent-100 dark:bg-accent-500/10 dark:border-accent-500/20'
               : 'bg-slate-50 border-slate-100 dark:bg-slate-800/40 dark:border-slate-700'
               }`}
           >
-            <div className={`w-6 h-3 rounded-full relative transition-all duration-300 ${isFlowActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+            <div className={`w-6 h-3 rounded-full relative transition-all duration-300 ${isFlowActive ? 'bg-accent-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
               <div className={`absolute top-0.5 w-2 h-2 bg-white rounded-full transition-all duration-300 ${isFlowActive ? 'left-[14px]' : 'left-0.5'}`} />
             </div>
-            <span className={`text-[8px] font-black uppercase tracking-[0.1em] ${isFlowActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500'}`}>
+            <span className={`text-[8px] font-black uppercase tracking-[0.1em] ${isFlowActive ? 'text-accent-700 dark:text-accent-400' : 'text-slate-500'}`}>
               {isFlowActive ? 'Activo' : 'Borrador'}
             </span>
           </button>
@@ -611,7 +616,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
             onClick={() => saveFlow()}
             disabled={isSaving}
             className={`px-6 py-2 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 ${saveSuccess
-              ? 'bg-emerald-500 text-white animate-pulse'
+              ? 'bg-accent-500 text-white animate-pulse'
               : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
               }`}
           >
@@ -899,7 +904,7 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => saveFlow()} className="p-2.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 transition-all"><Save className="w-4 h-4" /></button>
+                      <button onClick={() => saveFlow()} className="p-2.5 bg-accent-500 text-white rounded-xl shadow-lg shadow-accent-500/20 hover:scale-105 transition-all"><Save className="w-4 h-4" /></button>
                       <button onClick={() => {
                         const idToRemove = selectedNodeId;
                         setNodes((nds) => nds.filter((n) => n.id !== idToRemove));
@@ -1710,6 +1715,16 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
 
         {showSimulator && <FlowSimulator nodes={nodes} edges={edges} matchingStrategy={matchingStrategy} onClose={() => setShowSimulator(false)} />}
       </div>
+
+      <ConfirmDialog
+        open={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={confirmClearCanvas}
+        title="Limpiar flow"
+        message="¿Limpiar todo el flow? Se eliminarán todos los nodos y conexiones. Esta acción no se puede deshacer."
+        confirmText="Limpiar"
+        variant="danger"
+      />
     </div>
   );
 };

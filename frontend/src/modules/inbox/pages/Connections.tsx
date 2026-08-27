@@ -1,10 +1,16 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { Plus, CheckCircle, XCircle, ArrowRight, Sun, Moon, Plug, PlugZap, Wifi, WifiOff } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from "react-icons/fa";
 import { useConnections } from '../../../contexts/ConnectionsContext';
+import { useNotifications } from '../../../contexts/NotificationContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { cn } from '../../../utils/cn';
+import { PageContainer } from '../../../components/layout/PageContainer';
+import { PageHeader } from '../../../components/layout/PageHeader';
+import { PageBody } from '../../../components/layout/PageBody';
 
 const platforms = [
   { id: 'whatsapp', name: 'WhatsApp', icon: FaWhatsapp, color: 'from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-500/20', bg: 'bg-emerald-500/10', text: 'text-emerald-500', description: 'WhatsApp Business API (QR o Cloud API)', route: '/whatsapp-qr' },
@@ -17,19 +23,33 @@ const platforms = [
 export const Connections = () => {
   const { connections, removeConnection, isConnecting } = useConnections();
   const { theme, toggleTheme } = useTheme();
+  const { addNotification } = useNotifications();
+  const [disconnectTarget, setDisconnectTarget] = useState<{ id: string; name: string } | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const handleConnect = (platformId: string) => {
     const platform = platforms.find(p => p.id === platformId);
     if (platform) window.location.href = platform.route;
   };
 
-  const handleDisconnect = async (connectionId: string) => {
-    await removeConnection(connectionId);
+  const handleDisconnect = async () => {
+    if (!disconnectTarget) return;
+    setDisconnecting(true);
+    try {
+      await removeConnection(disconnectTarget.id);
+      addNotification({ type: 'success', title: 'Desconectado', message: `${disconnectTarget.name} fue desconectado correctamente.` });
+    } catch (err) {
+      console.error('Error disconnecting:', err);
+      addNotification({ type: 'error', title: 'Error', message: `No se pudo desconectar ${disconnectTarget.name}.` });
+    } finally {
+      setDisconnecting(false);
+      setDisconnectTarget(null);
+    }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'connected': return <CheckCircle className="w-5 h-5 text-emerald-500" />;
+      case 'connected': return <CheckCircle className="w-5 h-5 text-accent-500" />;
       case 'connecting': return <Loader size="sm" />;
       case 'error': return <XCircle className="w-5 h-5 text-red-500" />;
       case 'pending': return <Loader size="sm" />;
@@ -50,23 +70,26 @@ export const Connections = () => {
   };
 
   return (
-    <div className="h-full flex flex-col transition-colors duration-300">
-      <div className="border-b border-slate-200/70 dark:border-white/5 bg-white/80 dark:bg-dark-card/80 backdrop-blur-xl sticky top-0 z-10 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Conexiones</h1>
-              <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">Gestiona tus integraciones con redes sociales</p>
-            </div>
-            <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-all duration-300" aria-label="Toggle dark mode">
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-      </div>
+    <PageContainer>
+      <ConfirmDialog
+        open={!!disconnectTarget}
+        onClose={() => setDisconnectTarget(null)}
+        onConfirm={handleDisconnect}
+        title="Desconectar"
+        message={`¿Deseas desconectar ${disconnectTarget?.name || ''}? Las automatizaciones asociadas dejarán de funcionar.`}
+        confirmText="Desconectar"
+        variant="danger"
+        isLoading={disconnecting}
+      />
+      <PageHeader
+        title="Gestión de"
+        highlight="Conexiones"
+        description="Gestiona tus integraciones con redes sociales"
+        icon={PlugZap}
+      />
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8 p-4 bg-gradient-to-r from-accent-500/10 to-emerald-500/10 border border-accent-500/20 rounded-xl flex items-start gap-3">
+      <PageBody>
+        <div className="mb-8 p-4 bg-gradient-to-r from-accent-500/10 to-accent-500/5 border border-accent-500/20 rounded-xl flex items-start gap-3">
           <Plug className="w-5 h-5 text-accent-500 shrink-0 mt-0.5" />
           <p className="text-sm text-slate-700 dark:text-slate-300">
             <span className="text-accent-600 dark:text-accent-500 font-black uppercase text-[10px] tracking-widest">Los bots y automatizaciones (flows) funcionan para todas las redes sociales.</span>
@@ -100,7 +123,7 @@ export const Connections = () => {
                       <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{connection.display_name}</span>
                       <span className={cn(
                         'text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md',
-                        connection.status === 'connected' ? 'bg-emerald-500/10 text-emerald-500' :
+                        connection.status === 'connected' ? 'bg-accent-500/10 text-accent-500' :
                         connection.status === 'connecting' ? 'bg-amber-500/10 text-amber-500' :
                         connection.status === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-slate-500/10 text-slate-500'
                       )}>{getStatusText(connection.status)}</span>
@@ -116,7 +139,7 @@ export const Connections = () => {
                 <div className="relative z-10">
                   {connection?.status === 'connected' ? (
                     <div className="flex gap-2">
-                      <button onClick={() => handleDisconnect(connection.id)}
+                      <button onClick={() => setDisconnectTarget({ id: connection.id, name: connection.display_name || platform.name })}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl text-sm font-bold text-red-500 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]">
                         Desconectar
                       </button>
@@ -140,7 +163,7 @@ export const Connections = () => {
             );
           })}
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </PageContainer>
   );
 };

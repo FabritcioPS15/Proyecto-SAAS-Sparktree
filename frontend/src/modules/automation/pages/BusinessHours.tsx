@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, List, LayoutGrid, Clock } from 'lucide-react';
+import { Plus, Trash2, Clock } from 'lucide-react';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { getBusinessHours, createBusinessHour, deleteBusinessHour } from '../../../services/api';
 import { Loader } from '../../../components/ui/Loader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 
 interface BusinessHour {
   id: string; day: string; openTime: string; closeTime: string; autoResponse: string;
@@ -35,13 +41,14 @@ export const BusinessHours = () => {
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAvail, setFilterAvail] = useState('all');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [hours, setHours] = useState<BusinessHour[]>(mockHours);
   const [loading, setLoading] = useState(true);
   const [formDay, setFormDay] = useState('');
   const [formOpenTime, setFormOpenTime] = useState('');
   const [formCloseTime, setFormCloseTime] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<BusinessHour | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,12 +81,14 @@ export const BusinessHours = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const deleted = hours.find(h => h.id === id);
-    setHours(prev => prev.filter(h => h.id !== id));
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const deleted = deleteTarget;
+    setDeleteTarget(null);
+    setHours(prev => prev.filter(h => h.id !== deleted.id));
     try {
-      await deleteBusinessHour(id);
-      addNotification({ type: 'success', title: 'Horario eliminado', message: `Horario de ${deleted?.day} eliminado.` });
+      await deleteBusinessHour(deleted.id);
+      addNotification({ type: 'success', title: 'Horario eliminado', message: `Horario de ${deleted.day} eliminado.` });
     } catch (err) {
       addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el horario.' });
     }
@@ -96,9 +105,12 @@ export const BusinessHours = () => {
         title="Horarios de Atención"
         description="Configuración de horario laboral y respuestas automáticas"
         action={
-          <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" /> Nuevo Horario
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={hours.length} />
+            <HeaderButton onClick={() => setShowCreateModal(true)} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Horario
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>
@@ -106,29 +118,18 @@ export const BusinessHours = () => {
           <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><Loader size="xs" /> Cargando horarios...</div>
         )}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex flex-col lg:flex-row gap-4 mb-6">
-            <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
-              <input type="text" placeholder="Buscar por día..." value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Dropdown
-                value={filterAvail}
-                onChange={(v) => setFilterAvail(v)}
-                options={[
-                  { value: 'all', label: 'Todos los días' },
-                  { value: 'open', label: 'Con horario' },
-                  { value: 'closed', label: 'Cerrado' },
-                ]}
-              />
-              <div className="flex items-center dark:bg-dark-card rounded-xl p-1 border border-gray-200 dark:border-white/5">
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><List className="w-4 h-4" /></button>
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><LayoutGrid className="w-4 h-4" /></button>
-              </div>
-            </div>
+          <div className="flex items-center gap-3 mb-6">
+            <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por día..." className="flex-1" />
+            <Dropdown
+              value={filterAvail}
+              onChange={(v) => setFilterAvail(v)}
+              options={[
+                { value: 'all', label: 'Todos los días' },
+                { value: 'open', label: 'Con horario' },
+                { value: 'closed', label: 'Cerrado' },
+              ]}
+            />
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
 
           {viewMode === 'grid' ? (
@@ -168,7 +169,9 @@ export const BusinessHours = () => {
                   </div>
                   <div className="flex items-center gap-4">
                     <p className="text-xs text-slate-400 max-w-xs truncate hidden md:block">{hour.autoResponse}</p>
-                    <button onClick={() => handleDelete(hour.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
+                    <KebabMenu actions={[
+                      { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(hour), variant: 'danger' },
+                    ]} />
                   </div>
                 </div>
               ))}
@@ -205,6 +208,16 @@ export const BusinessHours = () => {
           <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md">Crear Horario</button>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Eliminar horario"
+        message={`¿Eliminar el horario de ${deleteTarget?.day || ''}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+      />
     </PageContainer>
   );
 };

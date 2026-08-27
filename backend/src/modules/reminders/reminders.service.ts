@@ -251,15 +251,15 @@ export class RemindersService {
   }
 
   async getReminder(reminderId: string, organizationId: string) {
-    const { data: reminder, error } = await supabase
+    const { data, error } = await supabase
       .from('reminders')
       .select('*')
       .eq('id', reminderId)
       .eq('organization_id', organizationId)
       .single();
 
-    if (error) throw error;
-    return reminder;
+    if (error || !data) return null;
+    return data;
   }
 
   async getReminderContacts(reminderId: string, organizationId: string, limit = 200, offset = 0) {
@@ -345,6 +345,7 @@ export class RemindersService {
         if (cloudConn) {
           connection = cloudConn as any;
           isCloudApi = true;
+          console.log(`[Reminders] Using Cloud API for ${reminder.name}, phone_number_id: ${cloudConn.config?.phoneNumberId}, template: ${reminder.meta_template_name}`);
         }
       }
     }
@@ -451,26 +452,54 @@ export class RemindersService {
 
         try {
           const text = renderTemplate(reminder.message_template, contact.variables);
+          const phone = normalizePhone(contact.phone);
           if (isCloudApi && reminder.meta_template_name) {
             const langCode = reminder.meta_template_language || 'es';
-            const renderedText = renderTemplate(reminder.message_template, contact.variables);
-            await (adapter as any).sendTemplateMessage!(contact.phone, reminder.meta_template_name, langCode, [
-              { type: 'body', parameters: [{ type: 'text', text: renderedText }] },
-            ]);
+            if (!(adapter as any).sendTemplateMessage) {
+              throw new Error('sendTemplateMessage no disponible en el adaptador');
+            }
+            // Extract variables: first try {{var}} format, then bare variable names
+            let varNames = [...reminder.message_template.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
+            if (varNames.length === 0) {
+              // Fallback: try to extract variable-like words from the template text
+              // Look for known variable names from contact.variables
+              if (contact.variables && typeof contact.variables === 'object') {
+                varNames = Object.keys(contact.variables);
+              }
+            }
+            console.log(`[Reminders] Template: "${reminder.meta_template_name}", lang: ${langCode}, vars: [${varNames.join(', ')}], variables:`, contact.variables);
+            if (varNames.length > 0) {
+              const parameters = varNames.map(name => ({
+                type: 'text',
+                parameter_name: name,
+                text: String(contact.variables?.[name] ?? ''),
+              }));
+              console.log(`[Reminders] Sending with parameters:`, JSON.stringify(parameters));
+              await (adapter as any).sendTemplateMessage(phone, reminder.meta_template_name, langCode, [
+                { type: 'body', parameters },
+              ]);
+            } else {
+              console.log(`[Reminders] Sending template without parameters`);
+              await (adapter as any).sendTemplateMessage(phone, reminder.meta_template_name, langCode);
+            }
           } else if (reminder.image_base64 && !isCloudApi) {
-            await (adapter as any).sendImageMessage(contact.phone, reminder.image_base64, text);
+            await (adapter as any).sendImageMessage(phone, reminder.image_base64, text);
           } else {
-            await adapter.sendTextMessage(contact.phone, text);
+            await adapter.sendTextMessage(phone, text);
           }
           await supabase
             .from('reminder_contacts')
             .update({ status: 'sent', sent_at: new Date().toISOString(), error_message: null })
             .eq('id', contact.id);
         } catch (err: any) {
-          console.error('[Reminders] Send failed for', contact.phone, err?.message || err);
+          const metaError = err?.response?.data?.error || err?.response?.data;
+          const errorMsg = metaError
+            ? `Meta API ${metaError.code || ''}: ${metaError.message || JSON.stringify(metaError)}`
+            : String(err?.message || err);
+          console.error(`[Reminders] Send FAILED for ${contact.phone}: ${errorMsg}`);
           await supabase
             .from('reminder_contacts')
-            .update({ status: 'failed', error_message: String(err?.message || err) })
+            .update({ status: 'failed', error_message: errorMsg })
             .eq('id', contact.id);
         }
 

@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { useWhatsApp } from '../../../contexts/WhatsAppContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useNotifications } from '../../../contexts/NotificationContext';
 import { Plus, Trash2, Smartphone, QrCode, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 export const WhatsAppNumbersManager = () => {
   const { addNumber, removeNumber, getNumbersByOrganization, canAddMoreNumbers, loading } = useWhatsApp();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const organizationNumbers = user ? getNumbersByOrganization(user.organization_id) : [];
   const canAdd = user ? canAddMoreNumbers(user.organization_id) : false;
@@ -21,20 +25,35 @@ export const WhatsAppNumbersManager = () => {
     setIsAdding(true);
     try {
       await addNumber(newPhoneNumber, newDisplayName);
+      addNotification({ type: 'success', title: 'Número agregado', message: `${newDisplayName} fue agregado correctamente.` });
       setNewPhoneNumber('');
       setNewDisplayName('');
       setShowAddForm(false);
     } catch (error) {
       console.error('Error adding number:', error);
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo agregar el número.' });
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleDeleteNumber = async () => {
+    if (!deleteTarget) return;
+    try {
+      await removeNumber(deleteTarget.id);
+      addNotification({ type: 'success', title: 'Número eliminado', message: `${deleteTarget.name} fue eliminado correctamente.` });
+    } catch (error) {
+      console.error('Error removing number:', error);
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el número.' });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected':
-        return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+        return <CheckCircle className="w-4 h-4 text-accent-500" />;
       case 'disconnected':
         return <XCircle className="w-4 h-4 text-red-500" />;
       case 'connecting':
@@ -67,6 +86,15 @@ export const WhatsAppNumbersManager = () => {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteNumber}
+        title="Eliminar número"
+        message={`¿Deseas eliminar ${deleteTarget?.name || ''}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -209,7 +237,7 @@ export const WhatsAppNumbersManager = () => {
                     </button>
                   )}
                   <button
-                    onClick={() => removeNumber(number.id)}
+                    onClick={() => setDeleteTarget({ id: number.id, name: number.displayName })}
                     className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 rounded-xl transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />

@@ -7,7 +7,7 @@ export const CaptureNode = ({ id, data: initialData }: any) => {
 
   return (
     <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-cyan-200 dark:border-cyan-900/50 w-[320px] overflow-hidden transition-all hover:shadow-cyan-500/10 group node-container">
-      <Handle type="target" position={Position.Top} className="!bg-white !border-cyan-400 group-hover:!bg-cyan-500" />
+      <Handle type="target" position={Position.Top} className="!bg-white dark:!bg-slate-700 !border-cyan-400 group-hover:!bg-cyan-500" />
       <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center gap-2">
         <BrainCircuit className="w-4 h-4 text-cyan-400" />
         <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Capturar Dato</h3>
@@ -36,7 +36,7 @@ export const CaptureNode = ({ id, data: initialData }: any) => {
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-white !border-cyan-400 group-hover:!bg-cyan-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white dark:!bg-slate-700 !border-cyan-400 group-hover:!bg-cyan-500" />
     </div>
   );
 };

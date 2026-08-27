@@ -97,7 +97,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotification: Notification = {
       ...notification,
-      id: Date.now().toString(),
+      id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp: new Date(),
       read: false,
     };
@@ -161,7 +161,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   /**
    * Efecto para verificar nuevos mensajes periódicamente
-   * - Se ejecuta cada 15 segundos
+   * - Se ejecuta cada 30 segundos
    * - Filtra por clientes potenciales
    * - Genera notificaciones automáticamente
    */
@@ -323,7 +323,7 @@ export const NotificationBell: React.FC = () => {
                   <div className="flex items-start gap-3">
                     {/* Icono según tipo */}
                     <div className="mt-0.5">
-                      {notification.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                      {notification.type === 'success' && <CheckCircle className="w-4 h-4 text-accent-500" />}
                       {notification.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-500" />}
                       {notification.type === 'error' && <AlertTriangle className="w-4 h-4 text-red-500" />}
                       {notification.type === 'info' && <Info className="w-4 h-4 text-blue-500" />}

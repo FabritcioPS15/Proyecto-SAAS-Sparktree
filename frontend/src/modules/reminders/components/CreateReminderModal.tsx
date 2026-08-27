@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud, FileSpreadsheet, ChevronLeft, ChevronRight, Send,
-  Smartphone, Zap, Check, Wand2, Calendar, RotateCcw, Clock, FileText, Download, Image, X
+  Smartphone, Zap, Check, Wand2, Calendar, RotateCcw, Clock, FileText, Download, Cloud, Image, X, Users, Plus
 } from 'lucide-react';
 import { Modal } from '../../../components/ui/Modal';
 import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
-import { parseReminderExcel, createReminder, sendReminder, getMessageTemplates } from '../../../services/api';
+import { parseReminderExcel, createReminder, sendReminder, getMessageTemplates, downloadDynamicTemplateExcel, createConnectionTemplate, getConnectionTemplates } from '../../../services/api';
 import api from '../../../services/api';
 
 interface ParsedContact {
@@ -89,6 +89,16 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [metaTemplateName, setMetaTemplateName] = useState('');
   const [metaTemplateLanguage, setMetaTemplateLanguage] = useState('es');
+  const [metaTemplates, setMetaTemplates] = useState<any[]>([]);
+  const [metaTemplatesLoading, setMetaTemplatesLoading] = useState(false);
+  const [metaTemplatesError, setMetaTemplatesError] = useState('');
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [showCreateMetaTemplate, setShowCreateMetaTemplate] = useState(false);
+  const [creatingMetaTemplate, setCreatingMetaTemplate] = useState(false);
+  const [newMetaTplName, setNewMetaTplName] = useState('');
+  const [newMetaTplLanguage, setNewMetaTplLanguage] = useState('es');
+  const [newMetaTplCategory, setNewMetaTplCategory] = useState('UTILITY');
+  const [newMetaTplBody, setNewMetaTplBody] = useState('');
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -111,6 +121,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
     setImagePreview(null);
     setMetaTemplateName('');
     setMetaTemplateLanguage('es');
+    setDownloadingExcel(false);
     (async () => {
       try {
         // Load Baileys connections
@@ -128,7 +139,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
             .map((c: any) => ({
               id: c.id,
               display_name: `${c.display_name || 'Cloud API'} (Cloud)`,
-              phone_number: c.platform_account_id || '',
+              phone_number: c.config?.phone_number || c.platform_account_id || '',
               status: c.status,
               source: 'cloud'
             }));
@@ -152,6 +163,66 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
       }
     })();
   }, [open]);
+
+  useEffect(() => {
+    if (!connectionId) return;
+    const conn = connections.find((c) => c.id === connectionId);
+    console.log('[Reminder] Connection changed:', connectionId, 'source:', conn?.source, 'name:', conn?.display_name);
+    if (!conn || conn.source !== 'cloud') {
+      console.log('[Reminder] Not cloud source, skipping template load');
+      setMetaTemplates([]);
+      setMetaTemplatesError('');
+      return;
+    }
+    setMetaTemplatesLoading(true);
+    setMetaTemplatesError('');
+    console.log('[Reminder] Fetching templates from:', `/platform/connections/${connectionId}/templates`);
+    api.get(`/platform/connections/${connectionId}/templates`)
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        console.log('[Reminder] Templates loaded:', data.length, data.map((t: any) => t.name));
+        setMetaTemplates(data);
+      })
+      .catch((err) => {
+        console.error('[Reminder] Templates error:', err?.response?.data || err.message);
+        setMetaTemplates([]);
+        setMetaTemplatesError(err?.response?.data?.error || 'No se pudieron cargar los templates de Meta.');
+      })
+      .finally(() => setMetaTemplatesLoading(false));
+  }, [connectionId, connections]);
+
+  const isCloudConnection = connections.find((c) => c.id === connectionId)?.source === 'cloud';
+  const selectedMetaTemplate = metaTemplates.find((t) => t.name === metaTemplateName);
+
+  const extractTemplateVariables = () => {
+    if (!selectedMetaTemplate) return [];
+    const bodyComp = (selectedMetaTemplate.components || []).find((c: any) => c.type === 'BODY');
+    if (!bodyComp?.text) return [];
+    return [...bodyComp.text.matchAll(/\{\{\s*([\w-]+)\s*\}\}/g)]
+      .map((m) => m[1])
+      .filter((v, i, arr) => arr.indexOf(v) === i);
+  };
+
+  const templateVars = extractTemplateVariables();
+
+  const handleDownloadTemplateExcel = async () => {
+    try {
+      setDownloadingExcel(true);
+      const blob = await downloadDynamicTemplateExcel(templateVars, metaTemplateName);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${metaTemplateName || 'plantilla'}_datos.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      addNotification({ type: 'error', title: 'Error', message: err?.response?.data?.error || 'No se pudo descargar la plantilla Excel.' });
+    } finally {
+      setDownloadingExcel(false);
+    }
+  };
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -261,6 +332,38 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
     return preview;
   };
 
+  const handleCreateMetaTemplate = async () => {
+    if (!newMetaTplName.trim() || !newMetaTplBody.trim()) {
+      addNotification({ type: 'error', title: 'Campos requeridos', message: 'Nombre y cuerpo son obligatorios.' });
+      return;
+    }
+    const conn = connections.find((c) => c.id === connectionId);
+    if (!conn || conn.source !== 'cloud') return;
+    setCreatingMetaTemplate(true);
+    try {
+      await createConnectionTemplate(connectionId, {
+        name: newMetaTplName.trim(),
+        category: newMetaTplCategory,
+        language: newMetaTplLanguage,
+        components: [
+          { type: 'BODY', text: newMetaTplBody.trim() },
+        ],
+      });
+      addNotification({ type: 'success', title: 'Plantilla creada', message: `${newMetaTplName} enviada a Meta para aprobación.` });
+      setShowCreateMetaTemplate(false);
+      setNewMetaTplName('');
+      setNewMetaTplBody('');
+      // Refresh template list
+      const tpl = await getConnectionTemplates(connectionId);
+      setMetaTemplates(Array.isArray(tpl) ? tpl : []);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al crear plantilla en Meta';
+      addNotification({ type: 'error', title: 'Error', message: msg });
+    } finally {
+      setCreatingMetaTemplate(false);
+    }
+  };
+
   const handleCreate = async () => {
     if (!parsed) return;
     if (!name.trim()) {
@@ -352,26 +455,40 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
       subtitle="Carga contactos, personaliza el mensaje y prográma el envío automático"
       icon={<Clock className="w-5 h-5 text-accent-500" />}
     >
-      {/* Stepper */}
-      <div className="flex items-center gap-2 mb-6">
-        {stepsMeta.map((s, i) => {
-          const idx = i + 1;
-          const active = idx === step;
-          const done = idx < step;
-          return (
-            <div key={s.label} className="flex items-center gap-2 flex-1">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all ${done ? 'bg-emerald-500 text-white' : active ? 'bg-accent-500 text-black' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'}`}>
-                {done ? <Check className="w-4 h-4" /> : idx}
+      {/* Stepper compacto */}
+      <div className="relative mb-6">
+        {/* Línea de progreso de fondo */}
+        <div className="absolute top-4 left-0 right-0 h-px bg-slate-200 dark:bg-slate-700" />
+        {/* Línea de progreso activa con gradiente */}
+        <div
+          className="absolute top-4 left-0 h-px bg-gradient-to-r from-accent-500 via-accent-400 to-accent-500 transition-all duration-500"
+          style={{ width: `${((step - 1) / (stepsMeta.length - 1)) * 100}%` }}
+        />
+        <div className="relative flex justify-between">
+          {stepsMeta.map((s, i) => {
+            const idx = i + 1;
+            const active = idx === step;
+            const done = idx < step;
+            return (
+              <div key={s.label} className="flex flex-col items-center gap-1.5">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all duration-300 ${
+                  done ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' :
+                  active ? 'bg-accent-500 text-black shadow-lg shadow-accent-500/30 ring-4 ring-accent-500/10' :
+                  'bg-white dark:bg-slate-800 text-slate-400 border-2 border-slate-200 dark:border-slate-700'
+                }`}>
+                  {done ? <Check className="w-4 h-4" /> : idx}
+                </div>
+                <div className="text-center">
+                  <p className={`text-[10px] font-bold leading-none ${active ? 'text-slate-900 dark:text-white' : done ? 'text-emerald-500' : 'text-slate-400'}`}>{s.label}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className={`text-xs font-bold leading-none ${active ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{s.label}</p>
-                <p className="text-[9px] text-slate-400 mt-0.5 hidden sm:block truncate">{s.desc}</p>
-              </div>
-              {idx < 4 && <div className={`flex-1 h-px mx-1 ${done ? 'bg-emerald-500/50' : 'bg-slate-200 dark:bg-slate-700'}`} />}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
+
+      {/* Separador decorativo */}
+      <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent mb-5" />
 
       {/* STEP 1: Excel */}
       {step === 1 && (
@@ -430,7 +547,7 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
             </div>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
             <button
               onClick={() => { if (parsed) setStep(2); }}
               disabled={!parsed}
@@ -625,18 +742,170 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
               {connections.find((c) => c.id === connectionId)?.source === 'cloud' && (
                 <div className="mt-3">
                   <label className="text-[11px] font-bold text-violet-500 uppercase tracking-wider">
-                    Cloud API — Nombre del template Meta
+                    Cloud API — Template Meta
                   </label>
-                  <input
-                    type="text"
-                    value={metaTemplateName}
-                    onChange={(e) => setMetaTemplateName(e.target.value)}
-                    placeholder="ej: hola_mundo"
-                    className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
-                  />
+                  {metaTemplatesLoading ? (
+                    <div className="mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl flex items-center gap-2">
+                      <Loader size="xs" />
+                      <span className="text-xs text-violet-400">Cargando templates de Meta...</span>
+                    </div>
+                  ) : metaTemplates.length > 0 ? (
+                    <select
+                      value={metaTemplateName}
+                      onChange={(e) => {
+                        const tpl = metaTemplates.find((t) => t.name === e.target.value);
+                        setMetaTemplateName(e.target.value);
+                        setMetaTemplateLanguage(tpl?.language || 'es');
+                        if (tpl) {
+                          const bodyComp = tpl.components?.find((c: any) => c.type === 'BODY');
+                          if (bodyComp?.text) {
+                            setMessage(bodyComp.text.replace(/\{\{(.*?)\}\}/g, '\u200B$1\u200B'));
+                          }
+                        }
+                      }}
+                      className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+                    >
+                      <option value="">Seleccionar template...</option>
+                      {metaTemplates.map((t: any) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name} — {t.language} ({t.status})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={metaTemplateName}
+                      onChange={(e) => setMetaTemplateName(e.target.value)}
+                      placeholder="ej: plantillaenvios"
+                      className="w-full mt-1.5 px-4 py-3 dark:bg-white/5 border border-violet-300 dark:border-violet-700 rounded-xl focus:border-violet-500/50 focus:ring-4 focus:ring-violet-500/5 outline-none transition-all text-sm font-bold text-slate-900 dark:text-white"
+                    />
+                  )}
+                   {metaTemplateName && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="text-[10px] text-violet-400">Idioma:</span>
+                      <input
+                        type="text"
+                        value={metaTemplateLanguage}
+                        onChange={(e) => setMetaTemplateLanguage(e.target.value)}
+                        className="px-2 py-0.5 w-16 text-[10px] font-mono font-bold bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-lg outline-none focus:border-violet-500/50"
+                      />
+                      <span className="text-[9px] text-slate-400">(ej: es, es_PE, en, en_US)</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateMetaTemplate(!showCreateMetaTemplate)}
+                    className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-violet-500 dark:text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 rounded-lg transition-all"
+                  >
+                    <Plus size={12} />
+                    Crear plantilla en Meta
+                  </button>
+                  {showCreateMetaTemplate && (
+                    <div className="mt-2 p-3 rounded-xl border border-violet-300 dark:border-violet-700 bg-violet-500/5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-violet-500 uppercase">Nueva plantilla Meta</span>
+                        <button type="button" onClick={() => setShowCreateMetaTemplate(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={newMetaTplName}
+                        onChange={(e) => setNewMetaTplName(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
+                        placeholder="nombre_plantilla"
+                        className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg outline-none focus:border-violet-500/50"
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={newMetaTplLanguage}
+                          onChange={(e) => setNewMetaTplLanguage(e.target.value)}
+                          className="flex-1 px-3 py-2 text-xs bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg outline-none"
+                        >
+                          <option value="es">Español (es)</option>
+                          <option value="es_PE">Español PE</option>
+                          <option value="en">Inglés (en)</option>
+                          <option value="en_US">Inglés US</option>
+                          <option value="pt_BR">Portugués BR</option>
+                        </select>
+                        <select
+                          value={newMetaTplCategory}
+                          onChange={(e) => setNewMetaTplCategory(e.target.value)}
+                          className="flex-1 px-3 py-2 text-xs bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg outline-none"
+                        >
+                          <option value="UTILITY">Utilitaria</option>
+                          <option value="MARKETING">Marketing</option>
+                          <option value="AUTHENTICATION">Autenticación</option>
+                        </select>
+                      </div>
+                      <textarea
+                        value={newMetaTplBody}
+                        onChange={(e) => setNewMetaTplBody(e.target.value)}
+                        placeholder="Hola {{1}}, tu pedido {{2}} está listo."
+                        rows={3}
+                        className="w-full px-3 py-2 text-xs bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-lg outline-none focus:border-violet-500/50 resize-none"
+                      />
+                      <p className="text-[9px] text-slate-400">Usa {"{{1}}"}, {"{{2}}"}… para variables dinámicas.</p>
+                      <button
+                        type="button"
+                        onClick={handleCreateMetaTemplate}
+                        disabled={creatingMetaTemplate || !newMetaTplName.trim() || !newMetaTplBody.trim()}
+                        className="w-full py-2 text-xs font-bold text-white bg-violet-500 hover:bg-violet-600 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {creatingMetaTemplate ? (
+                          <><Loader size="xs" /> Enviando a Meta...</>
+                        ) : (
+                          <><Plus size={12} /> Crear y enviar a aprobación</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  {selectedMetaTemplate && (
+                    <div className="space-y-2 mt-3">
+                      {(() => {
+                        const bodyComp = selectedMetaTemplate.components?.find((c: any) => c.type === 'BODY');
+                        if (!bodyComp?.text) return null;
+                        return (
+                          <div className="px-3 py-2 bg-violet-500/10 border border-violet-500/10 rounded-lg">
+                            <p className="text-[10px] font-bold text-violet-500 uppercase tracking-wider mb-1">Cuerpo del template:</p>
+                            <p className="text-xs text-slate-700 dark:text-slate-300 font-mono">{bodyComp.text}</p>
+                          </div>
+                        );
+                      })()}
+                      {templateVars.length > 0 && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 flex-1">
+                            <span className="text-[10px] font-bold text-violet-400 uppercase">Variables:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {templateVars.map(v => (
+                                <span key={v} className="px-2 py-0.5 bg-violet-500/15 text-violet-500 rounded-md text-[10px] font-mono font-bold border border-violet-500/20">
+                                  {`{{${v}}}`}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleDownloadTemplateExcel}
+                            disabled={downloadingExcel}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-violet-500 text-white hover:bg-violet-600 transition-all shrink-0 disabled:opacity-50"
+                          >
+                            {downloadingExcel ? <Loader size="xs" /> : <Download className="w-3 h-3" />}
+                            Descargar Excel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="text-[10px] text-violet-400 mt-1">
-                    Cloud API requiere un template aprobado por Meta para mensajes proactivos. El mensaje se enviará como parámetro del template.
+                    Cloud API requiere un template aprobado por Meta. El mensaje se enviará como parámetro del template.
                   </p>
+                </div>
+              )}
+              {metaTemplatesError && isCloudConnection && (
+                <div className="mt-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500">
+                  <p className="font-bold mb-1">Error cargando templates:</p>
+                  <p>{metaTemplatesError}</p>
+                  <p className="text-[10px] text-red-400 mt-1">Verifica: Phone Number ID correcto, Access Token con permisos, y que tengas templates creados en Meta Business Suite.</p>
                 </div>
               )}
             </div>
@@ -683,9 +952,9 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <button onClick={() => setStep(1)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
-              <ChevronLeft className="w-4 h-4" /> Volver
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button onClick={() => setStep(1)} className="flex items-center gap-2 px-4 h-9 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+              <ChevronLeft className="w-3.5 h-3.5" /> Volver
             </button>
             <button
               onClick={() => setStep(3)}
@@ -783,9 +1052,9 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <button onClick={() => setStep(2)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
-              <ChevronLeft className="w-4 h-4" /> Volver
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button onClick={() => setStep(2)} className="flex items-center gap-2 px-4 h-9 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+              <ChevronLeft className="w-3.5 h-3.5" /> Volver
             </button>
             <button
               onClick={() => setStep(4)}
@@ -800,34 +1069,53 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
 
       {/* STEP 4: Review */}
       {step === 4 && parsed && (
-        <div className="space-y-5">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="px-4 py-4 bg-accent-500/5 border border-accent-500/20 rounded-xl text-center">
-              <p className="text-2xl font-black text-accent-500">{parsed.total}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Contactos</p>
+        <div className="space-y-4">
+          {/* Stats compactos inline */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded-full text-xs font-bold border border-accent-500/20">
+              <Users className="w-3 h-3" />{parsed.total} contactos
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">
+              {message.replace(/\u200B/g, '').trim().split(/\s+/).filter(w => w.length > 0).length} palabras
+            </span>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
+              connections.find((c) => c.id === connectionId)?.status === 'connected'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${connections.find((c) => c.id === connectionId)?.status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              {connections.find((c) => c.id === connectionId)?.status === 'connected' ? 'Conectado' : 'Sin conexión'}
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-700">
+              {scheduleType === 'now' && <><Send className="w-3 h-3" />Inmediato</>}
+              {scheduleType === 'once' && <><Calendar className="w-3 h-3" />{scheduledDate || 'Programado'}</>}
+              {scheduleType === 'recurring' && <><RotateCcw className="w-3 h-3" />{recurringOptions.find((o) => o.value === recurringOption)?.label}</>}
+            </span>
+          </div>
+
+          {/* Resumen en cards compactas */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="px-4 py-3 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nombre</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{name}</p>
             </div>
-            <div className="px-4 py-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center">
-              <p className="text-2xl font-black text-emerald-500">{message.replace(/\u200B/g, '').trim().split(/\s+/).filter(w => w.length > 0).length}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Palabras</p>
-            </div>
-            <div className="px-4 py-4 bg-blue-500/5 border border-blue-500/20 rounded-xl text-center">
-              <p className="text-2xl font-black text-blue-500">{connections.find((c) => c.id === connectionId)?.status === 'connected' ? '✓' : '—'}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Conexión lista</p>
+            <div className="px-4 py-3 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Programación</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                {scheduleType === 'now' && 'Inmediato'}
+                {scheduleType === 'once' && scheduledDate && `${scheduledDate} ${scheduledTime}`}
+                {scheduleType === 'recurring' && recurringOptions.find((o) => o.value === recurringOption)?.label}
+              </p>
             </div>
           </div>
 
-          <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nombre</p>
-            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{name}</p>
-          </div>
-
-          <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mensaje</p>
-            <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-slate-800">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mensaje</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed line-clamp-3">
               {message.replace(/\u200B(.*?)\u200B/g, '{{$1}}').split(/(\{\{[\w\s-]+\}\})/g).map((part: string, i: number) => {
                 if (part.startsWith('{{') && part.endsWith('}}')) {
                   const variable = part.slice(2, -2).trim();
-                  return <span key={i} className="font-bold text-accent-600 dark:text-accent-400 bg-accent-500/10 px-1 rounded">{variable}</span>;
+                  return <span key={i} className="font-bold text-accent-600 dark:text-accent-400 bg-accent-500/10 px-1 rounded text-xs">{variable}</span>;
                 }
                 return <span key={i}>{part}</span>;
               })}
@@ -835,35 +1123,30 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
           </div>
 
           {imagePreview && (
-            <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Imagen adjunta</p>
-              <img src={imagePreview} alt="Imagen del mensaje" className="w-40 h-40 object-cover rounded-xl" />
+            <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-slate-800">
+              <img src={imagePreview} alt="" className="w-12 h-12 object-cover rounded-lg shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Imagen adjunta</p>
+                <p className="text-xs text-slate-500 truncate">{imageFile?.name}</p>
+              </div>
             </div>
           )}
-
-          <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Programación</p>
-            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-              {scheduleType === 'now' && 'Inmediato'}
-              {scheduleType === 'once' && scheduledDate && `Una vez: ${scheduledDate} a las ${scheduledTime}`}
-              {scheduleType === 'recurring' && `Recurrente: ${recurringOptions.find((o) => o.value === recurringOption)?.label}`}
-            </p>
-          </div>
 
           {connections.find((c) => c.id === connectionId)?.status !== 'connected' && (
-            <div className="px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-400">
-              ⚠️ La conexión seleccionada no está conectada. Podrás iniciar el envío manualmente cuando el dispositivo esté en línea.
+            <div className="px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] font-bold text-amber-600 dark:text-amber-400">
+              La conexión no está en línea. El envío se iniciará cuando esté disponible.
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <button onClick={() => setStep(3)} disabled={creating} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
-              <ChevronLeft className="w-4 h-4" /> Volver
+          {/* Navegación */}
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button onClick={() => setStep(3)} disabled={creating} className="flex items-center gap-2 px-4 h-9 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+              <ChevronLeft className="w-3.5 h-3.5" /> Volver
             </button>
             <button
               onClick={handleCreate}
               disabled={creating}
-              className="flex items-center gap-2 px-6 h-11 rounded-xl text-sm font-black bg-gradient-to-r from-accent-500 to-emerald-500 text-black hover:opacity-90 transition-all shadow-lg shadow-accent-500/20 disabled:opacity-50"
+              className="flex items-center gap-2 px-5 h-10 rounded-xl text-sm font-black bg-gradient-to-r from-accent-500 to-accent-600 text-black hover:opacity-90 transition-all shadow-lg shadow-accent-500/20 disabled:opacity-50"
             >
               {creating ? <Loader size="xs" /> : <Send className="w-4 h-4" />}
               {creating ? 'Creando...' : sendNow && scheduleType === 'now' ? 'Crear y Enviar' : 'Crear Recordatorio'}

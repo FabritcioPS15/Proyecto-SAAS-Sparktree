@@ -134,7 +134,7 @@ export const Analytics = () => {
   if (!analyticsData) return null;
 
   const { interactionsPerDay, activeUsers, weeklySummary, dailyFlowSummary, hourlyActivity, stats } = analyticsData;
-  const safeStats = stats || { avgResponseTime: 0, satisfactionRate: 0, completionRate: 0, totalUsers: 0, totalMessages: 0, totalConversations: 0 };
+  const safeStats = stats || { avgResponseTime: 0, satisfactionRate: 0, completionRate: 0, totalUsers: 0, totalMessages: 0, totalConversations: 0, messagesSent: 0, messagesReceived: 0, messageTrend: 0 };
   const safeInteractionsPerDay = Array.isArray(interactionsPerDay) ? interactionsPerDay : [];
   const safeActiveUsers = Array.isArray(activeUsers) ? activeUsers : [];
   const safeWeeklySummary = Array.isArray(weeklySummary) ? weeklySummary : [];
@@ -142,10 +142,10 @@ export const Analytics = () => {
   const safeDailyFlowSummary = Array.isArray(dailyFlowSummary) ? dailyFlowSummary : [];
 
   const statCards = [
-    { label: 'Tiempo Respuesta', value: `${safeStats.avgResponseTime}s`, icon: Clock, color: 'blue', trend: 12 },
-    { label: 'Satisfacción', value: `${safeStats.satisfactionRate}%`, icon: Target, color: 'emerald', trend: 8 },
-    { label: 'Finalización', value: `${safeStats.completionRate}%`, icon: CheckCircle, color: 'violet', trend: -3 },
-    { label: 'Usuarios Activos', value: safeStats.totalUsers.toLocaleString(), icon: Users, color: 'amber', trend: 24 },
+    { label: 'Tiempo Respuesta', value: safeStats.avgResponseTime > 0 ? `${safeStats.avgResponseTime}s` : '—', icon: Clock, color: 'blue', trend: 0 },
+    { label: 'Satisfacción', value: `${safeStats.satisfactionRate}%`, icon: Target, color: 'emerald', trend: 0 },
+    { label: 'Finalización', value: `${safeStats.completionRate}%`, icon: CheckCircle, color: 'violet', trend: 0 },
+    { label: 'Mensajes', value: safeStats.totalMessages.toLocaleString(), icon: Users, color: 'amber', trend: safeStats.messageTrend || 0 },
   ];
 
   const cardColors: Record<string, { gradient: string; iconBg: string }> = {
@@ -209,7 +209,7 @@ export const Analytics = () => {
                 <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
                   {item.value}
                 </p>
-                <p className="text-[10px] text-slate-400 font-semibold">vs mes anterior</p>
+                <p className="text-[10px] text-slate-400 font-semibold">últimos 30 días</p>
               </div>
             </div>
           ))}

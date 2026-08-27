@@ -4,7 +4,7 @@ import { UserCheck } from 'lucide-react';
 export const HandoffNode = ({ data }: any) => {
   return (
     <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-red-200 dark:border-red-900/50 w-64 overflow-hidden transition-all hover:shadow-red-500/10 group node-container">
-      <Handle type="target" position={Position.Top} className="!bg-white !border-red-400 group-hover:!bg-red-500" />
+      <Handle type="target" position={Position.Top} className="!bg-white dark:!bg-slate-700 !border-red-400 group-hover:!bg-red-500" />
       <div className="bg-black dark:bg-gray-900 p-4 flex items-center gap-3 rounded-t-2xl">
         <div className="w-9 h-9 bg-red-500/10 rounded-xl flex items-center justify-center">
           <UserCheck className="w-5 h-5 text-red-400" />

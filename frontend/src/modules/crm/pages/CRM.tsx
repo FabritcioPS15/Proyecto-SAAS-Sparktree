@@ -2,6 +2,8 @@
 import { Users, DollarSign, TrendingUp, Plus, Search, Filter, Edit, Trash2, Phone, Mail, Building2, UserPlus } from 'lucide-react';
 import { getCrmClients, createCrmClient, updateCrmClient, deleteCrmClient, getCrmDashboard } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Modal } from '../../../components/ui/Modal';
@@ -117,13 +119,12 @@ export const CRM = () => {
         description="Administra tus clientes, deals y pipeline de ventas."
         icon={Users}
         action={
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo Cliente
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={clients.length} />
+            <HeaderButton onClick={() => setShowModal(true)} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Cliente
+            </HeaderButton>
+          </div>
         }
       />
 
@@ -232,7 +233,7 @@ export const CRM = () => {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 text-xs font-bold rounded-full ${
-                      client.status === 'customer' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                       client.status === 'customer' ? 'bg-accent-500/10 text-accent-600 dark:text-accent-400' :
                       client.status === 'prospect' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
                       client.status === 'lead' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' :
                       'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'

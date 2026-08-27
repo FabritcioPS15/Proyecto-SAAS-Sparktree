@@ -24,6 +24,8 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { Dropdown } from '../../../components/ui/Dropdown';
 import { Modal } from '../../../components/ui/Modal';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNotifications } from '../../../contexts/NotificationContext';
 
@@ -80,6 +82,7 @@ export const WhatsAppManager = () => {
     phoneNumberId: '',
     accessToken: '',
     webhookVerifyToken: '',
+    phoneNumber: '',
   });
   const [savingCloud, setSavingCloud] = useState(false);
   const [cloudSuccess, setCloudSuccess] = useState<string | null>(null);
@@ -127,10 +130,11 @@ export const WhatsAppManager = () => {
         phoneNumberId: cloudForm.phoneNumberId.trim(),
         accessToken: cloudForm.accessToken.trim(),
         webhookVerifyToken: cloudForm.webhookVerifyToken.trim() || 'sparktree_webhook',
+        phoneNumber: cloudForm.phoneNumber.trim() || null,
       });
       setCloudSuccess('Conexión Cloud API guardada exitosamente.');
       addNotification({ type: 'success', title: 'Cloud API Guardada', message: 'Configura el webhook en Meta Developers.' });
-      setCloudForm({ displayName: '', phoneNumberId: '', accessToken: '', webhookVerifyToken: '' });
+      setCloudForm({ displayName: '', phoneNumberId: '', accessToken: '', webhookVerifyToken: '', phoneNumber: '' });
       loadCloudConnections();
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Error al guardar';
@@ -242,7 +246,7 @@ export const WhatsAppManager = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected':
-        return <CheckCircle className="w-5 h-5 text-emerald-500" />;
+        return <CheckCircle className="w-5 h-5 text-accent-500" />;
       case 'connecting':
         return <Clock className="w-5 h-5 text-amber-500" />;
       case 'error':
@@ -255,13 +259,13 @@ export const WhatsAppManager = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'connected':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-accent-500/10 text-accent-600 dark:text-accent-400 border-accent-500/20';
       case 'connecting':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
       case 'error':
-        return 'bg-red-50 text-red-700 border-red-200';
+        return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
       default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
+        return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
     }
   };
 
@@ -277,22 +281,17 @@ export const WhatsAppManager = () => {
         description="Gestiona múltiples conexiones y asigna flujos a cada una."
         icon={Smartphone}
         action={
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-white/80 dark:text-gray-400">
-              <span className="font-bold text-white">{connections.length}</span> / {MAX_CONNECTIONS} conexiones
-            </div>
-            <button
+          <div className="flex items-center gap-3">
+            <CountBadge count={connections.length} />
+            <HeaderButton
+              variant="secondary"
               onClick={() => setShowCreateForm(true)}
               disabled={atLimit}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${atLimit
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-black hover:scale-105 active:scale-95'
-                }`}
+              icon={<Plus className="w-4 h-4" />}
               title={atLimit ? `Máximo de ${MAX_CONNECTIONS} conexiones alcanzado` : undefined}
             >
-              <Plus className="w-4 h-4" />
               Nueva Conexión
-            </button>
+            </HeaderButton>
           </div>
         }
       />
@@ -309,9 +308,9 @@ export const WhatsAppManager = () => {
       <PageBody>
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="ml-4 text-red-500 hover:text-red-700">×</button>
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 px-4 py-3 rounded-xl mb-4 flex items-center justify-between">
+            <span className="text-sm font-medium">{error}</span>
+            <button onClick={() => setError(null)} className="ml-4 text-red-500/50 hover:text-red-500 transition-colors">×</button>
           </div>
         )}
 
@@ -320,8 +319,8 @@ export const WhatsAppManager = () => {
           <button
             onClick={() => setActiveTab('baileys')}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${activeTab === 'baileys'
-                ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
           >
             <QrCode className="w-4 h-4" />
@@ -330,8 +329,8 @@ export const WhatsAppManager = () => {
           <button
             onClick={() => setActiveTab('cloud')}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-semibold transition-all ${activeTab === 'cloud'
-                ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
           >
             <Cloud className="w-4 h-4" />
@@ -387,7 +386,7 @@ export const WhatsAppManager = () => {
 
                     <button
                       onClick={() => setDeleteTarget(connection.id)}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm"
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors text-sm"
                     >
                       <Trash2 className="w-4 h-4" />
                       Eliminar
@@ -410,23 +409,23 @@ export const WhatsAppManager = () => {
                 {cloudConnections.map(conn => (
                   <div key={conn.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${conn.status === 'connected' ? 'bg-emerald-500' : 'bg-gray-400'
+                      <div className={`w-2.5 h-2.5 rounded-full ${conn.status === 'connected' ? 'bg-accent-500' : 'bg-gray-400'
                         }`} />
                       <div>
                         <p className="font-semibold text-gray-900 dark:text-white text-sm">{conn.display_name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Phone ID: {conn.platform_account_id || conn.config?.phoneNumberId || '—'}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{conn.config?.phoneNumberId || '—'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full border ${conn.status === 'connected'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-gray-50 text-gray-600 border-gray-200'
+                        ? 'bg-accent-500/10 text-accent-600 dark:text-accent-400 border-accent-500/20'
+                        : 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20'
                         }`}>
                         {conn.status}
                       </span>
                       <button
                         onClick={() => deleteCloudConnection(conn.id)}
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -438,9 +437,9 @@ export const WhatsAppManager = () => {
 
             {/* Success message */}
             {cloudSuccess && (
-              <div className="flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl">
-                <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-                <p className="text-sm text-emerald-800 dark:text-emerald-200">{cloudSuccess}</p>
+              <div className="flex items-center gap-3 p-4 bg-accent-500/10 border border-accent-500/20 rounded-xl">
+                <CheckCircle className="w-5 h-5 text-accent-500 shrink-0" />
+                <p className="text-sm text-accent-700 dark:text-accent-300">{cloudSuccess}</p>
               </div>
             )}
 
@@ -469,8 +468,8 @@ export const WhatsAppManager = () => {
                 <button
                   onClick={copyWebhookUrl}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${copiedWebhook
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-accent-500 text-black'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                 >
                   <Copy className="w-3.5 h-3.5" />
@@ -508,6 +507,18 @@ export const WhatsAppManager = () => {
                     className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm text-slate-900 dark:text-white placeholder-slate-400/60"
                   />
                   <p className="text-xs text-gray-400 mt-1">Encuéntralo en Meta Developers → WhatsApp → Configuración de API</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Número de Teléfono (opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="ej. +51 942 264 697"
+                    value={cloudForm.phoneNumber}
+                    onChange={e => setCloudForm(p => ({ ...p, phoneNumber: e.target.value }))}
+                    className="w-full px-4 py-3 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-accent-500/50 focus:ring-4 focus:ring-accent-500/5 outline-none transition-all text-sm text-slate-900 dark:text-white placeholder-slate-400/60"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">El número real vinculado a esta conexión (se mostrará en las listas)</p>
                 </div>
 
                 <div>

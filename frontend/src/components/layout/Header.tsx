@@ -13,6 +13,7 @@ import { useCustomization, STATUS_KEYS, STATUS_GROUPS, BADGE_VARIANTS } from '..
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
 import { Modal } from '../ui/Modal';
+import { StatusBadge } from '../ui/StatusBadge';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -87,6 +88,8 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
   const [isSocialOpen, setIsSocialOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [customizeTab, setCustomizeTab] = useState('accent');
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['Pagos', 'layout']));
+  const toggleSection = (key: string) => setOpenSections(prev => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const location = useLocation();
   const {
@@ -423,14 +426,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
             )}
           </div>
 
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className={iconBtn}
-            title={theme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'}
-          >
-            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
+
 
           {/* Notifications (consistent with other icon buttons) */}
           <NotificationBell />
@@ -564,32 +560,37 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {/* TAB: Color Acento */}
             {customizeTab === 'accent' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
                   COLOR PRINCIPAL
                 </p>
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 gap-3">
                   {[
-                    { key: 'emerald', class: 'bg-emerald-500', label: 'Esmeralda' },
-                    { key: 'blue', class: 'bg-blue-500', label: 'Azul' },
-                    { key: 'violet', class: 'bg-violet-500', label: 'Violeta' },
-                    { key: 'rose', class: 'bg-rose-500', label: 'Rosa' },
-                    { key: 'amber', class: 'bg-amber-500', label: 'Ámbar' },
-                    { key: 'cyan', class: 'bg-cyan-500', label: 'Cian' },
-                  ].map(({ key, className: bgClass, label }) => (
+                    { key: 'violet', hex: '#8b5cf6', label: 'Violeta' },
+                    { key: 'blue', hex: '#3b82f6', label: 'Azul' },
+                    { key: 'indigo', hex: '#6366f1', label: 'Indigo' },
+                    { key: 'cyan', hex: '#06b6d4', label: 'Cian' },
+                    { key: 'teal', hex: '#14b8a6', label: 'Teal' },
+                    { key: 'emerald', hex: '#10b981', label: 'Esmeralda' },
+                    { key: 'lime', hex: '#84cc16', label: 'Lima' },
+                    { key: 'amber', hex: '#f59e0b', label: 'Ambar' },
+                    { key: 'orange', hex: '#f97316', label: 'Naranja' },
+                    { key: 'rose', hex: '#f43f5e', label: 'Rosa' },
+                    { key: 'pink', hex: '#ec4899', label: 'Rosa Fuerte' },
+                    { key: 'red', hex: '#ef4444', label: 'Rojo' },
+                  ].map(({ key, hex, label }) => (
                     <button
                       key={key}
                       onClick={() => setAccentColor(key)}
-                      title={label}
-                      className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${
+                      className={`relative flex flex-col items-center gap-2 p-3 rounded-xl transition-all ${
                         accentColor === key
-                          ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
-                          : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                          ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5 shadow-md'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/5 hover:shadow-sm'
                       }`}
                     >
-                      <span className={`w-8 h-8 rounded-xl ${bgClass} shadow-sm transition-transform ${accentColor === key ? 'scale-110' : ''}`} />
-                      <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400 truncate w-full text-center">{label}</span>
+                      <span className={`w-10 h-10 rounded-xl shadow-sm transition-transform ${accentColor === key ? 'scale-110' : ''}`} style={{ backgroundColor: hex }} />
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate w-full text-center">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -601,264 +602,208 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                       onChange={(e) => { setCustomAccentHex(e.target.value); setAccentColor('custom'); }}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                    <span className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                    <span className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
                       accentColor === 'custom'
-                        ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
+                        ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5 shadow-md'
                         : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
                     }`}>
-                      <span className="w-5 h-5 rounded" style={{ backgroundColor: accentColor === 'custom' ? customAccentHex : '#10b981' }} />
+                      <span className="w-6 h-6 rounded-lg" style={{ backgroundColor: accentColor === 'custom' ? customAccentHex : '#10b981' }} />
                       Personalizado
                     </span>
                   </label>
                   {accentColor === 'custom' && (
-                    <span className="text-[9px] font-mono text-slate-400">{customAccentHex}</span>
+                    <span className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-lg">{customAccentHex}</span>
                   )}
-                </div>
-
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mt-6">
-                  <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                  MUESTRA DE TONOS
-                </p>
-                <div className="flex gap-1.5">
-                  {['50','100','200','300','400','500','600','700','800','900'].map((shade) => (
-                    <div
-                      key={shade}
-                      className="flex-1 h-8 rounded-lg"
-                      style={{ backgroundColor: `rgb(var(--accent-${shade}) / 1)` }}
-                      title={`${shade}`}
-                    />
-                  ))}
                 </div>
               </div>
             )}
 
             {/* TAB: Estados */}
             {customizeTab === 'status' && (
-              <div className="space-y-4">
-                {STATUS_GROUPS.map((group) => (
-                  <div key={group.name}>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                      {group.name}
-                    </p>
-                    <div className="flex flex-col gap-1.5">
-                      {group.keys.map((status) => {
-                        const labels: Record<string, string> = {
-                          pending: 'Pendiente', paid: 'Pagado', cancelled: 'Cancelado', refunded: 'Reembolsado', overdue: 'Vencido',
-                          processing: 'Procesando', sent: 'Enviado', delivered: 'Entregado', returned: 'Devuelto',
-                          active: 'Activo', inactive: 'Inactivo', error: 'Error', success: 'Éxito', warning: 'Advertencia', info: 'Info',
-                          connected: 'Conectado', connecting: 'Conectando', disconnected: 'Desconectado',
-                          draft: 'Borrador', accepted: 'Aceptado', rejected: 'Rechazado', expired: 'Expirado',
-                        };
-                        const currentVariant = statusColors[status] || 'warning';
-                        return (
-                          <div key={status} className="flex items-center gap-2 px-1">
-                            <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 w-24 shrink-0">{labels[status] || status}</span>
-                            <div className="flex gap-1">
-                              {BADGE_VARIANTS.map((v) => {
-                                const colorMap: Record<string, string> = {
-                                  primary: 'bg-accent-500', success: 'bg-emerald-500', warning: 'bg-amber-500',
-                                  danger: 'bg-red-500', info: 'bg-sky-500', default: 'bg-slate-400',
-                                };
-                                return (
-                                  <button
-                                    key={v}
-                                    onClick={() => setStatusColor(status, v)}
-                                    className={`w-5 h-5 rounded-full ${colorMap[v]} transition-all ${
-                                      currentVariant === v ? 'ring-2 ring-offset-1 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white scale-110' : 'opacity-40 hover:opacity-80'
-                                    }`}
-                                    title={v}
-                                  />
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
+              <div className="space-y-2">
+                {STATUS_GROUPS.map((group) => {
+                  const isOpen = openSections.has(group.name);
+                  return (
+                    <div key={group.name} className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+                      <button
+                        onClick={() => toggleSection(group.name)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{group.name}</span>
+                        <svg className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      {isOpen && (
+                        <div className="px-4 pb-3 space-y-2 border-t border-slate-100 dark:border-slate-800">
+                          {group.keys.map((status) => {
+                            const labels: Record<string, string> = {
+                              pending: 'Pendiente', paid: 'Pagado', cancelled: 'Cancelado', refunded: 'Reembolsado', overdue: 'Vencido',
+                              processing: 'Procesando', sent: 'Enviado', delivered: 'Entregado', returned: 'Devuelto',
+                              active: 'Activo', inactive: 'Inactivo', error: 'Error', success: 'Exito', warning: 'Advertencia', info: 'Info',
+                              connected: 'Conectado', connecting: 'Conectando', disconnected: 'Desconectado',
+                              draft: 'Borrador', accepted: 'Aceptado', rejected: 'Rechazado', expired: 'Expirado',
+                            };
+                            const currentVariant = statusColors[status] || 'warning';
+                            const colorMap: Record<string, string> = {
+                              primary: 'bg-accent-500', success: 'bg-emerald-500', warning: 'bg-amber-500',
+                              danger: 'bg-red-500', info: 'bg-sky-500', default: 'bg-slate-400',
+                            };
+                            return (
+                              <div key={status} className="flex items-center gap-3 py-1.5">
+                                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 w-28 shrink-0">{labels[status] || status}</span>
+                                <div className="flex gap-1.5">
+                                  {BADGE_VARIANTS.map((v) => (
+                                    <button
+                                      key={v}
+                                      onClick={() => setStatusColor(status, v)}
+                                      className={`w-6 h-6 rounded-lg ${colorMap[v]} transition-all ${
+                                        currentVariant === v ? 'ring-2 ring-offset-1 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white scale-110' : 'opacity-30 hover:opacity-70'
+                                      }`}
+                                      title={v}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {/* TAB: Apariencia */}
             {customizeTab === 'appearance' && (
-              <div className="space-y-5">
+              <div className="space-y-2">
                 {/* Layout */}
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                    LAYOUT
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: 'fluid', label: 'Fluido', desc: 'Ancho completo' },
-                      { key: 'boxed', label: 'Centrado', desc: 'Máximo 1400px' },
-                    ].map(({ key, label, desc }) => (
-                      <button
-                        key={key}
-                        onClick={() => setLayoutMode(key)}
-                        className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all ${
-                          layoutMode === key
-                            ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
-                            : 'bg-slate-100/50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'
-                        }`}
-                      >
-                        <div className="w-full h-6 rounded-md border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                          <div className={`h-1 rounded-full bg-slate-300 dark:bg-slate-600 ${key === 'boxed' ? 'w-3/5' : 'w-full mx-1'}`} />
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{label}</span>
-                        <span className="text-[8px] text-slate-400 dark:text-slate-500 -mt-1">{desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Densidad + Fuente */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                      DENSIDAD
-                    </p>
-                    <div className="flex flex-col gap-1.5">
-                      {['compact', 'normal', 'spacious'].map((key) => {
-                        const labels: Record<string, string> = { compact: 'Compacta', normal: 'Normal', spacious: 'Espaciosa' };
-                        return (
-                          <button
-                            key={key}
-                            onClick={() => setTableDensity(key)}
-                            className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                              tableDensity === key
-                                ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
-                                : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
-                            }`}
-                          >
-                            <span className={`w-3 h-3 rounded ${key === 'compact' ? 'bg-slate-400' : key === 'normal' ? 'bg-slate-500' : 'bg-slate-600'} ${tableDensity === key ? 'bg-white dark:bg-black' : ''}`} />
-                            {labels[key]}
+                <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+                  <button onClick={() => toggleSection('layout')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Layout</span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${openSections.has('layout') ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {openSections.has('layout') && (
+                    <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { key: 'fluid', label: 'Fluido', desc: 'Ancho completo' },
+                          { key: 'boxed', label: 'Centrado', desc: 'Maximo 1400px' },
+                        ].map(({ key, label, desc }) => (
+                          <button key={key} onClick={() => setLayoutMode(key)} className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all ${layoutMode === key ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5' : 'bg-slate-100/50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10'}`}>
+                            <div className="w-full h-6 rounded-md border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                              <div className={`h-1 rounded-full bg-slate-300 dark:bg-slate-600 ${key === 'boxed' ? 'w-3/5' : 'w-full mx-1'}`} />
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{label}</span>
+                            <span className="text-[8px] text-slate-400 dark:text-slate-500 -mt-1">{desc}</span>
                           </button>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                      TAMAÑO FUENTE
-                    </p>
-                    <div className="flex flex-col gap-1.5">
-                      {[
-                        { key: 'small', label: 'Pequeña', sample: 'Aa' },
-                        { key: 'normal', label: 'Normal', sample: 'Aa' },
-                        { key: 'large', label: 'Grande', sample: 'Aa' },
-                      ].map(({ key, label, sample }) => (
-                        <button
-                          key={key}
-                          onClick={() => setFontSize(key)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                            fontSize === key
-                              ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
-                              : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
-                          }`}
-                        >
-                          <span className={`font-black ${key === 'small' ? 'text-xs' : key === 'normal' ? 'text-sm' : 'text-base'} ${fontSize === key ? 'text-white dark:text-black' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {sample}
-                          </span>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Tarjetas + Redondeo */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                      TARJETAS
-                    </p>
-                    <div className="flex flex-col gap-1.5">
-                      {[
-                        { key: 'bordered', label: 'Con borde', klass: 'border border-slate-300 dark:border-slate-600' },
-                        { key: 'flat', label: 'Sin borde', klass: 'shadow-sm' },
-                        { key: 'glass', label: 'Vidrio', klass: 'bg-white/50 dark:bg-white/5 backdrop-blur' },
-                      ].map(({ key, label, klass }) => (
-                        <button
-                          key={key}
-                          onClick={() => setCardStyle(key)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                            cardStyle === key
-                              ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
-                              : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
-                          }`}
-                        >
-                          <span className={`w-4 h-3 rounded ${klass} ${cardStyle === key ? 'border-white dark:border-black' : ''}`} />
-                          {label}
-                        </button>
-                      ))}
+                {/* Densidad */}
+                <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+                  <button onClick={() => toggleSection('density')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Densidad</span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${openSections.has('density') ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {openSections.has('density') && (
+                    <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        {[{ key: 'compact', label: 'Compacta' }, { key: 'normal', label: 'Normal' }, { key: 'spacious', label: 'Espaciosa' }].map(({ key, label }) => (
+                          <button key={key} onClick={() => setTableDensity(key)} className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl text-[10px] font-bold transition-all ${tableDensity === key ? 'bg-slate-900 dark:bg-white text-white dark:text-black' : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'}`}>
+                            <div className="flex flex-col gap-0.5">
+                              <div className={`w-5 h-0.5 rounded-full ${tableDensity === key ? 'bg-white dark:bg-black' : 'bg-slate-400'}`} />
+                              <div className={`w-4 h-0.5 rounded-full ${tableDensity === key ? 'bg-white dark:bg-black' : 'bg-slate-300'}`} />
+                              <div className={`w-5 h-0.5 rounded-full ${tableDensity === key ? 'bg-white dark:bg-black' : 'bg-slate-400'}`} />
+                            </div>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                      REDONDEO
-                    </p>
-                    <div className="flex flex-col gap-1.5">
-                      {[
-                        { key: 'small', label: 'Pequeño', klass: 'rounded-md' },
-                        { key: 'normal', label: 'Normal', klass: 'rounded-xl' },
-                        { key: 'large', label: 'Grande', klass: 'rounded-3xl' },
-                      ].map(({ key, label, klass }) => (
-                        <button
-                          key={key}
-                          onClick={() => setRadiusSize(key)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                            radiusSize === key
-                              ? 'bg-slate-900 dark:bg-white text-white dark:text-black'
-                              : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
-                          }`}
-                        >
-                          <span className={`w-4 h-3 bg-slate-400 ${klass} ${radiusSize === key ? 'bg-white dark:bg-black' : ''}`} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Tipografía */}
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <span className="w-4 h-px bg-slate-200 dark:bg-slate-700" />
-                    TIPOGRAFÍA
-                  </p>
-                  <div className="grid grid-cols-5 gap-2">
-                    {[
-                      { key: 'inter', label: 'Inter', sample: 'Aa' },
-                      { key: 'system', label: 'System', sample: 'Aa' },
-                      { key: 'mono', label: 'Mono', sample: 'Aa' },
-                      { key: 'sans', label: 'Sans', sample: 'Aa' },
-                      { key: 'serif', label: 'Serif', sample: 'Aa' },
-                    ].map(({ key, label, sample }) => (
-                      <button
-                        key={key}
-                        onClick={() => setFontFamily(key)}
-                        className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${
-                          fontFamily === key
-                            ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5'
-                            : 'hover:bg-slate-50 dark:hover:bg-white/5'
-                        }`}
-                      >
-                        <span className={`text-lg font-black transition-transform ${fontFamily === key ? 'scale-110' : ''} ${
-                          key === 'mono' ? 'font-mono' : key === 'sans' ? 'font-sans' : key === 'serif' ? 'font-serif' : ''
-                        } ${fontFamily === key ? 'text-accent-500' : 'text-slate-500 dark:text-slate-400'}`}>
-                          {sample}
-                        </span>
-                        <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400 truncate w-full text-center">{label}</span>
-                      </button>
-                    ))}
-                  </div>
+                {/* Tamaño fuente */}
+                <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+                  <button onClick={() => toggleSection('fontsize')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Tamano de Fuente</span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${openSections.has('fontsize') ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {openSections.has('fontsize') && (
+                    <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        {[{ key: 'small', label: 'Pequena', sample: 'Aa', cls: 'text-xs' }, { key: 'normal', label: 'Normal', sample: 'Aa', cls: 'text-sm' }, { key: 'large', label: 'Grande', sample: 'Aa', cls: 'text-lg' }].map(({ key, label, sample, cls }) => (
+                          <button key={key} onClick={() => setFontSize(key)} className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl transition-all ${fontSize === key ? 'bg-slate-900 dark:bg-white text-white dark:text-black' : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'}`}>
+                            <span className={`font-black ${cls} ${fontSize === key ? 'text-white dark:text-black' : 'text-slate-500 dark:text-slate-400'}`}>{sample}</span>
+                            <span className="text-[9px] font-bold">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tarjetas */}
+                <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+                  <button onClick={() => toggleSection('cards')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Tarjetas</span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${openSections.has('cards') ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {openSections.has('cards') && (
+                    <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        {[{ key: 'bordered', label: 'Borde', cls: 'border border-slate-300 dark:border-slate-600' }, { key: 'flat', label: 'Plano', cls: 'shadow-sm' }, { key: 'glass', label: 'Vidrio', cls: 'bg-white/50 dark:bg-white/5 backdrop-blur' }].map(({ key, label, cls }) => (
+                          <button key={key} onClick={() => setCardStyle(key)} className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl transition-all ${cardStyle === key ? 'bg-slate-900 dark:bg-white text-white dark:text-black' : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'}`}>
+                            <span className={`w-8 h-5 rounded ${cls} ${cardStyle === key ? 'border-white dark:border-black' : ''}`} />
+                            <span className="text-[9px] font-bold">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Redondeo */}
+                <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+                  <button onClick={() => toggleSection('radius')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Redondeo</span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${openSections.has('radius') ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {openSections.has('radius') && (
+                    <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        {[{ key: 'small', label: 'Pequeno', cls: 'rounded-md' }, { key: 'normal', label: 'Normal', cls: 'rounded-xl' }, { key: 'large', label: 'Grande', cls: 'rounded-3xl' }].map(({ key, label, cls }) => (
+                          <button key={key} onClick={() => setRadiusSize(key)} className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl transition-all ${radiusSize === key ? 'bg-slate-900 dark:bg-white text-white dark:text-black' : 'bg-slate-100/50 dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'}`}>
+                            <span className={`w-8 h-5 bg-slate-400 ${cls} ${radiusSize === key ? 'bg-white dark:bg-black' : ''}`} />
+                            <span className="text-[9px] font-bold">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tipografia */}
+                <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+                  <button onClick={() => toggleSection('typography')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Tipografia</span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${openSections.has('typography') ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {openSections.has('typography') && (
+                    <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+                      <div className="grid grid-cols-5 gap-2">
+                        {[{ key: 'inter', label: 'Inter' }, { key: 'system', label: 'System' }, { key: 'mono', label: 'Mono' }, { key: 'sans', label: 'Sans' }, { key: 'serif', label: 'Serif' }].map(({ key, label }) => (
+                          <button key={key} onClick={() => setFontFamily(key)} className={`relative flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${fontFamily === key ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#242424] ring-slate-900 dark:ring-white bg-slate-50 dark:bg-white/5' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}>
+                            <span className={`text-lg font-black transition-transform ${fontFamily === key ? 'scale-110' : ''} ${key === 'mono' ? 'font-mono' : key === 'sans' ? 'font-sans' : key === 'serif' ? 'font-serif' : ''} ${fontFamily === key ? 'text-accent-500' : 'text-slate-500 dark:text-slate-400'}`}>Aa</span>
+                            <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400 truncate w-full text-center">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

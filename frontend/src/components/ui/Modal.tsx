@@ -50,7 +50,7 @@ export const Modal = ({ open, onClose, title, subtitle, icon, children, footer, 
           <>
             {/* Big blur orbs */}
             <div className="absolute -top-32 -right-32 w-72 h-72 bg-accent-500/10 blur-[150px] rounded-full pointer-events-none" />
-            <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-emerald-500/8 blur-[120px] rounded-full pointer-events-none" />
+            <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-accent-500/5 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute top-1/4 -left-20 w-40 h-40 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none" />
 
             {/* Subtle grid pattern overlay */}
@@ -63,7 +63,7 @@ export const Modal = ({ open, onClose, title, subtitle, icon, children, footer, 
 
         {/* === TOP ACCENT STRIP === */}
         <div className="relative z-10 shrink-0">
-          <div className="h-2 w-full bg-gradient-to-r from-accent-500 via-emerald-400 to-accent-500 shadow-[0_0_20px_rgba(250,204,21,0.15)]" />
+          <div className="h-2 w-full bg-gradient-to-r from-accent-500 via-accent-400 to-accent-500 shadow-[0_0_20px_rgba(250,204,21,0.15)]" />
           <div className="h-px w-full bg-gradient-to-r from-transparent via-accent-500/20 to-transparent" />
         </div>
 

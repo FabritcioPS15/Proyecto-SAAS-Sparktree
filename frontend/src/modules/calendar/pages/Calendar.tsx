@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Trash2, Clock, Users, Video, Phone, UsersRound, Presentation, Ellipsis } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Modal } from '../../../components/ui/Modal';
@@ -213,11 +215,12 @@ export const Calendar = () => {
         description="Administra reuniones, eventos y actividades."
         icon={CalendarIcon}
         action={
-          <button onClick={() => { setSelectedDate(new Date(currentYear, currentMonth, today.getDate())); setShowCreateEvent(true); }}
-            className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" />
-            Nuevo Evento
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={events.length} />
+            <HeaderButton onClick={() => { setSelectedDate(new Date(currentYear, currentMonth, today.getDate())); setShowCreateEvent(true); }} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Evento
+            </HeaderButton>
+          </div>
         }
       />
 

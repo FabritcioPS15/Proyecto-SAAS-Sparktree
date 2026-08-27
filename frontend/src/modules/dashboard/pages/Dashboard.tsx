@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, MessageSquare, Activity, Box, Zap, ChevronRight, UserPlus, Share2, AlertCircle, LayoutDashboard, Play, ShoppingCart, FileText, Target, Wallet, Calendar, Gift } from 'lucide-react';
-import { getAnalytics, getCrmDashboard, getOrders, getQuotes, getPromotions, getCalendarEvents } from '../../../services/api';
+import { getAnalytics, getDashboardAnalytics, getCrmDashboard, getOrders, getQuotes, getPromotions, getCalendarEvents } from '../../../services/api';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { useConnections } from '../../../contexts/ConnectionsContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
 
@@ -16,15 +17,6 @@ import { AIInsights } from '../components/AIInsights';
 import { ActivityTimeline } from '../components/ActivityTimeline';
 import { MainChart } from '../components/MainChart';
 import { DashboardCard } from '../components/DashboardCard';
-
-const initialStats = {
-  totalUsers: 0,
-  totalInteractions: 0,
-  messagesToday: 0,
-  newUsersToday: 0,
-  botResponses: 0,
-  botResponsesToday: 0
-};
 
 const formatCurrency = (value: number) =>
   value.toLocaleString('es-ES', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -40,7 +32,6 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { connections } = useConnections();
-  const [stats, setStats] = useState(initialStats);
   const [messagesData, setMessagesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
@@ -50,6 +41,15 @@ export const Dashboard = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [crm, setCrm] = useState({ totalClients: 0, totalDeals: 0, totalValue: 0, wonValue: 0 });
   const [moduleCounts, setModuleCounts] = useState({ orders: 0, quotes: 0, promotions: 0, events: 0 });
+  const [dashboardStats, setDashboardStats] = useState({
+    totalMessages: 0, messageTrend: 0, totalContacts: 0, contactTrend: 0,
+    openConversations: 0, activeFlows: 0, completionRate: 0, avgResponseTime: 0,
+  });
+  const [sparklines, setSparklines] = useState<Record<string, number[]>>({});
+  const [dashboardActivity, setDashboardActivity] = useState<any[]>([]);
+  const [dashboardInsights, setDashboardInsights] = useState<any[]>([]);
+  const [messagesToday, setMessagesToday] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
 
   const platformData = [
     { id: 'whatsapp', name: 'WhatsApp', icon: FaWhatsapp, color: 'text-emerald-500', route: '/whatsapp-qr' },
@@ -59,57 +59,34 @@ export const Dashboard = () => {
     { id: 'messenger', name: 'Messenger', icon: FaFacebookMessenger, color: 'text-blue-600', route: '/facebook-config' }
   ];
 
-  const generateMessagesData = useCallback((timeRange: string, isConnected: boolean, customStart?: string, customEnd?: string) => {
-    const data = [];
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    let start: Date;
-    let end: Date = today;
-
-    if (timeRange === 'custom' && customStart && customEnd) {
-      start = new Date(customStart);
-      end = new Date(customEnd);
-    } else {
-      const days = timeRange === '7d' ? 7 : 30;
-      start = new Date(today);
-      start.setDate(start.getDate() - days + 1);
-    }
-
-    const currentDate = new Date(start);
-    while (currentDate <= end) {
-      const baseValue = isConnected ? 80 + Math.random() * 120 : 150 + Math.random() * 100;
-      const weekendMultiplier = (currentDate.getDay() === 0 || currentDate.getDay() === 6) ? 0.7 : 1;
-      const value = Math.floor(baseValue * weekendMultiplier * (1 + Math.random() * 0.3));
-      data.push({
-        date: currentDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
-        value: value
-      });
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return data;
-  }, []);
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const data = await getAnalytics();
-        const isConnected = data?.whatsapp?.connected || false;
-        setWhatsappConnected(isConnected);
+        const [analyticsData, dashboardData] = await Promise.allSettled([
+          getAnalytics(),
+          getDashboardAnalytics(selectedTimeRange),
+        ]);
 
-        if (data && data.stats) {
-          setStats({
-            totalUsers: data.stats.totalUsers || 0,
-            totalInteractions: isConnected ? (data.stats.whatsappMessages || 0) : (data.stats.totalMessages || 0),
-            messagesToday: isConnected ? (data.stats.whatsappMessagesToday || 0) : (data.stats.messagesToday || 0),
-            newUsersToday: data.stats.newUsersToday || 0,
-            botResponses: isConnected ? (data.stats.whatsappResponses || 0) : (data.stats.botResponses || Math.floor((data.stats.totalMessages || 0) * 0.7)),
-            botResponsesToday: isConnected ? (data.stats.whatsappResponsesToday || 0) : (data.stats.botResponsesToday || Math.floor((data.stats.messagesToday || 0) * 0.7))
-          });
+        const analytics = analyticsData.status === 'fulfilled' ? analyticsData.value : null;
+        const dash = dashboardData.status === 'fulfilled' ? dashboardData.value : null;
+
+        if (analytics) {
+          const isConnected = analytics?.whatsapp?.connected || false;
+          setWhatsappConnected(isConnected);
+          setMessagesToday(isConnected ? (analytics.stats?.whatsappMessagesToday || 0) : (analytics.stats?.messagesToday || 0));
+          setTotalUsers(analytics.stats?.totalUsers || 0);
         }
 
-        setMessagesData(generateMessagesData(selectedTimeRange, isConnected, startDate, endDate));
+        if (dash) {
+          setMessagesData(dash.chart || []);
+          setSparklines(dash.sparklines || {});
+          setDashboardStats(dash.stats || {});
+          setDashboardActivity(dash.activity || []);
+          setDashboardInsights(dash.insights || []);
+        } else if (analytics) {
+          setMessagesData(analytics.interactionsPerDay || []);
+        }
 
-        // Real CRM metrics
         try {
           const crmData = await getCrmDashboard();
           setCrm({
@@ -122,7 +99,6 @@ export const Dashboard = () => {
           console.error('Error fetching CRM metrics:', e);
         }
 
-        // Real module counts
         try {
           const [orders, quotes, promotions, events] = await Promise.all([
             getOrders().catch(() => []),
@@ -146,7 +122,7 @@ export const Dashboard = () => {
       }
     };
     fetchDashboardData();
-  }, [selectedTimeRange, startDate, endDate, generateMessagesData]);
+  }, [selectedTimeRange]);
 
   const handleRangeChange = (range: string) => {
     setSelectedTimeRange(range);
@@ -175,26 +151,27 @@ export const Dashboard = () => {
         description="Todo está funcionando correctamente en tu ecosistema inteligente."
         icon={LayoutDashboard}
         meta={[
-          { label: 'Uptime', value: '99.9%', icon: Activity, color: 'emerald' },
-          { label: 'Conversaciones hoy', value: stats.messagesToday.toLocaleString(), icon: MessageSquare, color: 'accent' },
+          { label: 'Conversaciones hoy', value: messagesToday.toLocaleString(), icon: MessageSquare, color: 'accent' },
           { label: 'Canales activos', value: connectedChannels, icon: Share2, color: 'blue' },
+          { label: 'Contactos', value: dashboardStats.totalContacts.toLocaleString(), icon: Users, color: 'emerald' },
           { label: 'Alertas críticas', value: '0', icon: AlertCircle, color: 'amber' },
         ]}
         action={
           <div className="flex flex-wrap gap-2">
-            <button
+            <HeaderButton
+              variant="ghost"
               onClick={() => navigate('/analytics')}
-              className="px-4 py-2.5 bg-white dark:bg-dark-card border border-[#E5E7EB] dark:border-dark-border text-slate-700 dark:text-slate-300 font-semibold text-sm rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
+              icon={<Activity className="w-4 h-4" />}
             >
               Ver Analíticas
-            </button>
-            <button
+            </HeaderButton>
+            <HeaderButton
+              variant="primary"
               onClick={() => navigate('/flow-manager')}
-              className="px-4 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-black font-semibold text-sm rounded-xl hover:opacity-90 transition-opacity shadow-md flex items-center gap-2"
+              icon={<Play className="w-4 h-4" />}
             >
-              <Play className="w-4 h-4" />
               Crear Flujo
-            </button>
+            </HeaderButton>
           </div>
         }
       />
@@ -207,8 +184,8 @@ export const Dashboard = () => {
               title="Clientes"
               value={crm.totalClients.toLocaleString()}
               icon={<Users className="w-5 h-5" />}
-              trend={{ value: 0, label: 'en CRM', direction: 'neutral' }}
-              sparkline={[12, 14, 18, 15, 20, 24, 28, 30]}
+              trend={{ value: dashboardStats.contactTrend, label: 'vs período anterior', direction: dashboardStats.contactTrend > 0 ? 'up' : dashboardStats.contactTrend < 0 ? 'down' : 'neutral' }}
+              sparkline={sparklines.contacts || [0]}
               delay={0.1}
             />
             <MetricCard
@@ -216,7 +193,7 @@ export const Dashboard = () => {
               value={crm.totalDeals.toLocaleString()}
               icon={<Target className="w-5 h-5" />}
               trend={{ value: 0, label: 'en pipeline', direction: 'neutral' }}
-              sparkline={[30, 45, 40, 50, 60, 55, 70, 85]}
+              sparkline={[crm.totalDeals]}
               delay={0.2}
             />
             <MetricCard
@@ -224,7 +201,7 @@ export const Dashboard = () => {
               value={moduleCounts.orders.toLocaleString()}
               icon={<ShoppingCart className="w-5 h-5" />}
               trend={{ value: 0, label: 'registrados', direction: 'neutral' }}
-              sparkline={[60, 55, 58, 50, 48, 52, 49, 45]}
+              sparkline={[moduleCounts.orders]}
               delay={0.3}
             />
             <MetricCard
@@ -232,7 +209,7 @@ export const Dashboard = () => {
               value={formatCurrency(crm.wonValue)}
               icon={<Wallet className="w-5 h-5" />}
               trend={{ value: 0, label: 'deals ganados', direction: 'neutral' }}
-              sparkline={[10, 10, 10, 10, 10, 10, 10, 10]}
+              sparkline={[crm.wonValue]}
               delay={0.4}
             />
           </div>
@@ -251,8 +228,8 @@ export const Dashboard = () => {
 
           {/* Insights + Activity */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <AIInsights />
-            <ActivityTimeline />
+            <AIInsights insights={dashboardInsights} />
+            <ActivityTimeline activities={dashboardActivity} />
           </div>
 
           {/* Bottom Grids */}

@@ -179,7 +179,7 @@ router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res:
     const userId = (req as any).user?.id
       || (Array.isArray(req.headers['x-user-id']) ? req.headers['x-user-id'][0] : req.headers['x-user-id'])
       || (req as any).userId;
-    const { phoneNumberId, accessToken, displayName, webhookVerifyToken } = req.body;
+    const { phoneNumberId, accessToken, displayName, webhookVerifyToken, phoneNumber } = req.body;
 
     if (!orgId) return res.status(400).json({ error: 'Organization ID required.' });
     if (!phoneNumberId) return res.status(400).json({ error: 'Phone Number ID required' });
@@ -198,7 +198,8 @@ router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res:
         config: {
           phone_number_id: phoneNumberId,
           access_token: accessToken,
-          webhook_verify_token: webhookVerifyToken || `sparktree_${orgId?.slice(0, 8)}_${Date.now().toString(36)}`
+          webhook_verify_token: webhookVerifyToken || `sparktree_${orgId?.slice(0, 8)}_${Date.now().toString(36)}`,
+          phone_number: phoneNumber || null,
         },
         status: 'connected',
         last_connected_at: new Date().toISOString()
@@ -227,6 +228,100 @@ router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res:
   } catch (error: any) {
     console.error('Error in /platform/whatsapp-cloud:', error);
     if (!res.headersSent) res.status(500).json({ error: error.message || 'Server error' });
+  }
+});
+
+// GET /api/platform/connections/:id/templates
+router.get('/connections/:id/templates', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required.' });
+
+    console.log(`[Platform] Fetching templates for connection ${id}, org: ${orgId}`);
+
+    const { data: connection, error } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (error || !connection) {
+      console.error(`[Platform] Connection ${id} not found for org ${orgId}`);
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    console.log(`[Platform] Connection found: ${connection.display_name}, platform_account_id: ${connection.platform_account_id}, status: ${connection.status}`);
+
+    await whatsappCloudService.initializeConnection(connection);
+    const templates = await whatsappCloudService.getMetaTemplates(id);
+    return res.json(templates);
+  } catch (error: any) {
+    console.error('[Platform] Error fetching Meta templates:', error?.response?.data || error.message);
+    if (!res.headersSent) res.status(500).json({ error: error?.response?.data?.error?.message || error.message });
+  }
+});
+
+// POST /api/platform/connections/:id/templates
+router.post('/connections/:id/templates', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required.' });
+
+    const { name, category, language, components } = req.body;
+    if (!name || !category || !language || !components) {
+      return res.status(400).json({ error: 'name, category, language y components son requeridos' });
+    }
+
+    const { data: connection, error } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (error || !connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    await whatsappCloudService.initializeConnection(connection);
+    const result = await whatsappCloudService.createMetaTemplate(id, { name, category, language, components });
+    return res.json({ message: 'Template enviado a Meta para aprobación', template: result });
+  } catch (error: any) {
+    console.error('Error creating Meta template:', error?.response?.data || error.message);
+    const metaError = error?.response?.data?.error?.error_user_msg || error?.response?.data?.error?.message || error.message;
+    if (!res.headersSent) res.status(500).json({ error: metaError });
+  }
+});
+
+// DELETE /api/platform/connections/:id/templates/:templateName
+router.delete('/connections/:id/templates/:templateName', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const { id, templateName } = req.params;
+    const orgId = req.organizationId;
+    const templateId = req.query.templateId as string || '';
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required.' });
+
+    const { data: connection, error } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (error || !connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    await whatsappCloudService.initializeConnection(connection);
+    await whatsappCloudService.deleteMetaTemplate(id, templateId, templateName);
+    return res.json({ message: `Template "${templateName}" eliminado` });
+  } catch (error: any) {
+    console.error('Error deleting Meta template:', error?.response?.data || error.message);
+    const metaError = error?.response?.data?.error?.message || error.message;
+    if (!res.headersSent) res.status(500).json({ error: metaError });
   }
 });
 

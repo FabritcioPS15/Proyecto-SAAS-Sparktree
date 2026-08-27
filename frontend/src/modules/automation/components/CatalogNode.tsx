@@ -6,7 +6,7 @@ export const CatalogNode = ({ data }: any) => {
 
   return (
     <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-amber-200 dark:border-amber-900/50 w-64 overflow-hidden transition-all hover:shadow-amber-500/10 group node-container">
-      <Handle type="target" position={Position.Top} className="!bg-white !border-amber-400 group-hover:!bg-amber-500" />
+      <Handle type="target" position={Position.Top} className="!bg-white dark:!bg-slate-700 !border-amber-400 group-hover:!bg-amber-500" />
       <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center gap-2">
         <Store className="w-4 h-4 text-amber-400" />
         <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Catálogo</h3>
@@ -35,7 +35,7 @@ export const CatalogNode = ({ data }: any) => {
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-white !border-amber-400 group-hover:!bg-amber-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white dark:!bg-slate-700 !border-amber-400 group-hover:!bg-amber-500" />
     </div>
   );
 };

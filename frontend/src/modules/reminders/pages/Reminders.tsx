@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Send, Play, Pause, Trash2, Eye, Plus, Bell, RefreshCw, AlertTriangle, Clock, Calendar, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Send, Play, Pause, Trash2, Eye, Plus, Bell, RefreshCw, AlertTriangle, Clock, RotateCcw, Calendar, Download, CheckCircle, X, Users, XCircle, LayoutGrid, MessageSquare, Search, MoreVertical } from 'lucide-react';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -7,6 +7,10 @@ import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Modal } from '../../../components/ui/Modal';
 import { Loader } from '../../../components/ui/Loader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { CreateReminderModal } from '../components/CreateReminderModal';
 import {
@@ -73,7 +77,18 @@ export const Reminders = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [detail, setDetail] = useState<ReminderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Reminder | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [detailTab, setDetailTab] = useState('resumen');
+  const [contactFilter, setContactFilter] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const filteredContacts = useMemo(() => {
+    if (!detail) return [];
+    if (!contactFilter.trim()) return detail.contacts;
+    return detail.contacts.filter(c => c.phone.includes(contactFilter.trim()));
+  }, [detail, contactFilter]);
 
   const hasActiveSend = useCallback((list: Reminder[]) => {
     return list.some((r) => r.status === 'sending' || r.status === 'paused');
@@ -113,8 +128,7 @@ export const Reminders = () => {
     try {
       const row = await getReminder(reminder.id);
       setDetail(row);
-    } catch (err) {
-      addNotification({ type: 'error', title: 'Error', message: 'No se pudo cargar el detalle del recordatorio.' });
+    } catch {
       setDetail(null);
     } finally {
       setDetailLoading(false);
@@ -155,7 +169,6 @@ export const Reminders = () => {
   };
 
   const handleCancel = async (reminder: Reminder) => {
-    if (!window.confirm(`¿Cancelar el recordatorio "${reminder.name}"?`)) return;
     try {
       await cancelReminder(reminder.id);
       addNotification({ type: 'success', title: 'Cancelado', message: `Se canceló "${reminder.name}".` });
@@ -166,16 +179,81 @@ export const Reminders = () => {
     }
   };
 
-  const handleDelete = async (reminder: Reminder) => {
-    if (!window.confirm(`¿Eliminar el recordatorio "${reminder.name}"? Esta acción no se puede deshacer.`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteReminder(reminder.id);
-      setReminders((prev) => prev.filter((r) => r.id !== reminder.id));
-      if (detail?.id === reminder.id) setDetail(null);
-      addNotification({ type: 'success', title: 'Recordatorio eliminado', message: `Se eliminó "${reminder.name}".` });
+      await deleteReminder(deleteTarget.id);
+      setReminders((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      if (detail?.id === deleteTarget.id) setDetail(null);
+      addNotification({ type: 'success', title: 'Recordatorio eliminado', message: `Se eliminó "${deleteTarget.name}".` });
     } catch (err) {
       addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el recordatorio.' });
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
+  };
+
+  const handleExportPdf = (reminder: ReminderDetail) => {
+    const statusInfo = reminderStatusMeta[reminder.status] || { label: reminder.status };
+    const scheduleInfo = scheduleTypeMeta[reminder.schedule_type] || { label: reminder.schedule_type };
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo abrir la ventana de impresión. Revisa los permisos del navegador.' });
+      return;
+    }
+    const rows = reminder.contacts.map((c) => `
+      <tr>
+        <td>${c.phone}</td>
+        <td>${statusInfo.label}</td>
+        <td>${c.sent_at ? new Date(c.sent_at).toLocaleString() : '—'}</td>
+        <td>${c.error_message || '—'}</td>
+      </tr>`).join('');
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Recordatorio – ${reminder.name}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #1e293b; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .sub { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+    .card label { font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 700; }
+    .card p { margin: 4px 0 0; font-size: 14px; font-weight: 600; }
+    .msg { background: #f1f5f9; border-left: 4px solid #6366f1; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px; font-size: 14px; white-space: pre-wrap; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; background: #f1f5f9; padding: 8px 10px; font-size: 11px; color: #475569; }
+    td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; }
+    tr:last-child td { border-bottom: none; }
+    .footer { margin-top: 32px; font-size: 11px; color: #94a3b8; text-align: right; }
+  </style>
+</head>
+<body>
+  <h1>${reminder.name}</h1>
+  <p class="sub">Exportado el ${new Date().toLocaleString()}</p>
+  <div class="grid">
+    <div class="card"><label>Estado</label><p>${statusInfo.label}</p></div>
+    <div class="card"><label>Tipo de envío</label><p>${scheduleInfo.label}</p></div>
+    <div class="card"><label>Total contactos</label><p>${reminder.total}</p></div>
+    <div class="card"><label>Enviados / Fallidos</label><p>${reminder.sent} / ${reminder.failed}</p></div>
+    <div class="card"><label>Creado</label><p>${new Date(reminder.created_at).toLocaleString()}</p></div>
+    <div class="card"><label>Último envío</label><p>${reminder.last_sent_at ? new Date(reminder.last_sent_at).toLocaleString() : '—'}</p></div>
+  </div>
+  <p style="font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;">MENSAJE</p>
+  <div class="msg">${reminder.message_template}</div>
+  <p style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;">CONTACTOS (${reminder.contacts.length})</p>
+  <table>
+    <thead><tr><th>Teléfono</th><th>Estado</th><th>Enviado</th><th>Error</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;">Sin contactos</td></tr>'}</tbody>
+  </table>
+  <div class="footer">Generado por Sparktree &bull; ${reminder.id}</div>
+  <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); };<\/script>
+</body>
+</html>`);
+    printWindow.document.close();
   };
 
   const statusLabel = (status: string) => reminderStatusMeta[status]?.label || status;
@@ -183,62 +261,76 @@ export const Reminders = () => {
   const canSend = (r: Reminder) => r.status !== 'sending' && r.total > 0;
 
   const columns = [
-    { key: 'name', header: 'Recordatorio', render: (v: string, row: Reminder) => (
-      <div className="min-w-0">
-        <p className="font-bold text-slate-900 dark:text-white truncate">{v}</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-slate-400">{new Date(row.created_at).toLocaleString()}</span>
-          {row.schedule_type && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-accent-500/10 text-accent-600 dark:text-accent-400">
-              {scheduleTypeMeta[row.schedule_type]?.label || row.schedule_type}
-            </span>
-          )}
-        </div>
-      </div>
-    )},
-    { key: 'status', header: 'Estado', render: (v: string) => <StatusBadge status={v} variant={statusVariant(v)} /> },
-    { key: 'progress', header: 'Progreso', render: (_v: unknown, row: Reminder) => {
-      const pct = row.total > 0 ? Math.min(100, Math.round(((row.sent + row.failed) / row.total) * 100)) : 0;
-      const isSending = row.status === 'sending';
-      const allFailed = row.failed > 0 && row.sent === 0;
-      return (
-        <div className="w-40">
-          <div className="flex justify-between text-[10px] font-bold mb-1">
-            <span className="text-slate-500 dark:text-slate-400">{row.sent + row.failed}/{row.total}</span>
-            <span className={`${isSending ? 'text-accent-400' : allFailed ? 'text-red-400' : 'text-emerald-500'} transition-colors duration-300`}>{pct}%</span>
+    {
+      key: 'name', header: 'Recordatorio', render: (v: string, row: Reminder) => (
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent-500/10 flex items-center justify-center shrink-0">
+              <Bell className="w-4 h-4 text-accent-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">{v}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-slate-400">{new Date(row.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <StatusBadge status={row.status} variant={statusVariant(row.status)} />
+                {row.schedule_type && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-accent-500/10 text-accent-600 dark:text-accent-400">
+                    {scheduleTypeMeta[row.schedule_type]?.label || row.schedule_type}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div className={`h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden ${isSending ? 'progress-bar-glow' : ''}`}>
-            <div
-              className={`h-full rounded-full transition-all duration-700 ease-out ${isSending ? 'progress-bar-active' : ''} ${
-                allFailed ? 'bg-gradient-to-r from-red-500 to-red-400' :
-                pct === 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
-                'bg-gradient-to-r from-accent-500 via-accent-400 to-emerald-500'
-              }`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          {row.failed > 0 && <p className="text-[9px] text-red-400 mt-0.5">{row.failed} fallaron</p>}
         </div>
-      );
-    }},
-    { key: 'actions', header: 'Acciones', className: 'text-center', render: (_v: unknown, row: Reminder) => (
-      <div className="flex items-center justify-center gap-1">
-        <button onClick={() => openDetail(row)} title="Ver detalle" className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Eye className="w-4 h-4" /></button>
-        {row.status === 'sending' ? (
-          <button onClick={() => handlePause(row)} title="Pausar envío" className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 transition-all"><Pause className="w-4 h-4" /></button>
-        ) : row.status === 'paused' ? (
-          <button onClick={() => handleResume(row)} title="Reanudar envío" className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"><Play className="w-4 h-4" /></button>
-        ) : (
-          <button onClick={() => handleSend(row)} disabled={!canSend(row)} title="Enviar" className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"><Send className="w-4 h-4" /></button>
-        )}
-        {row.status !== 'sending' && row.status !== 'paused' && (
-          <button onClick={() => handleDelete(row)} title="Eliminar" className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
-        )}
-        {row.status !== 'cancelled' && row.status !== 'completed' && (
-          <button onClick={() => handleCancel(row)} title="Cancelar" className="p-1.5 rounded-lg text-slate-400 hover:text-orange-500 hover:bg-orange-500/10 transition-all"><Clock className="w-4 h-4" /></button>
-        )}
-      </div>
-    )},
+      )
+    },
+    {
+      key: 'progress', header: 'Progreso', render: (_v: unknown, row: Reminder) => {
+        const pct = row.total > 0 ? Math.min(100, Math.round(((row.sent + row.failed) / row.total) * 100)) : 0;
+        const isSending = row.status === 'sending';
+        const allFailed = row.failed > 0 && row.sent === 0;
+        return (
+          <div className="w-40">
+            <div className="flex justify-between text-[10px] font-bold mb-1">
+              <span className="text-slate-500 dark:text-slate-400">{row.sent + row.failed}/{row.total}</span>
+              <span className={`${isSending ? 'text-accent-400' : allFailed ? 'text-red-400' : 'text-emerald-500'} transition-colors duration-300`}>{pct}%</span>
+            </div>
+            <div className={`h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden ${isSending ? 'progress-bar-glow' : ''}`}>
+              <div
+                className={`h-full rounded-full transition-all duration-700 ease-out ${isSending ? 'progress-bar-active' : ''} ${allFailed ? 'bg-gradient-to-r from-red-500 to-red-400' :
+                  pct === 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+                    'bg-gradient-to-r from-accent-500 via-accent-400 to-accent-600'
+                  }`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            {row.failed > 0 && <p className="text-[9px] text-red-400 mt-0.5">{row.failed} fallaron</p>}
+          </div>
+        );
+      }
+    },
+    {
+      key: 'actions', header: '', className: 'w-12', render: (_v: unknown, row: Reminder) => {
+        const actions: Array<{ label: string; icon: React.ReactNode; onClick: (e: React.MouseEvent) => void; variant?: 'default' | 'danger'; disabled?: boolean }> = [
+          { label: 'Ver detalle', icon: <Eye className="w-3.5 h-3.5" />, onClick: () => openDetail(row) },
+        ];
+        if (row.status === 'sending') {
+          actions.push({ label: 'Pausar', icon: <Pause className="w-3.5 h-3.5" />, onClick: () => handlePause(row) });
+        } else if (row.status === 'paused') {
+          actions.push({ label: 'Reanudar', icon: <Play className="w-3.5 h-3.5" />, onClick: () => handleResume(row) });
+        } else {
+          actions.push({ label: 'Enviar', icon: <Send className="w-3.5 h-3.5" />, onClick: () => handleSend(row), disabled: !canSend(row) });
+        }
+        if (row.status !== 'cancelled' && row.status !== 'completed') {
+          actions.push({ label: 'Cancelar', icon: <Clock className="w-3.5 h-3.5" />, onClick: () => handleCancel(row) });
+        }
+        if (row.status !== 'sending' && row.status !== 'paused') {
+          actions.push({ label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(row), variant: 'danger' });
+        }
+        return <KebabMenu actions={actions} />;
+      }
+    },
   ];
 
   const detailProgress = detail && detail.total > 0
@@ -253,13 +345,17 @@ export const Reminders = () => {
         icon={Bell}
         meta={[
           { label: 'Recordatorios', value: reminders.length, icon: Bell, color: 'accent' },
-          { label: 'Activos', value: reminders.filter((r) => r.status === 'sending' || r.status === 'paused').length, icon: Send, color: 'emerald' },
-          { label: 'Programados', value: reminders.filter((r) => r.status === 'scheduled').length, icon: Clock, color: 'blue' },
+          { label: 'Enviados', value: reminders.reduce((acc, r) => acc + r.sent, 0), icon: CheckCircle, color: 'emerald' },
+          { label: 'Activos', value: reminders.filter((r) => r.status === 'sending' || r.status === 'paused').length, icon: Send, color: 'blue' },
+          { label: 'Programados', value: reminders.filter((r) => r.status === 'scheduled').length, icon: Clock, color: 'amber' },
         ]}
         action={
-          <button onClick={() => setShowCreate(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" /> Nuevo Recordatorio
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={reminders.length} />
+            <HeaderButton onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Recordatorio
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>
@@ -273,7 +369,7 @@ export const Reminders = () => {
               <p className="text-xs text-slate-400 max-w-sm mb-5">
                 Crea recordatorios para enviar mensajes automatizados a tus contactos programadamente o de forma inmediata.
               </p>
-              <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
+              <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
                 <Plus className="w-4 h-4" /> Crear mi primer recordatorio
               </button>
             </div>
@@ -302,180 +398,254 @@ export const Reminders = () => {
         onCreated={() => loadReminders()}
       />
 
-      <Modal
-        open={!!detail}
-        onClose={() => setDetail(null)}
-        size="full"
-        title={detail?.name || 'Detalle de recordatorio'}
-        icon={<Bell className="w-5 h-5 text-accent-500" />}
-        footer={
-          detail && (
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                {detail.status === 'sending' ? (
-                  <button onClick={() => handlePause(detail)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold bg-amber-500 text-black hover:bg-amber-600 transition-all">
-                    <Pause className="w-4 h-4" /> Pausar
-                  </button>
-                ) : detail.status === 'paused' ? (
-                  <button onClick={() => handleResume(detail)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold bg-emerald-500 text-black hover:bg-emerald-600 transition-all">
-                    <Play className="w-4 h-4" /> Reanudar
-                  </button>
-                ) : (
-                  <button onClick={() => handleSend(detail)} disabled={!canSend(detail)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold bg-accent-500 text-black hover:bg-accent-600 transition-all disabled:opacity-40">
-                    <Send className="w-4 h-4" /> Enviar
-                  </button>
-                )}
-                {detail.status !== 'cancelled' && detail.status !== 'completed' && (
-                  <button onClick={() => handleCancel(detail)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-orange-500 hover:bg-orange-500/10 transition-all">
-                    <Clock className="w-4 h-4" /> Cancelar
-                  </button>
-                )}
-                <button onClick={() => handleDelete(detail)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-all">
-                  <Trash2 className="w-4 h-4" /> Eliminar
-                </button>
-              </div>
-              <button onClick={() => loadReminders(true)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
-                <RefreshCw className="w-4 h-4" /> Actualizar
-              </button>
-            </div>
-          )
-        }
-      >
-        {detailLoading ? (
-          <div className="flex items-center justify-center h-40">
-            <Loader size="md" />
-          </div>
-        ) : detail && (
-          <div className="space-y-5">
-            <div className="flex flex-wrap items-center gap-4">
-              <StatusBadge status={detail.status} variant={statusVariant(detail.status)} />
-              <div className="flex items-center gap-2">
-                {scheduleTypeMeta[detail.schedule_type] && (() => {
-                  const SIcon = scheduleTypeMeta[detail.schedule_type].icon;
-                  return <><SIcon className="w-3.5 h-3.5 text-slate-400" /><span className="text-xs font-bold text-slate-500">{scheduleTypeMeta[detail.schedule_type].label}</span></>;
-                })()}
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <div className="flex justify-between text-[10px] font-bold mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      <span className="text-emerald-500 counter-pop">{detail.sent}</span> enviados
-                      <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-red-400 counter-pop">{detail.failed}</span> fallidos
-                      <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
-                      <span className="text-slate-400 counter-pop">{detail.total - detail.sent - detail.failed}</span> pendientes
-                    </span>
+      {/* ===== DETAIL POPUP ===== */}
+      {!!detail && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="detail-popup-title"
+        >
+          <div className="absolute inset-0 bg-black/60" onClick={() => setDetail(null)} />
+          <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh] overflow-hidden">
+
+            {/* ── HEADER ── */}
+            <div className="relative shrink-0 px-6 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
+              {/* gradiente lateral decorativo */}
+              <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-accent-500 via-accent-400 to-accent-600 rounded-l-2xl" />
+              <div className="pl-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center shrink-0 border border-accent-500/20">
+                    <Send className="w-4.5 h-4.5 text-accent-500" />
                   </div>
-                  <span className={`${detail.status === 'sending' ? 'text-accent-400' : detailProgress === 100 ? 'text-emerald-500' : 'text-accent-500'} transition-colors duration-300 tabular-nums`}>
-                    {detailProgress}%
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 id="detail-popup-title" className="text-base font-black text-slate-900 dark:text-white truncate">
+                        {detail.name}
+                      </h2>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                        detail.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' :
+                        detail.status === 'sending' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
+                        detail.status === 'paused' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' :
+                        detail.status === 'failed' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' :
+                        'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          detail.status === 'completed' ? 'bg-emerald-500' :
+                          detail.status === 'sending' ? 'bg-blue-500 animate-pulse' :
+                          detail.status === 'paused' ? 'bg-amber-500' :
+                          detail.status === 'failed' ? 'bg-red-500' : 'bg-slate-400'
+                        }`} />
+                        {reminderStatusMeta[detail.status]?.label || detail.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                      {detail.sent} de {detail.total} contactos · {detailProgress}% completado
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDetail(null)}
+                    aria-label="Cerrar"
+                    className="shrink-0 w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <div className={`h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden ${detail.status === 'sending' ? 'progress-bar-glow' : ''}`}>
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ease-out ${detail.status === 'sending' ? 'progress-bar-active' : ''} ${
-                      detailProgress === 100 && detail.failed === 0 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
-                      detail.failed > 0 && detail.sent === 0 ? 'bg-gradient-to-r from-red-500 to-red-400' :
-                      'bg-gradient-to-r from-accent-500 via-accent-400 to-emerald-500'
+
+                {/* barra de progreso compacta */}
+                <div className="mt-3">
+                  <div className="h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        detailProgress === 100 && detail.failed === 0 ? 'bg-emerald-400' :
+                        detail.failed > 0 && detail.sent === 0 ? 'bg-red-400' : 'bg-accent-400'
+                      }`}
+                      style={{ width: `${detailProgress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── TABS ── */}
+            <div className="shrink-0 flex items-center gap-1 px-6 pt-2 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900">
+              {[
+                { id: 'resumen', label: 'Resumen', icon: LayoutGrid },
+                { id: 'contactos', label: `Contactos (${detail.total})`, icon: Users },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const active = detailTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setDetailTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
+                      active
+                        ? 'border-accent-500 text-accent-600 dark:text-accent-400'
+                        : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                     }`}
-                    style={{ width: `${detailProgress}%` }}
-                  />
+                  >
+                    <Icon className="w-3.5 h-3.5" /> {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── BODY ── */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {detailLoading ? (
+                <div className="flex items-center justify-center h-48">
+                  <Loader size="md" />
                 </div>
-              </div>
-              <p className="text-xs text-slate-400">
-                Último envío: {detail.last_sent_at ? new Date(detail.last_sent_at).toLocaleString() : '—'}
-                {detail.next_run_at && detail.status === 'scheduled' && (
-                  <><br />Próximo: {new Date(detail.next_run_at).toLocaleString()}</>
-                )}
-              </p>
-            </div>
-
-            <div className="px-4 py-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-slate-700">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mensaje</p>
-              <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono">
-                {detail.message_template.split(/(\{\{[\w\s-]+\}\})/g).map((part: string, i: number) => {
-                  if (part.startsWith('{{') && part.endsWith('}}')) {
-                    const variable = part.slice(2, -2).trim();
-                    return <span key={i} className="font-bold text-accent-600 dark:text-accent-400 bg-accent-500/10 px-1 rounded">{variable}</span>;
-                  }
-                  return <span key={i}>{part}</span>;
-                })}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                Contactos ({detail.count})
-              </p>
-              <div className="max-h-[320px] overflow-y-auto custom-scrollbar border border-slate-200 dark:border-slate-700 rounded-xl">
-                <table className="w-full">
-                  <thead className="sticky top-0 bg-white dark:bg-slate-900">
-                    <tr className="border-b border-slate-200 dark:border-slate-700">
-                      <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Teléfono</th>
-                      <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Estado</th>
-                      <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2 hidden md:table-cell">Variables</th>
-                      <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2 hidden lg:table-cell">Enviado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.contacts.map((c) => (
-                      <tr key={c.id} className="border-b border-slate-100 dark:border-slate-800/50">
-                        <td className="px-3 py-2 text-sm font-mono text-slate-700 dark:text-slate-300">{c.phone}</td>
-                        <td className="px-3 py-2">
-                          <StatusBadge status={c.status} variant={c.status === 'sent' ? 'success' : c.status === 'failed' ? 'danger' : 'warning'} />
-                        </td>
-                        <td className="px-3 py-2 hidden md:table-cell">
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {Object.entries(c.variables).slice(0, 4).map(([k, v]) => (
-                              <span key={k} className="px-1.5 py-0.5 text-[9px] font-mono bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded">{k}: {String(v).slice(0, 14)}</span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-xs text-slate-400 hidden lg:table-cell">{c.sent_at ? new Date(c.sent_at).toLocaleTimeString() : '—'}</td>
-                      </tr>
+              ) : detailTab === 'resumen' ? (
+                <div className="p-5 space-y-4">
+                  {/* STATS INLINE */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[
+                      { label: 'Enviados', value: detail.sent, tone: 'emerald', pct: detail.total ? Math.round((detail.sent / detail.total) * 100) : 0 },
+                      { label: 'Pendientes', value: Math.max(detail.total - detail.sent - detail.failed, 0), tone: 'amber', pct: detail.total ? Math.round((Math.max(detail.total - detail.sent - detail.failed, 0) / detail.total) * 100) : 0 },
+                      { label: 'Fallidos', value: detail.failed, tone: 'red', pct: detail.total ? Math.round((detail.failed / detail.total) * 100) : 0 },
+                    ].map((stat) => (
+                      <span key={stat.label} className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-${stat.tone}-500/10 text-${stat.tone}-600 dark:text-${stat.tone}-400 rounded-full text-xs font-bold border border-${stat.tone}-500/20`}>
+                        <span className={`w-1.5 h-1.5 rounded-full bg-${stat.tone}-500`} />
+                        {stat.value} {stat.label} · {stat.pct}%
+                      </span>
                     ))}
-                  </tbody>
-                </table>
-                {detail.contacts.length === 0 && (
-                  <div className="flex items-center justify-center py-8 text-sm text-slate-400">Sin contactos</div>
-                )}
-              </div>
-              {detail.count > detail.contacts.length && (
-                <p className="text-[10px] text-slate-400 mt-1">Mostrando los primeros {detail.contacts.length} contactos.</p>
+                  </div>
+
+                  {/* separador rayado */}
+                  <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent" />
+
+                  {/* MENSAJE */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-accent-500" />
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Mensaje enviado</span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+                      <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                        {detail.message_template.replace(/\{\{\s*[\w-]+\s*\}\}/g, '').replace(/\u200B/g, '').trim() || detail.message_template}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col h-full">
+                  {/* buscador */}
+                  <div className="shrink-0 px-6 py-3 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        value={contactFilter}
+                        onChange={(e) => setContactFilter(e.target.value)}
+                        placeholder="Buscar por número..."
+                        className="w-full h-9 pl-8 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-accent-500/30"
+                      />
+                    </div>
+                  </div>
+
+                  {/* tabla */}
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-6 py-2 sticky top-0 bg-slate-50 dark:bg-slate-800/80 backdrop-blur border-b border-slate-100 dark:border-slate-700 z-10">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Contacto</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Estado</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Hora</span>
+                    </div>
+                    {filteredContacts.length === 0 ? (
+                      <div className="py-12 text-center text-sm text-slate-400">
+                        {detail.contacts.length === 0 ? 'Sin contactos' : 'Ningún contacto coincide con la búsqueda'}
+                      </div>
+                    ) : (
+                      filteredContacts.map((c) => (
+                        <div
+                          key={c.id}
+                          className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-6 py-3 border-b border-slate-50 dark:border-slate-700/50 last:border-0 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Users className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                            <span className="text-sm font-mono text-slate-700 dark:text-slate-300 truncate">{c.phone}</span>
+                          </div>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold justify-self-start ${
+                            c.status === 'sent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' :
+                            c.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400' :
+                            'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              c.status === 'sent' ? 'bg-emerald-500' : c.status === 'failed' ? 'bg-red-500' : 'bg-amber-500'
+                            }`} />
+                            {c.status === 'sent' ? 'ENVIADO' : c.status === 'failed' ? 'FALLIDO' : c.status.toUpperCase()}
+                          </span>
+                          <p className="text-xs text-slate-400 text-right tabular-nums whitespace-nowrap">
+                            {c.sent_at ? new Date(c.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               )}
             </div>
 
-            {detail.logs && detail.logs.length > 0 && (
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                  Historial de envíos ({detail.logs.length})
-                </p>
-                <div className="max-h-[200px] overflow-y-auto custom-scrollbar border border-slate-200 dark:border-slate-700 rounded-xl">
-                  <table className="w-full">
-                    <thead className="sticky top-0 bg-white dark:bg-slate-900">
-                      <tr className="border-b border-slate-200 dark:border-slate-700">
-                        <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Inicio</th>
-                        <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Fin</th>
-                        <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Enviados</th>
-                        <th className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Fallidos</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.logs.map((log) => (
-                        <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800/50">
-                          <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">{new Date(log.started_at).toLocaleString()}</td>
-                          <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">{log.finished_at ? new Date(log.finished_at).toLocaleString() : '—'}</td>
-                          <td className="px-3 py-2 text-xs font-bold text-emerald-500">{log.total_sent}</td>
-                          <td className="px-3 py-2 text-xs font-bold text-red-500">{log.total_failed}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* ── FOOTER ── */}
+            {detail && !detailLoading && (
+              <div className="shrink-0 px-6 py-3 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {detail.status === 'sending' ? (
+                    <button onClick={() => handlePause(detail)} className="flex items-center gap-1.5 px-4 h-9 rounded-xl text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 transition-all shadow-sm">
+                      <Pause className="w-3.5 h-3.5" /> Pausar
+                    </button>
+                  ) : detail.status === 'paused' ? (
+                    <button onClick={() => handleResume(detail)} className="flex items-center gap-1.5 px-4 h-9 rounded-xl text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-sm">
+                      <Play className="w-3.5 h-3.5" /> Reanudar
+                    </button>
+                  ) : (
+                    <button onClick={() => handleSend(detail)} disabled={!canSend(detail)} className="flex items-center gap-1.5 px-4 h-9 rounded-xl text-xs font-bold bg-accent-500 text-black hover:bg-accent-600 transition-all shadow-sm disabled:opacity-40">
+                      <Send className="w-3.5 h-3.5" /> Enviar
+                    </button>
+                  )}
+                  <button onClick={() => { loadReminders(true); if (detail) openDetail(detail); }} className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* dropdown acciones */}
+                <div className="relative">
+                  <button onClick={() => setShowMenu(!showMenu)} className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-bold text-slate-500 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+                    <MoreVertical className="w-3.5 h-3.5" /> Más
+                  </button>
+                  {showMenu && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                      <div className="absolute right-0 bottom-full mb-1 z-20 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden">
+                        <button onClick={() => { handleExportPdf(detail); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                          <Download className="w-3.5 h-3.5" /> Exportar PDF
+                        </button>
+                        <div className="h-px bg-slate-100 dark:bg-slate-700" />
+                        <button onClick={() => { setDeleteTarget(detail); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" /> Eliminar campaña
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
           </div>
-        )}
-      </Modal>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Eliminar recordatorio"
+        message={`¿Eliminar "${deleteTarget?.name || ''}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+        isLoading={deleting}
+      />
     </PageContainer>
   );
 };

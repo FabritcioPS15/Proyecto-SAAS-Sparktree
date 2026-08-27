@@ -164,7 +164,11 @@ export async function handleIncomingMessage(
           
           await saveOutgoingMessage('text', { 
             buttonMapping: res?.buttonMapping,
-            bodyText: node.data?.bodyText 
+            bodyText: node.data?.bodyText,
+            buttons: (node.data?.buttons || []).map((b: any, i: number) => ({
+              id: b.id || `btn_${i}`,
+              text: b.text || b.title || `Opción ${i + 1}`,
+            })),
           }, res);
           console.log(`[Flow Engine] Interactive message database save completed.`);
         } catch (error) {

@@ -4,6 +4,8 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { getCrmPipeline, createCrmDeal, updateCrmDeal, deleteCrmDeal, getCrmClients } from '../../../services/api';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { Modal } from '../../../components/ui/Modal';
@@ -121,13 +123,12 @@ export const Pipeline = () => {
         description="Gestiona tus deals y pipeline de ventas en tiempo real."
         icon={Kanban}
         action={
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-bold text-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo Deal
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={pipeline.reduce((a: any, s: any) => a + (s.deals?.length || 0), 0)} />
+            <HeaderButton onClick={() => setShowModal(true)} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Deal
+            </HeaderButton>
+          </div>
         }
       />
 
@@ -187,7 +188,7 @@ export const Pipeline = () => {
 
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1">
-                        <DollarSign className="w-3 h-3 text-green-500" />
+                        <DollarSign className="w-3 h-3 text-accent-500" />
                         <span className="text-sm font-bold text-gray-900 dark:text-white">
                           ${deal.value?.toLocaleString() || 0}
                         </span>

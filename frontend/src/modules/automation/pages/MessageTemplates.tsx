@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Edit, Trash2, MessageSquare, List, LayoutGrid, FileText, BarChart3, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, MessageSquare, FileText, BarChart3, Copy } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -8,6 +12,9 @@ import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import {
   getMessageTemplates, getMessageTemplateStats, createMessageTemplate, updateMessageTemplate, deleteMessageTemplate,
 } from '../../../services/api';
@@ -59,7 +66,7 @@ export const MessageTemplates = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [currentPage, setCurrentPage] = useState(1);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -182,12 +189,12 @@ export const MessageTemplates = () => {
       ),
     },
     {
-      key: 'actions', header: '', className: 'text-center', render: (_v: unknown, row: MessageTemplate) => (
-        <div className="flex items-center justify-center gap-1">
-          <button onClick={() => { navigator.clipboard.writeText(row.content); addNotification({ type: 'success', title: 'Copiado', message: 'Plantilla copiada al portapapeles.' }); }} title="Copiar contenido" className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"><Copy className="w-4 h-4" /></button>
-          <button onClick={() => openEdit(row)} title="Editar" className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Edit className="w-4 h-4" /></button>
-          <button onClick={() => setDeleteTarget(row)} title="Eliminar" className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
-        </div>
+      key: 'actions', header: '', className: 'w-12', render: (_v: unknown, row: MessageTemplate) => (
+        <KebabMenu actions={[
+          { label: 'Copiar contenido', icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { navigator.clipboard.writeText(row.content); addNotification({ type: 'success', title: 'Copiado', message: 'Plantilla copiada al portapapeles.' }); } },
+          { label: 'Editar', icon: <Edit className="w-3.5 h-3.5" />, onClick: () => openEdit(row) },
+          { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(row), variant: 'danger' },
+        ]} />
       ),
     },
   ];
@@ -203,40 +210,33 @@ export const MessageTemplates = () => {
           { label: 'Usos totales', value: stats?.totalUsage || 0, icon: BarChart3, color: 'emerald' },
         ]}
         action={
-          <button onClick={openCreate} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" /> Nueva Plantilla
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={templates.length} />
+            <HeaderButton onClick={() => setShowCreateModal(true)} icon={<Plus className="w-4 h-4" />}>
+              Nueva Plantilla
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
-            <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
-              <input
-                type="text"
-                placeholder="Buscar plantillas..."
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={filterCategory}
-                onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
-                className="px-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm font-bold"
-              >
-                <option value="all">Todas las categorías</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-              <div className="flex items-center dark:bg-dark-card rounded-xl p-1 border border-gray-200 dark:border-white/5">
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} title="Vista de Tabla"><List className="w-4 h-4" /></button>
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} title="Vista de Cuadrícula"><LayoutGrid className="w-4 h-4" /></button>
-              </div>
-            </div>
+          <div className="flex items-center gap-3 mb-4">
+            <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar plantillas..." className="flex-1" />
+            <Dropdown
+              value={filterCategory}
+              onChange={(v) => { setFilterCategory(v); setCurrentPage(1); }}
+              options={[
+                { value: 'all', label: 'Todas las categorías' },
+                { value: 'transactional', label: 'Transaccional' },
+                { value: 'marketing', label: 'Marketing' },
+                { value: 'notification', label: 'Notificación' },
+                { value: 'greeting', label: 'Saludo' },
+                { value: 'followup', label: 'Seguimiento' },
+                { value: 'reminder', label: 'Recordatorio' },
+                { value: 'other', label: 'Otro' },
+              ]}
+            />
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
 
           {viewMode === 'grid' ? (
@@ -255,8 +255,11 @@ export const MessageTemplates = () => {
                       <span className="text-[10px] text-slate-400">{new Date(t.created_at).toLocaleDateString()}</span>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeleteTarget(t)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <KebabMenu actions={[
+                        { label: 'Editar', icon: <Edit className="w-3.5 h-3.5" />, onClick: () => openEdit(t) },
+                        { label: 'Copiar', icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { navigator.clipboard.writeText(t.content); addNotification({ type: 'success', title: 'Copiado', message: 'Plantilla copiada al portapapeles.' }); } },
+                        { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(t), variant: 'danger' },
+                      ]} />
                     </div>
                   </div>
                 </div>
@@ -268,7 +271,7 @@ export const MessageTemplates = () => {
                   </div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white mb-1">No hay plantillas</h3>
                   <p className="text-xs text-slate-400 max-w-sm mb-5">Crea tu primera plantilla para reutilizar mensajes en campañas y recordatorios.</p>
-                  <button onClick={openCreate} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-emerald-500 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
+                  <button onClick={openCreate} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
                     <Plus className="w-4 h-4" /> Crear plantilla
                   </button>
                 </div>
@@ -356,26 +359,15 @@ export const MessageTemplates = () => {
       </Modal>
 
       {/* Modal Confirmar Eliminación */}
-      <Modal
+      <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
         title="Eliminar plantilla"
-        icon={<Trash2 className="w-5 h-5 text-red-500" />}
-        footer={
-          <div className="flex items-center justify-between">
-            <button onClick={() => setDeleteTarget(null)} className="flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
-              Cancelar
-            </button>
-            <button onClick={handleDelete} className="flex items-center gap-2 px-5 h-10 rounded-xl text-sm font-bold bg-red-500 text-white hover:bg-red-600 transition-all">
-              <Trash2 className="w-4 h-4" /> Eliminar
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          ¿Eliminar la plantilla <span className="font-bold text-slate-900 dark:text-white">"{deleteTarget?.name}"</span>? Esta acción no se puede deshacer.
-        </p>
-      </Modal>
+        message={`¿Eliminar "${deleteTarget?.name || ''}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+      />
     </PageContainer>
   );
 };

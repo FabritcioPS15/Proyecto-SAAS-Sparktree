@@ -11,7 +11,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { PageLoader } from './components/layout/PageLoader';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import NotificationsSystem, { NotificationsProvider, setUpNotifications, useNotifications } from 'reapop';
+import { NotificationsProvider, setUpNotifications, useNotifications } from 'reapop';
 import { CustomNotification } from './components/ui/CustomNotification';
 
 // Configure reapop notifications
@@ -75,6 +75,7 @@ const SystemLogs = lazy(() => import('./modules/superadmin/pages/SystemLogs').th
 const Email = lazy(() => import('./modules/email/pages/Email').then(module => ({ default: module.Email })));
 const Calendar = lazy(() => import('./modules/calendar/pages/Calendar').then(module => ({ default: module.Calendar })));
 const WhatsAppManager = lazy(() => import('./modules/inbox/pages/WhatsAppManager').then(module => ({ default: module.WhatsAppManager })));
+const WhatsAppTemplates = lazy(() => import('./modules/inbox/pages/WhatsAppTemplates').then(module => ({ default: module.WhatsAppTemplates })));
 const Cotizaciones = lazy(() => import('./modules/crm/pages/Cotizaciones').then(module => ({ default: module.Cotizaciones })));
 const Campaigns = lazy(() => import('./modules/campaigns/pages/Campaigns').then(module => ({ default: module.Campaigns })));
 const Reminders = lazy(() => import('./modules/reminders/pages/Reminders').then(module => ({ default: module.Reminders })));
@@ -175,6 +176,7 @@ function AppContent() {
       <Route path="/assignment-rules" element={<Suspense fallback={<PageLoader sectionName="Reglas de Asignación" />}><ProtectedRoute><Layout><AssignmentRules /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/business-hours" element={<Suspense fallback={<PageLoader sectionName="Horarios de Atención" />}><ProtectedRoute><Layout><BusinessHours /></Layout></ProtectedRoute></Suspense>} />
       <Route path="/knowledge-bases" element={<Suspense fallback={<PageLoader sectionName="Knowledge Bases" />}><ProtectedRoute><Layout><KnowledgeBases /></Layout></ProtectedRoute></Suspense>} />
+      <Route path="/whatsapp-templates" element={<Suspense fallback={<PageLoader sectionName="Templates WhatsApp" />}><ProtectedRoute><Layout><WhatsAppTemplates /></Layout></ProtectedRoute></Suspense>} />
       
       {/* New modules - Atención */}
       <Route path="/support" element={<Suspense fallback={<PageLoader sectionName="Atención" />}><ProtectedRoute><Layout><Support /></Layout></ProtectedRoute></Suspense>} />
@@ -241,7 +243,7 @@ function App() {
             <ConnectionsProvider>
               <WhatsAppProvider>
                 <CustomizationProvider>
-                <BrowserRouter>
+                <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                   <AppContent />
                   <GlobalNotifications />
                 </BrowserRouter>

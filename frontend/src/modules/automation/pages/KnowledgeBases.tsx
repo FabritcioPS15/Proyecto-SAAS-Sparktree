@@ -5,6 +5,8 @@ import {
   Play, Check, X
 } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { getKnowledgeBases, createKnowledgeBase, deleteKnowledgeBase, getKnowledgeDocuments, addDocument, deleteDocument, ragQuery } from '../../../services/api';
 
@@ -47,6 +49,8 @@ export const KnowledgeBases = () => {
   const [ragQuery_text, setRagQuery_text] = useState('');
   const [ragResult, setRagResult] = useState<any>(null);
   const [ragLoading, setRagLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteDocTarget, setDeleteDocTarget] = useState<string | null>(null);
 
   useEffect(() => {
     loadBases();
@@ -78,15 +82,17 @@ export const KnowledgeBases = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Eliminar esta base de conocimiento? Todos los documentos se perderán.')) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteKnowledgeBase(id);
-      setBases(prev => prev.filter(b => b.id !== id));
-      if (selectedBase?.id === id) setSelectedBase(null);
+      await deleteKnowledgeBase(deleteTarget);
+      setBases(prev => prev.filter(b => b.id !== deleteTarget));
+      if (selectedBase?.id === deleteTarget) setSelectedBase(null);
       addNotification?.({ type: 'success', title: 'Base eliminada' });
     } catch (err) {
       addNotification?.({ type: 'error', title: 'Error al eliminar' });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -126,15 +132,17 @@ export const KnowledgeBases = () => {
     }
   };
 
-  const handleDeleteDoc = async (docId: string) => {
-    if (!selectedBase) return;
-    if (!window.confirm('¿Eliminar este documento?')) return;
+  const handleDeleteDoc = async () => {
+    if (!selectedBase || !deleteDocTarget) return;
     try {
-      await deleteDocument(selectedBase.id, docId);
-      setDocuments(prev => prev.filter(d => d.id !== docId));
+      await deleteDocument(selectedBase.id, deleteDocTarget);
+      setDocuments(prev => prev.filter(d => d.id !== deleteDocTarget));
       addNotification?.({ type: 'success', title: 'Documento eliminado' });
+      selectBase(selectedBase);
     } catch (err) {
       addNotification?.({ type: 'error', title: 'Error al eliminar documento' });
+    } finally {
+      setDeleteDocTarget(null);
     }
   };
 
@@ -157,6 +165,7 @@ export const KnowledgeBases = () => {
   );
 
   return (
+    <>
     <div className="flex flex-col md:flex-row h-full bg-slate-50 dark:bg-[#1a1a1a]">
       <div className="w-full md:w-[420px] shrink-0 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-dark-card flex flex-col">
         <div className="p-6 border-b border-slate-100 dark:border-slate-800">
@@ -207,7 +216,7 @@ export const KnowledgeBases = () => {
                     <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{base.description}</p>
                   )}
                 </div>
-                <button onClick={e => { e.stopPropagation(); handleDelete(base.id); }}
+                <button onClick={e => { e.stopPropagation(); setDeleteTarget(base.id); }}
                   className="p-1.5 text-slate-300 hover:text-red-500 transition-colors shrink-0 ml-2">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -285,7 +294,7 @@ export const KnowledgeBases = () => {
                               </div>
                             </div>
                           </div>
-                          <button onClick={() => handleDeleteDoc(doc.id)}
+                          <button onClick={() => setDeleteDocTarget(doc.id)}
                             className="p-1.5 text-slate-300 hover:text-red-500 transition-colors shrink-0">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -424,5 +433,25 @@ export const KnowledgeBases = () => {
         </div>
       )}
     </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Eliminar base de conocimiento"
+        message="¿Eliminar esta base de conocimiento? Todos los documentos se perderán. Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        variant="danger"
+      />
+      <ConfirmDialog
+        open={!!deleteDocTarget}
+        onClose={() => setDeleteDocTarget(null)}
+        onConfirm={handleDeleteDoc}
+        title="Eliminar documento"
+        message="¿Eliminar este documento? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        variant="danger"
+      />
+    </>
   );
 };

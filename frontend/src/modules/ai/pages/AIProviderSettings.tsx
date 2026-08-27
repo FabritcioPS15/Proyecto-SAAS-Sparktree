@@ -5,6 +5,8 @@ import { SiOpenai, SiAnthropic } from 'react-icons/si';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageContainer } from '../../../components/layout/PageContainer';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { useAuth } from '../../../contexts/AuthContext';
 import { cn } from '../../../utils/cn';
 import { Dropdown } from '../../../components/ui/Dropdown';
@@ -185,9 +187,15 @@ export const AIProviderSettings = () => {
         description="Conecta proveedores LLM para potenciar tus flujos con IA generativa."
         icon={Brain}
         action={
-          <div className="px-4 h-10 rounded-xl flex items-center gap-2 bg-gradient-to-r from-accent-500/10 to-emerald-500/10 text-accent-500 text-[10px] font-black uppercase tracking-widest border border-accent-500/20">
-            <Sparkles className="w-3.5 h-3.5" />
-            {Object.values(providers).filter(p => p.configured).length} Conectados
+          <div className="flex items-center gap-3">
+            <CountBadge count={Object.keys(providers).length} label="Proveedores" />
+            <HeaderButton
+              variant="ghost"
+              onClick={() => document.getElementById('provider-cards')?.scrollIntoView({ behavior: 'smooth' })}
+              icon={<Settings2 className="w-4 h-4" />}
+            >
+              Configurar
+            </HeaderButton>
           </div>
         }
       />
@@ -215,7 +223,7 @@ export const AIProviderSettings = () => {
           </div>
 
           {/* Provider cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div id="provider-cards" className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {(Object.entries(providerMeta) as [LLMProvider, typeof providerMeta['openai']][]).map(([key, meta]) => {
               const prov = providers[key];
               const isEditing = editing === key;

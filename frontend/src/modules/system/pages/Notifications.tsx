@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Plus, Search, Edit, Trash2, List, LayoutGrid, Bell } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable } from '../../../components/ui/DataTable';
@@ -64,10 +66,12 @@ export const Notifications = () => {
         description="Configuración de alertas del sistema"
         icon={Bell}
         action={
-          <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" />
-            Nueva Notificación
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={mockNotifications.length} />
+            <HeaderButton onClick={() => setShowCreateModal(true)} icon={<Plus className="w-4 h-4" />}>
+              Nueva Notificación
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>
@@ -94,8 +98,8 @@ export const Notifications = () => {
                 ]}
               />
               <div className="flex items-center dark:bg-dark-card rounded-xl p-1 border border-gray-200 dark:border-white/5">
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} title="Vista de Tabla"><List className="w-4 h-4" /></button>
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} title="Vista de Cuadrícula"><LayoutGrid className="w-4 h-4" /></button>
+                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-accent-600 dark:text-accent-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} title="Vista de Tabla"><List className="w-4 h-4" /></button>
+                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-accent-600 dark:text-accent-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`} title="Vista de Cuadrícula"><LayoutGrid className="w-4 h-4" /></button>
               </div>
             </div>
           </div>

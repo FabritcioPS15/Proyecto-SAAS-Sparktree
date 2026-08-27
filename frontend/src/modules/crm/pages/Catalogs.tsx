@@ -8,11 +8,14 @@ import { DataTable } from '../../../components/ui/DataTable';
 import { SearchBar } from '../../../components/ui/SearchBar';
 import { FilterSelect } from '../../../components/ui/FilterSelect';
 import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { TableCard } from '../../../components/ui/TableCard';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
-import { TableActions } from '../../../components/ui/TableActions';
 import { CatalogEditor } from '../components/CatalogEditor';
 import { getCatalogs, createCatalog, updateCatalog, deleteCatalog, uploadProductMedia } from '../../../services/api';
+import { useNotifications } from '../../../contexts/NotificationContext';
 
 export const Catalogs = () => {
   const [catalogs, setCatalogs] = useState<any[]>([]);
@@ -25,6 +28,7 @@ export const Catalogs = () => {
   const [editingCatalog, setEditingCatalog] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     fetchCatalogs();
@@ -64,7 +68,7 @@ export const Catalogs = () => {
       await fetchCatalogs();
     } catch (error) {
       console.error('Failed to save catalog', error);
-      alert('Error al guardar el catálogo');
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo guardar el catálogo.' });
     } finally {
       setSaving(false);
     }
@@ -78,7 +82,7 @@ export const Catalogs = () => {
       await fetchCatalogs();
     } catch (error) {
       console.error('Failed to delete catalog', error);
-      alert('Error al eliminar');
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el catálogo.' });
     } finally {
       setLoading(false);
       setDeleteTarget(null);
@@ -91,7 +95,7 @@ export const Catalogs = () => {
       return url as string;
     } catch (error) {
       console.error('Upload failed', error);
-      alert('Error al subir la imagen. Verifica el tamaño (máx 10MB) o el almacenamiento.');
+      addNotification({ type: 'error', title: 'Error de imagen', message: 'Verifica el tamaño (máx 10MB) o el almacenamiento.' });
       return null;
     }
   };
@@ -121,23 +125,21 @@ export const Catalogs = () => {
       key: 'status',
       header: 'Estado',
       render: (value: string) => (
-        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${value === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${value === 'active' ? 'bg-accent-500/10 text-accent-600 dark:text-accent-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
           {value === 'active' ? 'Activo' : 'Borrador'}
         </span>
       )
     },
     {
       key: 'actions',
-      header: 'Acciones',
-      className: 'text-center',
+      header: '',
+      className: 'w-12',
       render: (_: any, catalog: any) => (
-        <TableActions
-          actions={[
-            { icon: <Edit className="w-4 h-4" />, label: 'Editar', onClick: (e) => { e.stopPropagation(); handleEdit(catalog); }, tooltip: 'Editar Catálogo' },
-            { icon: <Copy className="w-4 h-4" />, label: 'Duplicar', onClick: (e) => e.stopPropagation(), tooltip: 'Duplicar Catálogo' },
-            { icon: <Trash2 className="w-4 h-4" />, label: 'Eliminar', onClick: (e) => { e.stopPropagation(); setDeleteTarget(catalog.id); }, variant: 'danger', tooltip: 'Eliminar Catálogo' },
-          ]}
-        />
+        <KebabMenu actions={[
+          { label: 'Editar', icon: <Edit className="w-3.5 h-3.5" />, onClick: (e) => { e.stopPropagation(); handleEdit(catalog); } },
+          { label: 'Duplicar', icon: <Copy className="w-3.5 h-3.5" />, onClick: (e) => e.stopPropagation() },
+          { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: (e) => { e.stopPropagation(); setDeleteTarget(catalog.id); }, variant: 'danger' },
+        ]} />
       )
     },
   ];
@@ -148,13 +150,12 @@ export const Catalogs = () => {
         title="Catálogos"
         description="Gestiona productos e inventario"
         action={
-          <button
-            onClick={handleCreate}
-            className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo Catálogo
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={catalogs.length} />
+            <HeaderButton onClick={handleCreate} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Catálogo
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>

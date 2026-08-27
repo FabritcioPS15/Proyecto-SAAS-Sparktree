@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, List, LayoutGrid, ShoppingCart } from 'lucide-react';
+import { Plus, Edit, Trash2, ShoppingCart } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Dropdown } from '../../../components/ui/Dropdown';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { Modal } from '../../../components/ui/Modal';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { getOrders, createOrder, deleteOrder } from '../../../services/api';
@@ -44,11 +50,12 @@ export const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterChannel, setFilterChannel] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<Order | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +90,10 @@ export const Orders = () => {
     }
   };
 
-  const handleDelete = async (order: Order) => {
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const order = deleteTarget;
+    setDeleteTarget(null);
     setOrders(prev => prev.filter(o => o.id !== order.id));
     try {
       await deleteOrder(order.id);
@@ -101,8 +111,11 @@ export const Orders = () => {
     { key: 'status', header: 'Estado', render: (v: string) => <StatusBadge status={v} /> },
     { key: 'date', header: 'Fecha' },
     { key: 'channel', header: 'Canal' },
-    { key: 'actions', header: '', render: (_v: unknown, row: Order) => (
-      <button onClick={() => handleDelete(row)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
+    { key: 'actions', header: '', className: 'w-12', render: (_v: unknown, row: Order) => (
+      <KebabMenu actions={[
+        { label: 'Ver detalle', icon: <Edit className="w-3.5 h-3.5" />, onClick: () => {} },
+        { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => { setDeleteTarget(row); }, variant: 'danger' },
+      ]} />
     )},
   ];
 
@@ -119,9 +132,12 @@ export const Orders = () => {
         description="Gestiona las órdenes generadas desde el catálogo"
         icon={ShoppingCart}
         action={
-          <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" /> Nuevo Pedido
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={orders.length} />
+            <HeaderButton onClick={() => setShowCreateModal(true)} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Pedido
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>
@@ -129,40 +145,21 @@ export const Orders = () => {
           <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><Loader size="xs" /> Cargando pedidos...</div>
         )}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
-            <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
-              <input type="text" placeholder="Buscar por cliente o ID..." value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Dropdown
-                value={filterStatus}
-                onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}
-                options={[
-                  { value: 'all', label: 'Todos los estados' },
-                  { value: 'pending', label: 'Pendiente' },
-                  { value: 'paid', label: 'Pagado' },
-                  { value: 'sent', label: 'Enviado' },
-                  { value: 'delivered', label: 'Entregado' },
-                  { value: 'cancelled', label: 'Cancelado' },
-                ]}
-              />
-              <Dropdown
-                value={filterChannel}
-                onChange={(v) => { setFilterChannel(v); setCurrentPage(1); }}
-                options={[
-                  { value: 'all', label: 'Todos los canales' },
-                  ...CHANNELS.map(c => ({ value: c, label: c })),
-                ]}
-              />
-              <div className="flex items-center dark:bg-dark-card rounded-xl p-1 border border-gray-200 dark:border-white/5">
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><List className="w-4 h-4" /></button>
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}><LayoutGrid className="w-4 h-4" /></button>
-              </div>
-            </div>
+          <div className="flex items-center gap-3 mb-4">
+            <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar por cliente o ID..." className="flex-1" />
+            <Dropdown value={filterStatus} onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }} options={[
+              { value: 'all', label: 'Todos los estados' },
+              { value: 'pending', label: 'Pendiente' },
+              { value: 'paid', label: 'Pagado' },
+              { value: 'sent', label: 'Enviado' },
+              { value: 'delivered', label: 'Entregado' },
+              { value: 'cancelled', label: 'Cancelado' },
+            ]} />
+            <Dropdown value={filterChannel} onChange={(v) => { setFilterChannel(v); setCurrentPage(1); }} options={[
+              { value: 'all', label: 'Todos los canales' },
+              ...CHANNELS.map(c => ({ value: c, label: c })),
+            ]} />
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
 
           {viewMode === 'grid' ? (
@@ -182,7 +179,7 @@ export const Orders = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-slate-400">{order.date}</span>
                     <button className="p-1.5 rounded-lg text-slate-400 hover:text-accent-500 hover:bg-accent-500/10 transition-all"><Edit className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => handleDelete(order)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setDeleteTarget(order)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -208,6 +205,16 @@ export const Orders = () => {
           <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-accent-600 hover:to-accent-700 transition-all shadow-md">Crear Pedido</button>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Eliminar pedido"
+        message={`¿Eliminar el pedido de ${deleteTarget?.customer || ''}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+      />
     </PageContainer>
   );
 };

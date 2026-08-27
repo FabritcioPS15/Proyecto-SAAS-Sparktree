@@ -14,10 +14,10 @@ router.get('/', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
     const offset = parseInt(req.query.offset as string) || 0;
 
-    // 1. Fetch conversations + contacts (NO messages relation)
+    // 1. Fetch conversations + contacts (with bot_state inside contacts)
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select('id, contact_id, last_message_at, status, created_at, platform_type, organization_id, contacts(phone_number, profile_name, profile_picture, custom_attributes)')
+      .select('id, contact_id, last_message_at, status, assigned_to, created_at, platform_type, organization_id, contacts(phone_number, profile_name, profile_picture, custom_attributes, bot_state)')
       .eq('organization_id', orgId)
       .order('last_message_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -31,7 +31,24 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
 
-    // 2. Fetch last message for each conversation in a single query
+    // 2. Fetch assigned agents for these conversations
+    const assignedUserIds = Array.from(new Set(conversations.map((c: any) => c.assigned_to).filter(Boolean)));
+    const agentMap = new Map<string, any>();
+    if (assignedUserIds.length > 0) {
+      try {
+        const { data: agentsData } = await supabase
+          .from('users')
+          .select('id, name, email, avatar_url')
+          .in('id', assignedUserIds);
+        if (agentsData) {
+          agentsData.forEach((agent: any) => agentMap.set(agent.id, agent));
+        }
+      } catch (e) {
+        console.warn('[Conversations API] Failed to fetch agent info:', e);
+      }
+    }
+
+    // 3. Fetch last message for each conversation in a single query
     const convIds = conversations.map((c: any) => c.id);
     const { data: lastMessages } = await supabase
       .from('messages')
@@ -49,7 +66,7 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // 3. Format response (no more reduce over all messages)
+    // 4. Format response
     const formattedConversations = conversations.map((conv: any) => {
       const storedPhone = conv.contacts?.phone_number || '';
       const phoneDigits = storedPhone.replace(/\D/g, '');
@@ -62,10 +79,10 @@ router.get('/', async (req, res) => {
         contactId: {
           id: conv.contact_id,
           _id: conv.contact_id,
-          phoneNumber: displayPhone || 'Desconocido',
+          phoneNumber: displayPhone || storedPhone || 'Desconocido',
           name: (conv.contacts?.profile_name && conv.contacts.profile_name !== 'Sin nombre')
             ? conv.contacts.profile_name
-            : (displayPhone || 'Sin nombre'),
+            : (displayPhone || storedPhone || 'Sin nombre'),
           profilePicture: conv.contacts?.profile_picture || null,
           isGroup: conv.contacts?.custom_attributes?.is_group ||
                    conv.contacts?.phone_number?.includes('-') ||
@@ -76,6 +93,9 @@ router.get('/', async (req, res) => {
         channel: conv.platform_type || 'whatsapp',
         unreadCount: 0,
         status: conv.status,
+        botState: conv.contacts?.bot_state || 'main_menu',
+        assignedTo: conv.assigned_to,
+        assignedAgent: conv.assigned_to ? agentMap.get(conv.assigned_to) || null : null,
         createdAt: conv.created_at
       };
     });

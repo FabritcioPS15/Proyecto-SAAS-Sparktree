@@ -3,18 +3,20 @@ import { DashboardCard } from './DashboardCard';
 import { Sparkles, TrendingUp, Bot, MessageCircle, AlertTriangle } from 'lucide-react';
 
 interface Insight {
-  id: string;
   type: 'growth' | 'bot' | 'traffic' | 'alert';
   text: string;
 }
 
-export const AIInsights = () => {
-  const insights: Insight[] = [
-    { id: '1', type: 'growth', text: 'Los mensajes crecieron 28% respecto a la semana pasada.' },
-    { id: '2', type: 'bot', text: 'La IA resolvió el 94% de las consultas automáticamente.' },
-    { id: '3', type: 'traffic', text: 'WhatsApp genera el 81% del tráfico actual.' },
-    { id: '4', type: 'alert', text: 'Instagram lleva dos días sin reportar actividad.' },
-  ];
+interface AIInsightsProps {
+  insights?: Insight[];
+}
+
+const defaultInsights: Insight[] = [
+  { type: 'traffic', text: 'Conecta tus canales para empezar a recibir datos.' },
+];
+
+export const AIInsights: React.FC<AIInsightsProps> = ({ insights: propInsights }) => {
+  const insights = propInsights && propInsights.length > 0 ? propInsights : defaultInsights;
 
   const getIcon = (type: Insight['type']) => {
     switch (type) {
@@ -32,8 +34,8 @@ export const AIInsights = () => {
       icon={<Sparkles className="w-4 h-4" />}
     >
       <div className="space-y-4 pt-2">
-        {insights.map((insight) => (
-          <div key={insight.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-default">
+        {insights.map((insight, idx) => (
+          <div key={idx} className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-default">
             <div className="p-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg shrink-0 mt-0.5">
               {getIcon(insight.type)}
             </div>

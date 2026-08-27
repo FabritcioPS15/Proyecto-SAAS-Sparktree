@@ -387,24 +387,47 @@ export class CampaignsService {
 
         try {
           const text = renderTemplate(campaign.message_template, contact.variables);
+          const phone = normalizePhone(contact.phone);
           if (isCloudApi && campaign.meta_template_name) {
             const langCode = campaign.meta_template_language || 'es';
-            const renderedText = renderTemplate(campaign.message_template, contact.variables);
-            await (adapter as any).sendTemplateMessage!(contact.phone, campaign.meta_template_name, langCode, [
-              { type: 'body', parameters: [{ type: 'text', text: renderedText }] },
-            ]);
+            if (!(adapter as any).sendTemplateMessage) {
+              throw new Error('sendTemplateMessage no disponible en el adaptador');
+            }
+            let varNames = [...campaign.message_template.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
+            if (varNames.length === 0 && contact.variables && typeof contact.variables === 'object') {
+              varNames = Object.keys(contact.variables);
+            }
+            console.log(`[Campaigns] Template: "${campaign.meta_template_name}", lang: ${langCode}, vars: [${varNames.join(', ')}]`);
+            if (varNames.length > 0) {
+              const parameters = varNames.map(name => ({
+                type: 'text',
+                parameter_name: name,
+                text: String(contact.variables?.[name] ?? ''),
+              }));
+              console.log(`[Campaigns] Sending with parameters:`, JSON.stringify(parameters));
+              await (adapter as any).sendTemplateMessage(phone, campaign.meta_template_name, langCode, [
+                { type: 'body', parameters },
+              ]);
+            } else {
+              console.log(`[Campaigns] Sending template without parameters`);
+              await (adapter as any).sendTemplateMessage(phone, campaign.meta_template_name, langCode);
+            }
           } else {
-            await adapter.sendTextMessage(contact.phone, text);
+            await adapter.sendTextMessage(phone, text);
           }
           await supabase
             .from('campaign_contacts')
             .update({ status: 'sent', sent_at: new Date().toISOString(), error_message: null })
             .eq('id', contact.id);
         } catch (err: any) {
-          console.error('[Campaigns] Send failed for', contact.phone, err?.message || err);
+          const metaError = err?.response?.data?.error || err?.response?.data;
+          const errorMsg = metaError
+            ? `Meta API ${metaError.code || ''}: ${metaError.message || JSON.stringify(metaError)}`
+            : String(err?.message || err);
+          console.error(`[Campaigns] Send FAILED for ${contact.phone}: ${errorMsg}`);
           await supabase
             .from('campaign_contacts')
-            .update({ status: 'failed', error_message: String(err?.message || err) })
+            .update({ status: 'failed', error_message: errorMsg })
             .eq('id', contact.id);
         }
 

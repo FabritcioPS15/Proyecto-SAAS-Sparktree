@@ -4,7 +4,7 @@ import { Mail } from 'lucide-react';
 export const EmailNode = ({ data }: any) => {
   return (
     <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-sky-200 dark:border-sky-900/50 w-64 overflow-hidden transition-all hover:shadow-sky-500/10 group node-container">
-      <Handle type="target" position={Position.Top} className="!bg-white !border-sky-400 group-hover:!bg-sky-500" />
+      <Handle type="target" position={Position.Top} className="!bg-white dark:!bg-slate-700 !border-sky-400 group-hover:!bg-sky-500" />
       <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center gap-2">
         <Mail className="w-4 h-4 text-sky-400" />
         <h3 className="font-black text-[10px] text-white uppercase tracking-widest">Enviar Correo</h3>
@@ -28,7 +28,7 @@ export const EmailNode = ({ data }: any) => {
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-white !border-sky-400 group-hover:!bg-sky-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white dark:!bg-slate-700 !border-sky-400 group-hover:!bg-sky-500" />
     </div>
   );
 };

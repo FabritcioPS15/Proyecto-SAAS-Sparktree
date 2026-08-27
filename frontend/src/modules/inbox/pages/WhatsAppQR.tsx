@@ -3,6 +3,8 @@ import { QrCode, RefreshCw, LogOut, CheckCircle, Smartphone, Cloud, ScanLine, Tr
 import { getQRStatus, initializeQR, logoutQR, getSettings, createWhatsAppCloudConnection } from '../../../services/api';
 import { useWhatsApp } from '../../../contexts/WhatsAppContext';
 import { useConnections } from '../../../contexts/ConnectionsContext';
+import { useNotifications } from '../../../contexts/NotificationContext';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageContainer } from '../../../components/layout/PageContainer';
@@ -22,21 +24,33 @@ export const WhatsAppQR = () => {
     webhookVerifyToken: ''
   });
   const hasLoadedOnce = useRef(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const { } = useWhatsApp();
   const { connections, addConnection, removeConnection, refreshConnections } = useConnections();
+  const { addNotification } = useNotifications();
 
   const cloudConnection = connections.find(c => c.platform_type === 'whatsapp' && c.id !== 'whatsapp_session');
+  const hasNotifiedConnect = useRef(false);
 
   const fetchStatus = async () => {
     if (connectionMethod !== 'qr') return;
     try {
       const res = await getQRStatus();
+      const wasConnected = data.status === 'connected';
       setData(res);
       setLoading(false);
       hasLoadedOnce.current = true;
       if (res.status === 'connected' && res.phoneNumber) {
         await addConnection('whatsapp', { displayName: 'WhatsApp Business', phoneNumber: res.phoneNumber });
+        if (!wasConnected && !hasNotifiedConnect.current) {
+          hasNotifiedConnect.current = true;
+          addNotification({ type: 'success', title: 'WhatsApp conectado', message: `QR escaneado. Línea ${res.phoneNumber} activa.` });
+        }
+      }
+      if (res.status !== 'connected') {
+        hasNotifiedConnect.current = false;
       }
       return res;
     } catch (error) {
@@ -92,7 +106,7 @@ export const WhatsAppQR = () => {
   };
 
   const handleLogout = async () => {
-    if (!window.confirm('¿Deseas cerrar la sesión activa de WhatsApp?')) return;
+    setConfirmLogout(false);
     setActionLoading(true);
     try {
       await logoutQR();
@@ -100,15 +114,17 @@ export const WhatsAppQR = () => {
       const existingConnection = connections.find(c => c.platform_type === 'whatsapp' && c.id === 'whatsapp_session');
       if (existingConnection) { await removeConnection(existingConnection.id); }
       await fetchStatus();
+      addNotification({ type: 'success', title: 'Sesión cerrada', message: 'La sesión de WhatsApp QR ha sido cerrada.' });
     } catch (error) {
       console.error('Error logging out:', error);
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo cerrar la sesión.' });
     }
     setActionLoading(false);
   };
 
   const handleCloudConnection = async () => {
     if (!cloudCredentials.phoneNumberId || !cloudCredentials.accessToken || !cloudCredentials.displayName) {
-      alert('Por favor completa todos los campos requeridos');
+      addNotification({ type: 'warning', title: 'Campos requeridos', message: 'Completa todos los campos obligatorios.' });
       return;
     }
     setActionLoading(true);
@@ -117,23 +133,25 @@ export const WhatsAppQR = () => {
       setShowCloudForm(false);
       setConnectionMethod('cloud');
       await refreshConnections();
-      alert('Conexión WhatsApp Cloud creada exitosamente');
+      addNotification({ type: 'success', title: 'Conexión creada', message: 'WhatsApp Cloud API conectada exitosamente.' });
     } catch (error) {
       console.error('Error creating WhatsApp Cloud connection:', error);
-      alert('Error al crear conexión WhatsApp Cloud');
+      addNotification({ type: 'error', title: 'Error de conexión', message: 'No se pudo crear la conexión Cloud API.' });
     }
     setActionLoading(false);
   };
 
   const handleCloudDisconnect = async () => {
-    if (!window.confirm('¿Deseas desconectar la API de Meta?')) return;
+    setConfirmDisconnect(false);
     if (!cloudConnection) return;
     setActionLoading(true);
     try {
       await removeConnection(cloudConnection.id);
       await refreshConnections();
+      addNotification({ type: 'success', title: 'Conexión eliminada', message: 'La conexión Cloud API fue desconectada.' });
     } catch (error) {
       console.error('Error disconnecting Cloud:', error);
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo desconectar la API.' });
     }
     setActionLoading(false);
   };
@@ -146,6 +164,26 @@ export const WhatsAppQR = () => {
 
   return (
     <PageContainer>
+      <ConfirmDialog
+        open={confirmLogout}
+        onClose={() => setConfirmLogout(false)}
+        onConfirm={handleLogout}
+        title="Cerrar sesión"
+        message="¿Deseas cerrar la sesión activa de WhatsApp?"
+        confirmText="Cerrar sesión"
+        variant="danger"
+        isLoading={actionLoading}
+      />
+      <ConfirmDialog
+        open={confirmDisconnect}
+        onClose={() => setConfirmDisconnect(false)}
+        onConfirm={handleCloudDisconnect}
+        title="Desconectar Cloud API"
+        message="¿Deseas desconectar la API de Meta? Los mensajes se detendrán."
+        confirmText="Desconectar"
+        variant="danger"
+        isLoading={actionLoading}
+      />
       <PageHeader
         title="Conexión de"
         highlight="WhatsApp"
@@ -224,7 +262,7 @@ export const WhatsAppQR = () => {
                   <p className="text-xs text-slate-500 font-medium max-w-xs italic">
                     Los mensajes se procesan a través de la API oficial de Meta.
                   </p>
-                  <button onClick={handleCloudDisconnect} disabled={actionLoading}
+                  <button onClick={() => setConfirmDisconnect(true)} disabled={actionLoading}
                     className="flex items-center gap-2 text-[10px] font-black text-red-400 uppercase tracking-widest hover:bg-red-500/10 h-10 px-5 rounded-xl transition-all disabled:opacity-50">
                     <Trash2 className="w-3.5 h-3.5" /> Desconectar Cloud API
                   </button>
@@ -399,7 +437,7 @@ export const WhatsAppQR = () => {
                   <p className="text-xs text-slate-500 font-medium max-w-xs italic">
                     Todos los clientes registrados serán atendidos automáticamente bajo este número.
                   </p>
-                  <button onClick={handleLogout} disabled={actionLoading}
+                  <button onClick={() => setConfirmLogout(true)} disabled={actionLoading}
                     className="flex items-center gap-2 text-[10px] font-black text-red-400 uppercase tracking-widest hover:bg-red-500/10 h-10 px-5 rounded-xl transition-all disabled:opacity-50">
                     <LogOut className="w-3.5 h-3.5" /> Cerrar Sesión Activa
                   </button>

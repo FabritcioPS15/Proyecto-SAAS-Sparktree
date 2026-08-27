@@ -4,7 +4,7 @@ import { Zap } from 'lucide-react';
 export const TriggerNode = ({ data }: any) => {
   return (
     <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-lg border border-emerald-200 dark:border-emerald-900/50 w-64 overflow-hidden transition-all hover:shadow-emerald-500/10 group node-container">
-      <Handle type="source" position={Position.Bottom} className="!bg-white !border-emerald-400 group-hover:!bg-emerald-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white dark:!bg-slate-700 !border-emerald-400 group-hover:!bg-emerald-500" />
       <div className="bg-black dark:bg-gray-900 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-emerald-400" />

@@ -69,7 +69,7 @@ export class WhatsAppCloudService extends BasePlatformService {
 
       // Subscribe to messages field via Meta Graph API
       await axios.post(
-        `https://graph.facebook.com/v18.0/${connection.config.phoneNumberId}`,
+        `https://graph.facebook.com/v21.0/${connection.config.phoneNumberId}`,
         null,
         {
           params: {
@@ -191,7 +191,7 @@ export class WhatsAppCloudService extends BasePlatformService {
     return {
       sendTextMessage: async (to: string, body: string, options?: any) => {
         const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
-        const url = `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`;
+        const url = `https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`;
         
         const response = await axios({
           method: 'POST',
@@ -213,7 +213,7 @@ export class WhatsAppCloudService extends BasePlatformService {
 
       sendButtonMessage: async (to: string, bodyText: string, buttons: any[], options?: any) => {
         const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
-        const url = `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`;
+        const url = `https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`;
         
         const actionButtons = buttons.slice(0, 3).map((btn, index) => ({
           type: 'reply',
@@ -247,7 +247,7 @@ export class WhatsAppCloudService extends BasePlatformService {
 
       sendMediaMessage: async (to: string, url: string, options?: any) => {
         const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
-        const apiUrl = `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`;
+        const apiUrl = `https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`;
         
         const mediaType = options?.type || 'image';
         
@@ -279,57 +279,140 @@ export class WhatsAppCloudService extends BasePlatformService {
         components: any[] = []
       ) => {
         const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
-        const url = `https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`;
+        const url = `https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`;
 
-        const response = await axios({
-          method: 'POST',
-          url,
-          headers: {
-            'Authorization': `Bearer ${config.accessToken}`,
-            'Content-Type': 'application/json',
+        const requestBody = {
+          messaging_product: 'whatsapp',
+          to: phoneNumber,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: languageCode },
+            ...(components.length > 0 ? { components } : {}),
           },
-          data: {
-            messaging_product: 'whatsapp',
-            to: phoneNumber,
-            type: 'template',
-            template: {
-              name: templateName,
-              language: { code: languageCode },
-              ...(components.length > 0 ? { components } : {}),
+        };
+
+        console.log(`[WhatsApp Cloud] Sending template "${templateName}" to ${phoneNumber} lang=${languageCode}`);
+        console.log(`[WhatsApp Cloud] Request body:`, JSON.stringify(requestBody, null, 2));
+
+        try {
+          const response = await axios({
+            method: 'POST',
+            url,
+            headers: {
+              'Authorization': `Bearer ${config.accessToken}`,
+              'Content-Type': 'application/json',
             },
-          },
-        });
+            data: requestBody,
+          });
 
-        return response.data;
+          console.log(`[WhatsApp Cloud] Template sent OK:`, response.data?.messages?.[0]?.id);
+          return response.data;
+        } catch (error: any) {
+          const metaErr = error?.response?.data?.error || error?.response?.data;
+          console.error(`[WhatsApp Cloud] Template FAILED:`, JSON.stringify(metaErr || error.message, null, 2));
+          throw error;
+        }
       },
     };
   }
 
-  /** Lista los templates aprobados en Meta para el WABA vinculado a esta conexión */
+  /** Obtiene el WABA ID a partir del Phone Number ID */
+  private async getWabaId(connection: PlatformConnection): Promise<string> {
+    const { phoneNumberId, accessToken } = connection.config;
+    try {
+      const phoneInfo = await axios.get(
+        `https://graph.facebook.com/v21.0/${phoneNumberId}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const wabaId = phoneInfo.data?.whatsapp_business_account_id;
+      if (!wabaId) {
+        console.error(`[WhatsApp Cloud] No WABA ID found. Phone Number ID: ${phoneNumberId}, response:`, JSON.stringify(phoneInfo.data));
+        throw new Error('No se encontró el WABA ID para este número. Verifica que el Phone Number ID sea correcto.');
+      }
+      console.log(`[WhatsApp Cloud] WABA ID resolved: ${wabaId} for Phone Number ID: ${phoneNumberId}`);
+      return wabaId;
+    } catch (err: any) {
+      const metaError = err?.response?.data?.error;
+      if (metaError) {
+        console.error(`[WhatsApp Cloud] Failed to get WABA ID. Phone: ${phoneNumberId}, Meta error ${metaError.code}: ${metaError.message}`);
+        throw new Error(`Meta API ${metaError.code}: ${metaError.message}. Verifica el Phone Number ID y el Access Token.`);
+      }
+      throw err;
+    }
+  }
+
+  /** Lista TODOS los templates de Meta (todos los estados) para el WABA vinculado */
   async getMetaTemplates(connectionId: string): Promise<any[]> {
     const connection = this.connections.get(connectionId);
     if (!connection) throw new Error('Connection not found');
 
-    const { phoneNumberId, accessToken } = connection.config;
+    console.log(`[WhatsApp Cloud] Fetching templates for connection ${connectionId}, Phone: ${connection.config.phoneNumberId}`);
 
-    // Primero obtenemos el WABA ID a partir del Phone Number ID
-    const phoneInfo = await axios.get(
-      `https://graph.facebook.com/v18.0/${phoneNumberId}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+    const wabaId = await this.getWabaId(connection);
+
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/v21.0/${wabaId}/message_templates`,
+        {
+          headers: { Authorization: `Bearer ${connection.config.accessToken}` },
+          params: { limit: 200, fields: 'id,name,status,category,language,components,rejected_reason,quality_score' },
+        }
+      );
+
+      const templates = response.data?.data || [];
+      console.log(`[WhatsApp Cloud] Found ${templates.length} templates for WABA ${wabaId}`);
+      return templates;
+    } catch (err: any) {
+      const metaError = err?.response?.data?.error;
+      if (metaError) {
+        console.error(`[WhatsApp Cloud] Failed to fetch templates. WABA: ${wabaId}, Meta error ${metaError.code}: ${metaError.message}`);
+        throw new Error(`Meta API ${metaError.code}: ${metaError.message}`);
+      }
+      throw err;
+    }
+  }
+
+  /** Crea un nuevo template en Meta (queda en PENDING hasta que Meta lo aprueba) */
+  async createMetaTemplate(connectionId: string, templateData: {
+    name: string;
+    category: string;
+    language: string;
+    components: any[];
+  }): Promise<any> {
+    const connection = this.connections.get(connectionId);
+    if (!connection) throw new Error('Connection not found');
+
+    const wabaId = await this.getWabaId(connection);
+
+    console.log(`[WhatsApp Cloud] Creating template "${templateData.name}" for WABA ${wabaId}`);
+
+    const response = await axios.post(
+      `https://graph.facebook.com/v21.0/${wabaId}/message_templates`,
+      templateData,
+      { headers: { Authorization: `Bearer ${connection.config.accessToken}`, 'Content-Type': 'application/json' } }
     );
 
-    const wabaId = phoneInfo.data?.whatsapp_business_account_id;
-    if (!wabaId) throw new Error('No se encontró el WABA ID para este número');
+    console.log(`[WhatsApp Cloud] Template created:`, response.data);
+    return response.data;
+  }
 
-    const response = await axios.get(
-      `https://graph.facebook.com/v18.0/${wabaId}/message_templates`,
+  /** Elimina un template de Meta por ID */
+  async deleteMetaTemplate(connectionId: string, templateId: string, templateName: string): Promise<void> {
+    const connection = this.connections.get(connectionId);
+    if (!connection) throw new Error('Connection not found');
+
+    const wabaId = await this.getWabaId(connection);
+
+    await axios.delete(
+      `https://graph.facebook.com/v21.0/${wabaId}/message_templates`,
       {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        params: { limit: 100, status: 'APPROVED' },
+        headers: { Authorization: `Bearer ${connection.config.accessToken}` },
+        params: { name: templateName },
       }
     );
 
-    return response.data?.data || [];
+    console.log(`[WhatsApp Cloud] Template "${templateName}" deleted from WABA ${wabaId}`);
   }
 
 
@@ -394,7 +477,7 @@ export class WhatsAppCloudService extends BasePlatformService {
 
     // Verify credentials by making a test API call
     try {
-      const url = `https://graph.facebook.com/v18.0/${connection.config.phoneNumberId}`;
+      const url = `https://graph.facebook.com/v21.0/${connection.config.phoneNumberId}`;
       await axios.get(url, {
         headers: {
           'Authorization': `Bearer ${connection.config.accessToken}`,

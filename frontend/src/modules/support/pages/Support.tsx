@@ -19,7 +19,7 @@ export const Support = () => {
       description: 'Contenido para respuestas automáticas del bot',
       icon: Bot,
       path: '/knowledge-base',
-      color: 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400',
+      color: 'bg-accent-500/10 text-accent-600 dark:text-accent-400',
     },
   ];
 

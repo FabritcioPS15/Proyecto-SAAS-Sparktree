@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, FileText, Eye, Trash2, Send, Download, Copy, Edit3, X, Percent, Calendar, DollarSign, ClipboardList, ShoppingCart, RotateCcw, History } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable, Column } from '../../../components/ui/DataTable';
@@ -8,9 +9,10 @@ import { SearchBar } from '../../../components/ui/SearchBar';
 import { FilterSelect } from '../../../components/ui/FilterSelect';
 import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { TableCard } from '../../../components/ui/TableCard';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { Modal } from '../../../components/ui/Modal';
-import { Badge } from '../../../components/ui/Badge';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Loader } from '../../../components/ui/Loader';
 import { useNotifications } from '../../../contexts/NotificationContext';
@@ -359,16 +361,16 @@ export const Cotizaciones = () => {
     { key: 'items', header: 'Items', render: (_, row) => <span className="text-slate-500">{row.items.length}</span> },
     { key: 'status', header: 'Estado', render: (_, row) => <StatusBadge status={row.status} size="sm" /> },
     {
-      key: 'id', header: '',
+      key: 'id', header: '', className: 'w-12',
       render: (_, row) => (
-        <div className="flex items-center gap-1">
-          <button onClick={() => setShowDetailModal(row)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-accent-300 transition-colors" title="Ver detalle"><Eye className="w-3.5 h-3.5" /></button>
-          <button onClick={() => openEdit(row)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-accent-300 transition-colors" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
-          {row.status === 'draft' && <button onClick={() => handleSend(row)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-accent-500 dark:hover:text-accent-300 transition-colors" title="Enviar"><Send className="w-3.5 h-3.5" /></button>}
-          <button onClick={() => handleDuplicate(row)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-accent-300 transition-colors" title="Duplicar"><Copy className="w-3.5 h-3.5" /></button>
-          <button onClick={() => {}} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-accent-300 transition-colors" title="Descargar PDF"><Download className="w-3.5 h-3.5" /></button>
-          <button onClick={() => setConfirmDelete(row)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-red-500 transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-        </div>
+        <KebabMenu actions={[
+          { label: 'Ver detalle', icon: <Eye className="w-3.5 h-3.5" />, onClick: () => setShowDetailModal(row) },
+          { label: 'Editar', icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => openEdit(row) },
+          ...(row.status === 'draft' ? [{ label: 'Enviar', icon: <Send className="w-3.5 h-3.5" />, onClick: () => handleSend(row) }] : []),
+          { label: 'Duplicar', icon: <Copy className="w-3.5 h-3.5" />, onClick: () => handleDuplicate(row) },
+          { label: 'Descargar PDF', icon: <Download className="w-3.5 h-3.5" />, onClick: () => {} },
+          { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setConfirmDelete(row), variant: 'danger' as const },
+        ]} />
       ),
     },
   ];
@@ -376,9 +378,11 @@ export const Cotizaciones = () => {
   return (
     <PageContainer>
       <PageHeader title="Cotizaciones" description="Gestiona tus presupuestos y cotizaciones" icon={FileText} action={
-        <div className="flex items-center gap-2">
-          <Badge variant="info" size="sm" dot>{quotes.length} total</Badge>
-          <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-md"><Plus className="w-3.5 h-3.5" /> Nueva Cotización</button>
+        <div className="flex items-center gap-3">
+          <CountBadge count={quotes.length} />
+          <HeaderButton onClick={openCreate} icon={<Plus className="w-4 h-4" />}>
+            Nueva Cotización
+          </HeaderButton>
         </div>
       } />
 

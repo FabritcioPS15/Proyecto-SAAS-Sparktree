@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, Plus, Edit, Trash2, Copy, Search, LayoutGrid, List, Sparkles, UserCheck, Tag, X, Activity, DollarSign, LifeBuoy, Megaphone, Compass, HelpCircle, Key, MessageSquare, ArrowUpRight, ArrowRight } from 'lucide-react';
+import { Bot, Plus, Edit, Trash2, Copy, Sparkles, UserCheck, Tag, X, Activity, DollarSign, LifeBuoy, Megaphone, Compass, HelpCircle, Key, MessageSquare, ArrowUpRight, ArrowRight, LayoutGrid } from 'lucide-react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowBuilderContent } from '../components/FlowBuilderContent';
 import { flowService, FlowBot } from '../../../services/flowService';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { DataTable } from '../../../components/ui/DataTable';
 import { Modal } from '../../../components/ui/Modal';
 import { Dropdown } from '../../../components/ui/Dropdown';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger, FaTiktok } from 'react-icons/fa';
 
@@ -73,7 +79,7 @@ export const FlowManager = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [newFlowData, setNewFlowData] = useState({
@@ -84,6 +90,8 @@ export const FlowManager = () => {
   });
   const [quickEditId, setQuickEditId] = useState<string | null>(null);
   const [quickEditName, setQuickEditName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<FlowBot | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { addNotification } = useNotifications();
 
   // Load flows from API
@@ -138,16 +146,19 @@ export const FlowManager = () => {
     }
   };
 
-  const deleteFlow = async (flowId: string) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este flujo?')) {
-      try {
-        await flowService.deleteFlow(flowId);
-        addNotification({ type: 'success', title: 'Flujo eliminado', message: 'El flujo fue eliminado correctamente.' });
-        await refreshFlows();
-      } catch (err) {
-        addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el flujo.' });
-        console.error('Error deleting flow:', err);
-      }
+  const deleteFlow = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await flowService.deleteFlow(deleteTarget.id);
+      addNotification({ type: 'success', title: 'Flujo eliminado', message: `"${deleteTarget.name}" fue eliminado correctamente.` });
+      await refreshFlows();
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo eliminar el flujo.' });
+      console.error('Error deleting flow:', err);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -191,7 +202,7 @@ export const FlowManager = () => {
       header: 'Flujo',
       render: (_: any, flow: FlowBot) => (
         <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center p-2 text-white transition-colors duration-500 ${flow.status === 'active' ? 'bg-emerald-500 shadow-md shadow-emerald-500/20' : 'bg-slate-900'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center p-2 text-white transition-colors duration-500 ${flow.status === 'active' ? 'bg-accent-500 shadow-md shadow-accent-500/20' : 'bg-slate-900'}`}>
             <Bot className="w-5 h-5" />
           </div>
           <div>
@@ -206,7 +217,7 @@ export const FlowManager = () => {
                   </div>
                 );
               })()}
-              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${flow.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-slate-50 text-slate-400 border-slate-100 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700'}`}>
+              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${flow.status === 'active' ? 'bg-accent-50 text-accent-600 border-accent-100 dark:bg-accent-500/10 dark:text-accent-400 dark:border-accent-500/20' : 'bg-slate-50 text-slate-400 border-slate-100 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700'}`}>
                 {flow.status === 'active' ? 'Activo' : 'Borrador'}
               </span>
             </div>
@@ -260,31 +271,15 @@ export const FlowManager = () => {
     },
     {
       key: 'actions',
-      header: 'Acciones',
-      className: 'text-center w-[120px]',
+      header: '',
+      className: 'w-12',
       render: (_: any, flow: FlowBot) => (
-        <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => openFlowBuilder(flow)}
-            className="p-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:scale-105 transition-all shadow-md"
-            title="Editar Constructor"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => duplicateFlow(flow)}
-            className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-355 rounded-xl hover:scale-105 transition-all border border-slate-200 dark:border-slate-700"
-            title="Duplicar"
-          >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => deleteFlow(flow.id)}
-            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl hover:scale-105 transition-all"
-            title="Eliminar"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+        <div onClick={(e) => e.stopPropagation()}>
+          <KebabMenu actions={[
+            { label: 'Abrir constructor', icon: <Edit className="w-3.5 h-3.5" />, onClick: () => openFlowBuilder(flow) },
+            { label: 'Duplicar', icon: <Copy className="w-3.5 h-3.5" />, onClick: () => duplicateFlow(flow) },
+            { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(flow), variant: 'danger' },
+          ]} />
         </div>
       )
     }
@@ -322,12 +317,10 @@ export const FlowManager = () => {
         ]}
         action={
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95"
-            >
-              <Plus className="w-3.5 h-3.5" strokeWidth={3} /> Nuevo Flujo
-            </button>
+            <CountBadge count={flows.length} />
+            <HeaderButton onClick={() => setShowCreateForm(true)} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Flujo
+            </HeaderButton>
           </div>
         }
       />
@@ -336,50 +329,23 @@ export const FlowManager = () => {
 
 
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
-            <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
-              <input
-                type="text"
-                placeholder="Buscar flujos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Dropdown
-                value={filterCategory}
-                onChange={(v) => setFilterCategory(v)}
-                options={[
-                  { value: 'all', label: 'Categorías (Todas)' },
-                  { value: 'sales', label: 'Ventas' },
-                  { value: 'support', label: 'Soporte' },
-                  { value: 'marketing', label: 'Marketing' },
-                ]}
-              />
-
-              <div className="flex items-center dark:bg-dark-card rounded-xl p-1 border border-gray-200 dark:border-white/5">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                  title="Vista de Tabla"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                  title="Vista de Cuadrícula"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center gap-3 mb-4">
+            <SearchBar value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar flujos..." className="flex-1" />
+            <Dropdown
+              value={filterCategory}
+              onChange={(v) => setFilterCategory(v)}
+              options={[
+                { value: 'all', label: 'Categorías (Todas)' },
+                { value: 'sales', label: 'Ventas' },
+                { value: 'support', label: 'Soporte' },
+                { value: 'marketing', label: 'Marketing' },
+              ]}
+            />
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
 
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
               {paginatedFlows.map((flow) => (
                 <div
                   key={flow.id}
@@ -388,101 +354,78 @@ export const FlowManager = () => {
                     setTempDescription(flow.description || '');
                     setIsEditingDescription(false);
                   }}
-                  className="group/card relative overflow-hidden cursor-pointer bg-white dark:bg-dark-card rounded-2xl p-6 border border-gray-150 dark:border-gray-800/80 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-accent-500/35 transition-all duration-300 flex flex-col justify-between min-h-[290px]"
+                  className="group/card relative cursor-pointer bg-white dark:bg-dark-card rounded-xl p-5 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 flex flex-col min-h-[200px]"
                 >
-                  <div>
-                    <div className="flex items-start gap-4 mb-4">
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-white transition-all duration-300 shrink-0 ${flow.status === 'active' ? 'bg-gradient-to-tr from-accent-500 to-accent-600 shadow-md shadow-accent-500/20' : 'bg-slate-800'}`}>
-                        <Bot className="w-5 h-5" />
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Bot className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 group/title">
-                          <h3 className="text-base font-black text-slate-900 dark:text-white truncate" title={flow.name}>{flow.name}</h3>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {(() => {
-                            const CatIcon = CATEGORY_ICONS[flow.category] || HelpCircle;
-                            return (
-                              <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${CATEGORY_COLORS[flow.category] || CATEGORY_COLORS.other}`}>
-                                <CatIcon className="w-2.5 h-2.5" />
-                                <span>{CATEGORY_LABELS[flow.category] || 'Otro'}</span>
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className={`w-2.5 h-2.5 rounded-full ${flow.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-650'}`} />
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {flow.nodes?.some(n => n.type === 'llm' || n.type === 'knowledge_retrieval') && (
-                            <div className="p-1 bg-violet-50 dark:bg-violet-500/10 text-violet-500 dark:text-violet-400 rounded-lg border border-violet-100/50 dark:border-violet-500/20" title="IA Activa">
-                              <Sparkles className="w-3 h-3" />
-                            </div>
-                          )}
-                          {flow.nodes?.some(n => n.type === 'handoff' || (n.type === 'llm' && n.data?.autoHandoff)) && (
-                            <div className="p-1 bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 rounded-lg border border-rose-100/50 dark:border-rose-500/20" title="Escalado Humano">
-                              <UserCheck className="w-3 h-3" />
-                            </div>
-                          )}
-                        </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate" title={flow.name}>{flow.name}</h3>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                          {CATEGORY_LABELS[flow.category] || 'Otro'}
+                        </span>
                       </div>
                     </div>
-
-                    <p className="text-slate-500 dark:text-slate-400 text-xs italic line-clamp-2 mt-4 mb-4 leading-relaxed min-h-[32px]">
-                      {flow.description || 'Sin descripción disponible para este flujo.'}
-                    </p>
+                    <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${flow.status === 'active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                      {flow.status === 'active' ? 'Activo' : 'Inactivo'}
+                    </span>
                   </div>
 
-                  <div>
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="bg-slate-50/50 dark:bg-white/2 p-2.5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center gap-2.5">
-                        <div className="p-1.5 bg-accent-500/10 text-accent-500 rounded-lg">
-                          <MessageSquare className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Uso Total</p>
-                          <p className="text-xs font-black text-slate-900 dark:text-white mt-0.5">{flow.metrics?.conversations || 0}</p>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50/50 dark:bg-white/2 p-2.5 rounded-xl border border-slate-100 dark:border-white/5 flex items-center gap-2.5">
-                        <div className="p-1.5 bg-sky-500/10 text-sky-500 rounded-lg">
-                          <Key className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Triggers</p>
-                          <p className="text-xs font-black text-slate-900 dark:text-white mt-0.5">{flow.triggers?.length || 0}</p>
-                        </div>
-                      </div>
-                    </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 line-clamp-2 mb-4 leading-relaxed">
+                    {flow.description || 'Sin descripción.'}
+                  </p>
 
-                    <div className="relative h-10 overflow-hidden mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 group-hover/card:opacity-0 transition-opacity duration-200">
-                        Ver Detalles <ArrowRight className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-4 text-[11px] text-slate-400 dark:text-slate-500 mb-4">
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-3 h-3" />
+                      {flow.metrics?.conversations || 0} usos
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Key className="w-3 h-3" />
+                      {flow.triggers?.length || 0} triggers
+                    </span>
+                    {flow.nodes?.some(n => n.type === 'llm' || n.type === 'knowledge_retrieval') && (
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        IA
                       </span>
-                      <div className="absolute inset-0 flex items-center justify-end gap-2 translate-y-12 group-hover/card:translate-y-0 opacity-0 group-hover/card:opacity-100 transition-all duration-300" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => openFlowBuilder(flow)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl hover:scale-105 transition-all text-xs font-bold shadow-md"
-                          title="Abrir Constructor de Flujos"
-                        >
-                          <Edit className="w-3 h-3" />
-                          <span>Editar</span>
-                        </button>
-                        <button
-                          onClick={() => duplicateFlow(flow)}
-                          className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-355 rounded-xl hover:scale-105 transition-all border border-slate-200 dark:border-slate-700"
-                          title="Duplicar"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => deleteFlow(flow.id)}
-                          className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl hover:scale-105 transition-all"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                    )}
+                    {flow.nodes?.some(n => n.type === 'handoff' || (n.type === 'llm' && n.data?.autoHandoff)) && (
+                      <span className="flex items-center gap-1">
+                        <UserCheck className="w-3 h-3" />
+                        Handoff
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[10px] text-slate-300 dark:text-slate-600 font-medium group-hover/card:opacity-0 transition-opacity">
+                      {new Date(flow.updated_at || flow.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                    </span>
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200">
+                      <button
+                        onClick={() => openFlowBuilder(flow)}
+                        className="px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[11px] font-semibold hover:opacity-90 transition-all"
+                        title="Abrir Constructor de Flujos"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => duplicateFlow(flow)}
+                        className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                        title="Duplicar"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(flow)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -563,7 +506,7 @@ export const FlowManager = () => {
           title={selectedDetailFlow?.name || 'Detalles del Flujo'}
           size="full"
           icon={
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${selectedDetailFlow?.status === 'active' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-slate-900'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${selectedDetailFlow?.status === 'active' ? 'bg-accent-500 shadow-lg shadow-accent-500/20' : 'bg-slate-900'}`}>
               <Bot className="w-5 h-5" />
             </div>
           }
@@ -612,8 +555,8 @@ export const FlowManager = () => {
 
                 <div className="text-right">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado de Ejecución</p>
-                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border mt-1 ${selectedDetailFlow.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-slate-50 text-slate-400 border-slate-100 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${selectedDetailFlow.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border mt-1 ${selectedDetailFlow.status === 'active' ? 'bg-accent-50 text-accent-600 border-accent-100 dark:bg-accent-500/10 dark:text-accent-400 dark:border-accent-500/20' : 'bg-slate-50 text-slate-400 border-slate-100 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${selectedDetailFlow.status === 'active' ? 'bg-accent-500 animate-pulse' : 'bg-slate-400'}`} />
                     {selectedDetailFlow.status === 'active' ? 'Activo' : 'Borrador'}
                   </span>
                 </div>
@@ -758,6 +701,17 @@ export const FlowManager = () => {
           )}
         </Modal>
       </PageBody>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={deleteFlow}
+        title="Eliminar flujo"
+        message={`¿Eliminar "${deleteTarget?.name || ''}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+        isLoading={deleting}
+      />
     </PageContainer>
   );
 };

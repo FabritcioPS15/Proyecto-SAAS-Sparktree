@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Plus, Edit, Trash2, Webhook, Copy } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
+import { HeaderButton } from '../../../components/ui/HeaderButton';
+import { CountBadge } from '../../../components/ui/CountBadge';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable } from '../../../components/ui/DataTable';
@@ -11,7 +13,7 @@ import { TableCard } from '../../../components/ui/TableCard';
 import { GridCard } from '../../../components/ui/GridCard';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
-import { TableActions } from '../../../components/ui/TableActions';
+import { KebabMenu } from '../../../components/ui/KebabMenu';
 import { Modal } from '../../../components/ui/Modal';
 import { useNotifications } from '../../../contexts/NotificationContext';
 
@@ -46,15 +48,13 @@ export const Webhooks = () => {
     { key: 'status', header: 'Estado', render: (value: string) => <StatusBadge status={value} /> },
     { key: 'lastTriggered', header: 'Último Disparo' },
     {
-      key: 'actions', header: 'Acciones', className: 'text-center',
+      key: 'actions', header: '', className: 'w-12',
       render: (_: any, row: WebhookItem) => (
-        <TableActions
-          actions={[
-            { icon: <Edit className="w-4 h-4" />, label: 'Editar', onClick: (e) => e.stopPropagation(), tooltip: 'Editar Webhook' },
-            { icon: <Copy className="w-4 h-4" />, label: 'Duplicar', onClick: (e) => e.stopPropagation(), tooltip: 'Duplicar Webhook' },
-            { icon: <Trash2 className="w-4 h-4" />, label: 'Eliminar', onClick: () => setDeleteTarget(row.id), variant: 'danger', tooltip: 'Eliminar Webhook' },
-          ]}
-        />
+        <KebabMenu actions={[
+          { label: 'Editar', icon: <Edit className="w-3.5 h-3.5" />, onClick: (e) => e.stopPropagation() },
+          { label: 'Duplicar', icon: <Copy className="w-3.5 h-3.5" />, onClick: (e) => e.stopPropagation() },
+          { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(row.id), variant: 'danger' },
+        ]} />
       )
     },
   ];
@@ -71,10 +71,12 @@ export const Webhooks = () => {
         description="Integraciones externas (facturación, ERP)"
         icon={Webhook}
         action={
-          <button onClick={() => setShowCreateModal(true)} className="flex items-center justify-center gap-2 px-4 h-10 bg-transparent border-2 border-slate-900 dark:border-white text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-slate-900 dark:hover:bg-white hover:text-emerald-400 dark:hover:text-emerald-500 active:scale-95">
-            <Plus className="w-4 h-4" />
-            Nuevo Webhook
-          </button>
+          <div className="flex items-center gap-3">
+            <CountBadge count={mockWebhooks.length} />
+            <HeaderButton onClick={() => setShowCreateModal(true)} icon={<Plus className="w-4 h-4" />}>
+              Nuevo Webhook
+            </HeaderButton>
+          </div>
         }
       />
       <PageBody>
@@ -111,12 +113,10 @@ export const Webhooks = () => {
                   actions={
                     <>
                       <span className="text-[10px] text-slate-400">Último: {wh.lastTriggered}</span>
-                      <TableActions
-                        actions={[
-                          { icon: <Edit className="w-3.5 h-3.5" />, label: 'Editar', onClick: (e) => e.stopPropagation(), tooltip: 'Editar' },
-                          { icon: <Trash2 className="w-3.5 h-3.5" />, label: 'Eliminar', onClick: () => setDeleteTarget(wh.id), variant: 'danger', tooltip: 'Eliminar' },
-                        ]}
-                      />
+                      <KebabMenu actions={[
+                        { label: 'Editar', icon: <Edit className="w-3.5 h-3.5" />, onClick: (e) => e.stopPropagation() },
+                        { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(wh.id), variant: 'danger' },
+                      ]} />
                     </>
                   }
                 >
