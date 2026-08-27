@@ -22,7 +22,6 @@ const platforms = [
 
 export const Connections = () => {
   const { connections, removeConnection, isConnecting } = useConnections();
-  const { theme, toggleTheme } = useTheme();
   const { addNotification } = useNotifications();
   const [disconnectTarget, setDisconnectTarget] = useState<{ id: string; name: string } | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -124,8 +123,8 @@ export const Connections = () => {
                       <span className={cn(
                         'text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md',
                         connection.status === 'connected' ? 'bg-accent-500/10 text-accent-500' :
-                        connection.status === 'connecting' ? 'bg-amber-500/10 text-amber-500' :
-                        connection.status === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-slate-500/10 text-slate-500'
+                          connection.status === 'connecting' ? 'bg-amber-500/10 text-amber-500' :
+                            connection.status === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-slate-500/10 text-slate-500'
                       )}>{getStatusText(connection.status)}</span>
                     </div>
                     {connection.phone_number && <p className="text-xs text-slate-400 mt-1">{connection.phone_number}</p>}

@@ -22,7 +22,7 @@
    - Lucide icons: Para iconografía
    ============================================================================= */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { Bell, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { getConversations, getLeads } from '../services/api';
 import { useNotifications as useReapopNotifications } from 'reapop';
@@ -258,6 +258,18 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 export const NotificationBell: React.FC = () => {
   const { notifications, markAsRead, unreadCount } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   /**
    * Maneja el click en una notificación
@@ -274,7 +286,7 @@ export const NotificationBell: React.FC = () => {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       {/* Botón de la campana */}
       <button
         onClick={() => setIsOpen(!isOpen)}

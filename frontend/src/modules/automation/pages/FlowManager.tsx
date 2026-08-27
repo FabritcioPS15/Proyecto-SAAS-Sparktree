@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, Plus, Edit, Trash2, Copy, Sparkles, UserCheck, Tag, X, Activity, DollarSign, LifeBuoy, Megaphone, Compass, HelpCircle, Key, MessageSquare, ArrowUpRight, ArrowRight, LayoutGrid } from 'lucide-react';
+import { Bot, Plus, Edit, Trash2, Copy, Sparkles, UserCheck, Tag, X, Activity, DollarSign, LifeBuoy, Megaphone, Compass, HelpCircle, Key, MessageSquare, LayoutGrid } from 'lucide-react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowBuilderContent } from '../components/FlowBuilderContent';
 import { flowService, FlowBot } from '../../../services/flowService';
@@ -299,10 +299,10 @@ export const FlowManager = () => {
 
   if (loading) return <PageLoader sectionName="Gestor de Flujos" />;
 
-      const totalFlows = flows.length;
-      const activeFlows = flows.filter(f => f.status === 'active').length;
-      const inactiveFlows = flows.filter(f => f.status !== 'active').length;
-      return (
+  const totalFlows = flows.length;
+  const activeFlows = flows.filter(f => f.status === 'active').length;
+  const inactiveFlows = flows.filter(f => f.status !== 'active').length;
+  return (
     <PageContainer>
       {renderEditor()}
       <PageHeader
@@ -402,7 +402,7 @@ export const FlowManager = () => {
 
                   <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-slate-300 dark:text-slate-600 font-medium group-hover/card:opacity-0 transition-opacity">
-                      {new Date(flow.updated_at || flow.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                      {new Date(flow.updatedAt || flow.createdAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
                     </span>
                     <div className="flex items-center gap-1.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200">
                       <button
@@ -504,17 +504,13 @@ export const FlowManager = () => {
           open={!!selectedDetailFlow}
           onClose={() => setSelectedDetailFlow(null)}
           title={selectedDetailFlow?.name || 'Detalles del Flujo'}
-          size="full"
-          icon={
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${selectedDetailFlow?.status === 'active' ? 'bg-accent-500 shadow-lg shadow-accent-500/20' : 'bg-slate-900'}`}>
-              <Bot className="w-5 h-5" />
-            </div>
-          }
+          size="lg"
+          icon={<Bot className="w-5 h-5 text-slate-500" />}
           footer={
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => setSelectedDetailFlow(null)}
-                className="flex-1 h-11 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                className="flex-1 h-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[13px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 Cerrar
               </button>
@@ -525,51 +521,37 @@ export const FlowManager = () => {
                     setSelectedDetailFlow(null);
                     openFlowBuilder(flow);
                   }}
-                  className="flex-1 h-11 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
+                  className="flex-1 h-10 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[13px] font-semibold transition-all flex items-center justify-center gap-2"
                 >
                   <Edit className="w-3.5 h-3.5" />
-                  <span>Constructor</span>
+                  <span>Abrir Constructor</span>
                 </button>
               )}
             </div>
           }
         >
           {selectedDetailFlow && (
-            <div className="space-y-6">
-              {/* Encabezado con Estado y Categoría */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800/80">
-                <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Categoría</p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {(() => {
-                      const CatIcon = CATEGORY_ICONS[selectedDetailFlow.category] || HelpCircle;
-                      return (
-                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${CATEGORY_COLORS[selectedDetailFlow.category] || CATEGORY_COLORS.other}`}>
-                          <CatIcon className="w-3 h-3" />
-                          <span>{CATEGORY_LABELS[selectedDetailFlow.category] || 'Otro'}</span>
-                        </span>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado de Ejecución</p>
-                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border mt-1 ${selectedDetailFlow.status === 'active' ? 'bg-accent-50 text-accent-600 border-accent-100 dark:bg-accent-500/10 dark:text-accent-400 dark:border-accent-500/20' : 'bg-slate-50 text-slate-400 border-slate-100 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${selectedDetailFlow.status === 'active' ? 'bg-accent-500 animate-pulse' : 'bg-slate-400'}`} />
-                    {selectedDetailFlow.status === 'active' ? 'Activo' : 'Borrador'}
-                  </span>
-                </div>
+            <div className="space-y-5">
+              {/* Header: status + category inline */}
+              <div className="flex items-center gap-3 text-[12px]">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium ${selectedDetailFlow.status === 'active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${selectedDetailFlow.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  {selectedDetailFlow.status === 'active' ? 'Activo' : 'Borrador'}
+                </span>
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <span className="text-slate-500 dark:text-slate-400">{CATEGORY_LABELS[selectedDetailFlow.category] || 'Sin categoría'}</span>
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <span className="text-slate-400 dark:text-slate-500">{new Date(selectedDetailFlow.updatedAt || selectedDetailFlow.createdAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
               </div>
 
-              {/* Descripción editable en el popup */}
+              {/* Descripción editable */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción del Flujo</label>
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">Descripción</span>
                   {!isEditingDescription && (
                     <button
                       onClick={() => setIsEditingDescription(true)}
-                      className="text-[10px] text-accent-500 hover:text-accent-600 font-bold flex items-center gap-1"
+                      className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium flex items-center gap-1"
                     >
                       <Edit className="w-3 h-3" /> Editar
                     </button>
@@ -580,13 +562,13 @@ export const FlowManager = () => {
                     <textarea
                       value={tempDescription}
                       onChange={(e) => setTempDescription(e.target.value)}
-                      className="w-full min-h-[80px] p-3 bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-slate-800 dark:text-slate-100 leading-relaxed"
-                      placeholder="Agrega una descripción para este bot..."
+                      className="w-full min-h-[72px] p-3 bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400 transition-all text-slate-800 dark:text-slate-100 leading-relaxed"
+                      placeholder="Describe el propósito de este bot..."
                     />
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setIsEditingDescription(false)}
-                        className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-lg hover:bg-slate-200 transition-all"
+                        className="px-3 py-1.5 text-[12px] font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all"
                       >
                         Cancelar
                       </button>
@@ -602,98 +584,81 @@ export const FlowManager = () => {
                             addNotification({ type: 'error', title: 'Error', message: 'No se pudo actualizar la descripción.' });
                           }
                         }}
-                        className="px-3 py-1.5 bg-accent-500 text-black text-xs font-black uppercase rounded-lg hover:bg-accent-600 transition-all"
+                        className="px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[12px] font-semibold rounded-lg hover:opacity-90 transition-all"
                       >
                         Guardar
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <p className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl text-slate-600 dark:text-slate-350 text-xs leading-relaxed italic border border-slate-100 dark:border-slate-800/40">
-                    {selectedDetailFlow.description || 'Sin descripción disponible para este flujo.'}
+                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                    {selectedDetailFlow.description || 'Sin descripción.'}
                   </p>
                 )}
               </div>
 
-              {/* Métricas e Indicadores Visuales */}
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">Métricas de Desempeño</label>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/40 text-center">
-                    <div className="mx-auto w-7 h-7 bg-emerald-500/10 text-emerald-500 rounded-lg flex items-center justify-center mb-1.5">
-                      <MessageSquare className="w-4 h-4" />
-                    </div>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Uso del Bot</p>
-                    <p className="text-base font-black text-slate-900 dark:text-white mt-0.5">{selectedDetailFlow.metrics?.conversations || 0}</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/40 text-center">
-                    <div className="mx-auto w-7 h-7 bg-sky-500/10 text-sky-500 rounded-lg flex items-center justify-center mb-1.5">
-                      <Activity className="w-4 h-4" />
-                    </div>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Tasa de Éxito</p>
-                    <p className="text-base font-black text-slate-900 dark:text-white mt-0.5">{selectedDetailFlow.metrics?.completionRate || 0}%</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/40 text-center">
-                    <div className="mx-auto w-7 h-7 bg-violet-500/10 text-violet-500 rounded-lg flex items-center justify-center mb-1.5">
-                      <LayoutGrid className="w-4 h-4" />
-                    </div>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Nodos Activos</p>
-                    <p className="text-base font-black text-slate-900 dark:text-white mt-0.5">{selectedDetailFlow.nodes?.length || 0}</p>
-                  </div>
+              {/* Métricas en línea */}
+              <div className="flex items-center gap-6 py-3 border-y border-slate-100 dark:border-slate-800">
+                <div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Usos</p>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedDetailFlow.metrics?.conversations || 0}</p>
                 </div>
+                <div className="w-px h-8 bg-slate-100 dark:bg-slate-800" />
+                <div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Éxito</p>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedDetailFlow.metrics?.completionRate || 0}%</p>
+                </div>
+                <div className="w-px h-8 bg-slate-100 dark:bg-slate-800" />
+                <div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Nodos</p>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedDetailFlow.nodes?.length || 0}</p>
+                </div>
+                {selectedDetailFlow.nodes?.some(n => n.type === 'llm' || n.type === 'knowledge_retrieval') && (
+                  <>
+                    <div className="w-px h-8 bg-slate-100 dark:bg-slate-800" />
+                    <div className="flex items-center gap-1.5 text-[12px] text-violet-500">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span className="font-medium">IA</span>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Lógica de Escalado Inteligente (IA a Humano) */}
+              {/* Handoff */}
               {(() => {
                 const hasHandoff = selectedDetailFlow.nodes?.some(n => n.type === 'handoff' || (n.type === 'llm' && n.data?.autoHandoff));
                 const handoffNode = selectedDetailFlow.nodes?.find(n => n.type === 'handoff' || (n.type === 'llm' && n.data?.autoHandoff));
                 const threshold = handoffNode?.data?.handoffThreshold || 80;
-
+                if (!hasHandoff) return null;
                 return (
-                  <div className="p-4 bg-gradient-to-br from-violet-500/5 via-transparent to-rose-500/5 dark:from-violet-500/10 dark:to-rose-500/10 rounded-2xl border border-violet-100/50 dark:border-violet-500/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-4 h-4 text-violet-500" />
-                      <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Capacidades Cognitivas y Handoff</h4>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
-                      Si la IA no responde con confianza, escala automáticamente a un agente humano.
-                    </p>
-
-                    <div className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <UserCheck className={`w-4 h-4 ${hasHandoff ? 'text-rose-500' : 'text-slate-400'}`} />
-                        <div>
-                          <p className="text-[10px] font-black text-slate-700 dark:text-slate-350">Traspaso Humano</p>
-                          <p className="text-[9px] text-slate-400">{hasHandoff ? 'Escalado Inteligente Activado' : 'No configurado en este flujo'}</p>
-                        </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
+                    <div className="flex items-center gap-2.5">
+                      <UserCheck className="w-4 h-4 text-slate-500" />
+                      <div>
+                        <p className="text-[12px] font-medium text-slate-700 dark:text-slate-300">Escalado a humano</p>
+                        <p className="text-[11px] text-slate-400">Umbral de confianza: {threshold}%</p>
                       </div>
-                      {hasHandoff && (
-                        <div className="text-right">
-                          <span className="text-xs font-black text-rose-500 px-2 py-0.5 bg-rose-50 dark:bg-rose-500/10 rounded-md border border-rose-100/50 dark:border-rose-500/20">
-                            {threshold}% Confianza
-                          </span>
-                        </div>
-                      )}
                     </div>
+                    <span className="text-[11px] font-medium text-slate-500 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                      Auto-handoff
+                    </span>
                   </div>
                 );
               })()}
 
-              {/* Triggers / Keywords list */}
+              {/* Triggers */}
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Palabras Clave de Entrada (Triggers)</label>
-                <div className="flex flex-wrap gap-1.5 p-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800/40">
+                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mb-2 block">Triggers</span>
+                <div className="flex flex-wrap gap-1.5">
                   {selectedDetailFlow.triggers && selectedDetailFlow.triggers.length > 0 ? (
                     selectedDetailFlow.triggers.map((keyword, index) => (
-                      <span key={index} className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-150 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <span key={index} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-[12px] font-medium text-slate-600 dark:text-slate-400 rounded-lg">
                         <Key className="w-3 h-3 text-slate-400" />
                         {keyword}
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-slate-400 italic">No se han configurado disparadores para este flujo.</span>
+                    <span className="text-[12px] text-slate-400">Sin triggers configurados</span>
                   )}
                 </div>
               </div>

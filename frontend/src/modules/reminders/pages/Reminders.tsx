@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Send, Play, Pause, Trash2, Eye, Plus, Bell, RefreshCw, AlertTriangle, Clock, RotateCcw, Calendar, Download, CheckCircle, X, Users, XCircle, LayoutGrid, MessageSquare, Search, MoreVertical } from 'lucide-react';
+import { Send, Play, Pause, Trash2, Eye, Plus, Bell, RefreshCw, AlertTriangle, Clock, RotateCcw, Calendar, Download, CheckCircle, X, Users, LayoutGrid, MessageSquare, Search, MoreVertical } from 'lucide-react';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
-import { Modal } from '../../../components/ui/Modal';
 import { Loader } from '../../../components/ui/Loader';
-import { HeaderButton } from '../../../components/ui/HeaderButton';
-import { CountBadge } from '../../../components/ui/CountBadge';
+import { AnimatedButton } from '../../../components/ui/AnimatedButton';
 import { KebabMenu } from '../../../components/ui/KebabMenu';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNotifications } from '../../../contexts/NotificationContext';
@@ -350,12 +348,9 @@ export const Reminders = () => {
           { label: 'Programados', value: reminders.filter((r) => r.status === 'scheduled').length, icon: Clock, color: 'amber' },
         ]}
         action={
-          <div className="flex items-center gap-3">
-            <CountBadge count={reminders.length} />
-            <HeaderButton onClick={() => setShowCreate(true)} icon={<Plus className="w-4 h-4" />}>
-              Nuevo Recordatorio
-            </HeaderButton>
-          </div>
+          <AnimatedButton variant="accent" onClick={() => setShowCreate(true)} className="!px-4 !h-10 !text-sm !font-bold">
+            <Plus className="w-4 h-4" /> Nuevo Recordatorio
+          </AnimatedButton>
         }
       />
       <PageBody>

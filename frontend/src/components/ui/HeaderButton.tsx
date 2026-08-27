@@ -26,7 +26,7 @@ export const HeaderButton: React.FC<HeaderButtonProps> = ({
     primary:
       'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 active:scale-[0.98]',
     secondary:
-      'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
+      'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-accent-500/50 hover:text-accent-600 dark:hover:text-accent-400 hover:bg-accent-500/5 active:scale-[0.98]',
     ghost:
       'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300',
   };

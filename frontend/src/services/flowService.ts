@@ -22,6 +22,8 @@ export interface FlowBot {
   isDefault: boolean;
   matchingStrategy?: 'strict' | 'flexible';
   reactivationTime?: number;
+  updated_at?: string;
+  created_at?: string;
 }
 
 export interface CreateFlowData {
