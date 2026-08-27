@@ -55,6 +55,7 @@ const empresaMenuItemsExpanded: MenuItem[] = [
       { label: 'Base Conocimiento', path: '/knowledge-base', icon: Bot },
     ],
   },
+  { icon: BarChart3, label: '📊 Métricas del Chatbot', path: '/metrics' },
   { icon: Bell, label: 'Notificaciones', path: '/notifications' },
   { icon: Webhook, label: 'Webhooks / API', path: '/webhooks' },
   {
@@ -130,7 +131,7 @@ const empresaCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/email', '/calendar', '/clients'] },
   { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions', '/campaigns', '/reminders'] },
   { name: 'Automatización', items: ['/flow-manager', '/message-templates', '/assignment-rules', '/business-hours'] },
-  { name: 'Atención', items: ['/support', '/agents', '/knowledge-base'] },
+  { name: 'Atención', items: ['/support', '/agents', '/knowledge-base', '/metrics'] },
   { name: 'Sistema', items: ['/connections', '/notifications', '/webhooks', '/admin/staff', '/roles-permissions', '/audit-logs', '/ai/providers'] },
   { name: 'Facturación', items: ['/billing', '/billing/plans', '/billing/payments', '/billing/usage'] },
 ];
@@ -139,7 +140,7 @@ const adminCategories = [
   { name: 'Principal', items: ['/', '/conversations', '/email', '/calendar', '/clients'] },
   { name: 'Negocio', items: ['/leads', '/analytics', '/catalogs', '/orders', '/cotizaciones', '/promotions', '/campaigns', '/reminders'] },
   { name: 'Automatización', items: ['/flow-manager', '/message-templates', '/assignment-rules', '/business-hours'] },
-  { name: 'Atención', items: ['/support', '/agents', '/knowledge-base'] },
+  { name: 'Atención', items: ['/support', '/agents', '/knowledge-base', '/metrics'] },
   { name: 'Sistema', items: ['/connections', '/notifications', '/webhooks', '/ai/providers'] },
   { name: 'Administración', items: ['/admin/organizations', '/admin/staff', '/roles-permissions', '/audit-logs'] },
   { name: 'Facturación', items: ['/billing', '/billing/plans', '/billing/payments', '/billing/usage'] },

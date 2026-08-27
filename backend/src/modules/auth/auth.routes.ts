@@ -1,18 +1,11 @@
 import express from 'express';
 import { supabase } from '../../core/config/supabase';
-
 import bcrypt from 'bcryptjs';
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
-
-function logToDebug(msg: string) {
-  fs.appendFileSync(path.join(__dirname, '../../debug_requests.log'), `[AUTH DEBUG] ${new Date().toISOString()} ${msg}\n`);
-}
 
 const router = express.Router();
 
-// POST /api/auth/login
+// POST /auth/login
 router.post('/login', async (req, res) => {
   console.log('[Auth Route] Login attempt for email:', req.body?.email);
   try {
@@ -22,7 +15,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user by email
+    // Buscar usuario con join a organizations
     const { data: user, error } = await supabase
       .from('users')
       .select('*, organizations(name)')
@@ -30,35 +23,32 @@ router.post('/login', async (req, res) => {
       .single();
 
     if (error || !user) {
-      logToDebug(`User lookup failed for ${email}: ${error?.message || 'NOT_FOUND'}`);
+      console.log(`[Auth] User not found: ${email}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    logToDebug(`User found: ${user.email}. Hash: ${user.password_hash}`);
-
-    // Verify password with bcrypt
-    const isValid = await bcrypt.compare(password, user.password_hash);
-    if (!isValid) {
-      logToDebug(`Bcrypt check FAILED for ${email}. Comparing with raw password...`);
-      // Fallback for simple dev passwords if not a hash
+    // Verificar contraseña con bcrypt
+    let isValid = false;
+    try {
+      isValid = await bcrypt.compare(password, user.password_hash);
+    } catch (err) {
+      // Fallback: comparar directamente si no es hash válido
       if (user.password_hash === password) {
-        logToDebug(`Literal match found for ${email}. Proceeding...`);
-        // Allow it for now if they didn't run the migration correctly with hashes
-      } else {
-        logToDebug(`Literal match also FAILED for ${email}. Access denied.`);
-        return res.status(401).json({ error: 'Invalid credentials' });
+        isValid = true;
       }
-    } else {
-      logToDebug(`Bcrypt check SUCCESS for ${email}.`);
     }
 
-    // Return user data (excluding password)
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Retornar usuario sin contraseña
     const { password_hash, ...userWithoutPassword } = user;
     const userWithFullName = {
       ...userWithoutPassword,
       full_name: user.name || user.full_name || null
     };
-    
+
     res.json({
       user: userWithFullName,
       organizationId: user.organization_id
@@ -69,7 +59,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/register
+// POST /auth/register
 router.post('/register', async (req, res) => {
   console.log('[Auth Route] Registration attempt for email:', req.body?.email);
   try {
@@ -79,7 +69,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email, password, and name are required' });
     }
 
-    // Check if user already exists
+    // Verificar si el usuario ya existe
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
@@ -90,15 +80,15 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ error: 'User already exists with this email' });
     }
 
-    // Hash password
+    // Hashear contraseña
     const password_hash = await bcrypt.hash(password, 10);
 
-    // Create organization if provided
+    // Crear organización si se proporciona
     let organizationId = null;
     if (organizationName) {
       const { data: org, error: orgError } = await supabase
         .from('organizations')
-        .insert({ name: organizationName })
+        .insert({ name: organizationName, is_active: true })
         .select('id')
         .single();
 
@@ -107,7 +97,7 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    // Create user
+    // Crear usuario
     const { data: user, error: userError } = await supabase
       .from('users')
       .insert({
@@ -115,7 +105,8 @@ router.post('/register', async (req, res) => {
         password_hash,
         name,
         organization_id: organizationId,
-        role: organizationId ? 'admin' : 'user'
+        role: organizationId ? 'admin' : 'user',
+        is_active: true
       })
       .select('*, organizations(name)')
       .single();
@@ -125,15 +116,13 @@ router.post('/register', async (req, res) => {
       return res.status(500).json({ error: 'Failed to create user' });
     }
 
-    // Return user data (excluding password)
     const { password_hash: _, ...userWithoutPassword } = user;
-    const userWithFullName = {
-      ...userWithoutPassword,
-      full_name: user.name || user.full_name || null
-    };
     
     res.status(201).json({
-      user: userWithFullName,
+      user: {
+        ...userWithoutPassword,
+        full_name: user.name || user.full_name || null
+      },
       organizationId: user.organization_id
     });
   } catch (error: any) {
@@ -142,9 +131,71 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /api/auth/recover-password
+// POST /auth/admin-login (Single-click admin login para desarrollo)
+router.post('/admin-login', async (req, res) => {
+  console.log('[Auth Route] Admin login attempt');
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Admin quick login only in development' });
+    }
+
+    const adminEmail = 'admin@localhost';
+    
+    let { data: adminUser, error } = await supabase
+      .from('users')
+      .select('*, organizations(name)')
+      .eq('email', adminEmail)
+      .single();
+
+    if (error || !adminUser) {
+      const password_hash = await bcrypt.hash('admin123', 10);
+      
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert({ name: 'Local Development', is_active: true })
+        .select('id')
+        .single();
+
+      const organizationId = orgError ? null : org?.id;
+
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          email: adminEmail,
+          password_hash,
+          name: 'Local Admin',
+          organization_id: organizationId,
+          role: 'admin',
+          is_active: true
+        })
+        .select('*, organizations(name)')
+        .single();
+
+      if (createError) {
+        console.error('[Auth Admin Login] Error creating admin:', createError);
+        return res.status(500).json({ error: 'Failed to create admin user' });
+      }
+
+      adminUser = newUser;
+    }
+
+    const { password_hash, ...userWithoutPassword } = adminUser;
+    
+    res.json({
+      user: {
+        ...userWithoutPassword,
+        full_name: adminUser.name || adminUser.full_name || null
+      },
+      organizationId: adminUser.organization_id
+    });
+  } catch (error: any) {
+    console.error('[Auth Admin Login] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /auth/recover-password
 router.post('/recover-password', async (req, res) => {
-  console.log('[Auth Route] Password recovery attempt for email:', req.body?.email);
   try {
     const { email } = req.body;
 
@@ -152,7 +203,6 @@ router.post('/recover-password', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Find user by email
     const { data: user, error } = await supabase
       .from('users')
       .select('id, email, name')
@@ -160,15 +210,13 @@ router.post('/recover-password', async (req, res) => {
       .single();
 
     if (error || !user) {
-      // Don't reveal if email exists for security
+      // No revelar si el email existe
       return res.json({ message: 'If the email exists, a recovery link will be sent' });
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora
 
-    // Store reset token in user record
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -182,12 +230,9 @@ router.post('/recover-password', async (req, res) => {
       return res.status(500).json({ error: 'Failed to process recovery request' });
     }
 
-    // In production, you would send an email here
-    // For now, we'll log the token for development
-    console.log(`[Auth Recover] Password reset token for ${email}: ${resetToken}`);
-    console.log(`[Auth Recover] Reset link: http://localhost:5173/reset-password?token=${resetToken}`);
+    console.log(`[Auth Recover] Reset token for ${email}: ${resetToken}`);
 
-    res.json({ 
+    res.json({
       message: 'If the email exists, a recovery link will be sent',
       devToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
     });
@@ -197,9 +242,8 @@ router.post('/recover-password', async (req, res) => {
   }
 });
 
-// POST /api/auth/reset-password
+// POST /auth/reset-password
 router.post('/reset-password', async (req, res) => {
-  console.log('[Auth Route] Password reset attempt');
   try {
     const { token, newPassword } = req.body;
 
@@ -207,7 +251,6 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Token and new password are required' });
     }
 
-    // Find user with valid reset token
     const { data: user, error } = await supabase
       .from('users')
       .select('id, email, reset_token_expiry')
@@ -218,15 +261,12 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
-    // Check if token is expired
     if (new Date(user.reset_token_expiry) < new Date()) {
       return res.status(400).json({ error: 'Reset token has expired' });
     }
 
-    // Hash new password
     const password_hash = await bcrypt.hash(newPassword, 10);
 
-    // Update password and clear reset token
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -237,88 +277,17 @@ router.post('/reset-password', async (req, res) => {
       .eq('id', user.id);
 
     if (updateError) {
-      console.error('[Auth Reset] Error updating password:', updateError);
       return res.status(500).json({ error: 'Failed to reset password' });
     }
 
     res.json({ message: 'Password reset successfully' });
   } catch (error: any) {
-    console.error('[Auth Reset] Error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// POST /api/auth/admin-login (Single-click admin login for local development)
-router.post('/admin-login', async (req, res) => {
-  console.log('[Auth Route] Admin login attempt (single-click)');
-  try {
-    // Check if this is a development environment
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(403).json({ error: 'Admin quick login is only available in development' });
-    }
-
-    // Look for or create a local admin user
-    const adminEmail = 'admin@localhost';
-    
-    let { data: adminUser, error } = await supabase
-      .from('users')
-      .select('*, organizations(name)')
-      .eq('email', adminEmail)
-      .single();
-
-    if (error || !adminUser) {
-      // Create admin user if it doesn't exist
-      const password_hash = await bcrypt.hash('admin123', 10);
-      
-      // Create organization for admin
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert({ name: 'Local Development' })
-        .select('id')
-        .single();
-
-      const organizationId = orgError ? null : org?.id;
-
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert({
-          email: adminEmail,
-          password_hash,
-          name: 'Local Admin',
-          organization_id: organizationId,
-          role: 'admin'
-        })
-        .select('*, organizations(name)')
-        .single();
-
-      if (createError) {
-        console.error('[Auth Admin Login] Error creating admin user:', createError);
-        return res.status(500).json({ error: 'Failed to create admin user' });
-      }
-
-      adminUser = newUser;
-    }
-
-    // Return user data (excluding password)
-    const { password_hash, ...userWithoutPassword } = adminUser;
-    const userWithFullName = {
-      ...userWithoutPassword,
-      full_name: adminUser.name || adminUser.full_name || null
-    };
-    
-    res.json({
-      user: userWithFullName,
-      organizationId: adminUser.organization_id
-    });
-  } catch (error: any) {
-    console.error('[Auth Admin Login] Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// POST /api/auth/logout
+// POST /auth/logout
 router.post('/logout', (req, res) => {
-  // Since we rely on frontend session management for now, just return success
   res.json({ success: true });
 });
 

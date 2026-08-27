@@ -1,13 +1,21 @@
 import { Router, Request, Response } from 'express';
+import axios from 'axios';
 import { supabase } from '../../core/config/supabase';
+import { aiService } from '../../ai/Local/aiService';
+import { authenticateToken } from '../../core/middleware/auth';
 
 const router = Router();
 
+// Helper original
 const getOrgId = (req: Request): string | null => {
   const orgId = (req as any).organizationId;
   const bodyTenant = (req.body as any)?.tenantId;
   return orgId || bodyTenant || null;
 };
+
+// ==========================================
+// AI PROVIDERS ENDPOINTS
+// ==========================================
 
 // GET /api/ai/providers
 router.get('/providers', async (req: Request, res: Response) => {
@@ -142,6 +150,71 @@ router.post('/providers/:tenantId/:provider/test', async (req: Request, res: Res
   } catch (err) {
     console.error('Error testing AI provider:', err);
     res.status(500).json({ error: 'Failed to test AI provider' });
+  }
+});
+
+// ==========================================
+// CHAT & HEALTH ENDPOINTS
+// ==========================================
+
+// POST /api/ai/chat - Endpoint de prueba para chat con IA
+router.post('/chat', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { message, conversationId } = req.body;
+    const user = (req as any).user;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (!conversationId) {
+      return res.status(400).json({ error: 'ConversationId is required' });
+    }
+
+    console.log(`[AI Route] Processing message for user ${user.id}`);
+
+    const response = await aiService.processMessage(
+      user.organization_id,
+      user.id, // Usando user.id como contactId temporalmente
+      conversationId,
+      message
+    );
+
+    res.json({
+      success: true,
+      response: response.response,
+      intent: response.intent,
+      suggestedActions: response.suggestedActions,
+    });
+  } catch (error: any) {
+    console.error('[AI Route] Error:', error);
+    res.status(500).json({
+      error: 'Failed to process message',
+      details: error.message,
+    });
+  }
+});
+
+// GET /api/ai/health - Verificar conexión con vLLM
+router.get('/health', async (req: Request, res: Response) => {
+  try {
+    const vllmEndpoint = process.env.VLLM_ENDPOINT || 'http://host.docker.internal:8000';
+
+    const response = await axios.get(`${vllmEndpoint}/v1/models`, {
+      timeout: 5000,
+    });
+
+    res.json({
+      status: 'ok',
+      vllm: 'connected',
+      models: response.data.data.map((m: any) => m.id),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      status: 'error',
+      vllm: 'disconnected',
+      error: error.message,
+    });
   }
 });
 

@@ -13,6 +13,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import NotificationsSystem, { NotificationsProvider, setUpNotifications, useNotifications } from 'reapop';
 import { CustomNotification } from './components/ui/CustomNotification';
+import MetricsDashboard from './modules/metrics/pages/MetricsDashboard';
 
 // Configure reapop notifications
 setUpNotifications({
@@ -201,7 +202,12 @@ function AppContent() {
       <Route path="/ai/providers" element={<Suspense fallback={<PageLoader sectionName="Proveedores LLM" />}><ProtectedRoute><Layout><AIProviderSettings /></Layout></ProtectedRoute></Suspense>} />
       
       <Route path="/multi-whatsapp" element={<Suspense fallback={<PageLoader sectionName="WhatsApp Manager" />}><ProtectedRoute><Layout><WhatsAppManager /></Layout></ProtectedRoute></Suspense>} />
+      
+          {/* metrics */}
+     <Route path="/metrics" element={<MetricsDashboard />} />
     </Routes>
+
+
   );
 }
 

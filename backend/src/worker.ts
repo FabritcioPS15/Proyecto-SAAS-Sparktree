@@ -4,7 +4,9 @@ dotenv.config();
 import { Worker, Job } from 'bullmq';
 import pino from 'pino';
 import { handleIncomingMessage } from './modules/bots/engine/flow-core';
-import { supabase } from './core/config/supabase';
+
+// Logger simple
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 interface MessageQueueJob {
   messageId: string;
@@ -17,44 +19,174 @@ interface MessageQueueJob {
   timestamp: string;
 }
 
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-    },
-  },
-});
+// ============================================
+// OBTENER CONEXIÓN CON SOCKET VÁLIDO
+// ============================================
+async function getValidConnection(connectionId: string) {
+  const { multiWhatsAppService } = await import('./modules/integrations/multiWhatsAppService');
+  
+  const connection = multiWhatsAppService.getConnection(connectionId);
+  
+  if (!connection) {
+    logger.warn({ connectionId }, '[Worker] No connection found');
+    return null;
+  }
 
+  // Verificar que tenga socket y esté conectado
+  const socket = (connection as any).socket;
+  const status = (connection as any).status;
+  
+  if (!socket || status !== 'connected') {
+    logger.warn(
+      { connectionId, status, hasSocket: !!socket }, 
+      '[Worker] Connection not ready, attempting to reconnect...'
+    );
+    
+    // Intentar reconectar usando el método privado (acceso por any)
+    try {
+      await (multiWhatsAppService as any).connectSocket(connection);
+      // Esperar un poco a que se conecte
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const reconnectedSocket = (connection as any).socket;
+      if (reconnectedSocket) {
+        logger.info({ connectionId }, '[Worker] ✅ Reconnection successful');
+        return connection;
+      }
+    } catch (err: any) {
+      logger.error({ connectionId, error: err.message }, '[Worker] Reconnection failed');
+    }
+    
+    return null;
+  }
+
+  logger.info({ connectionId }, '[Worker] ✅ Valid socket obtained');
+  return connection;
+}
+
+// ============================================
+// CREAR EL WORKER
+// ============================================
 async function createWorker() {
+  logger.info('[Worker] 🚀 Starting WhatsApp message worker...');
+
   const worker = new Worker<MessageQueueJob>(
     'whatsapp-messages',
     async (job: Job<MessageQueueJob>) => {
       const { messageId, connectionId, organizationId, conversationId, contactId, senderPhone, message } = job.data;
 
-      logger.info({ messageId, connectionId }, '[Worker] Processing message');
+      logger.info({ messageId, connectionId, senderPhone }, '[Worker] 📨 Processing message');
 
       try {
-        // Create WhatsApp service adapter for this connection
+        const connection = await getValidConnection(connectionId);
+        
+        if (!connection) {
+          throw new Error(`No valid WhatsApp socket for connection ${connectionId}`);
+        }
+
+        const socket = (connection as any).socket;
+
+        // Adapter usando el socket REAL con formato correcto de Baileys
         const waServiceAdapter = {
-          sendTextMessage: async (to: string, body: string, options?: { jid?: string }) => {
-            // This would need to be implemented to send messages through the active connection
-            // For now, we'll need to fetch the connection and use its socket
-            logger.info({ to, body }, '[Worker] Sending text message');
-            // Implementation would go here
+                    sendTextMessage: async (to: string, body: string, options?: { jid?: string }) => {
+            try {
+              // ✅ CRÍTICO: Usar el JID directamente, sin validación
+              // Los LIDs (Linked IDs) de WhatsApp NO responden a onWhatsApp
+              let jid = options?.jid;
+              if (!jid) {
+                jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+              }
+              
+              logger.info(
+                { to: jid, isLid: jid.includes('@lid'), preview: body.substring(0, 50) }, 
+                '[Worker] 📤 Sending text'
+              );
+              
+              // ✅ NO validar con onWhatsApp - falla con LIDs
+              // Enviar directamente
+              const sent = await socket.sendMessage(jid, { 
+                text: body,
+                // Agregar contexto para mejorar entrega
+                contextInfo: {
+                  mentionedJid: []
+                }
+              });
+              
+              logger.info(
+                { waId: sent?.key?.id, to: jid }, 
+                '[Worker] ✅ Text sent successfully'
+              );
+              return sent;
+            } catch (error: any) {
+              logger.error(
+                { 
+                  to: options?.jid || to, 
+                  error: error.message,
+                  stack: error.stack?.split('\n').slice(0, 3).join('\n')
+                }, 
+                '[Worker] ❌ Error sending text'
+              );
+              throw error;
+            }
           },
+
           sendButtonMessage: async (to: string, bodyText: string, buttons: any[], options?: { jid?: string }) => {
-            logger.info({ to, bodyText, buttons }, '[Worker] Sending button message');
-            // Implementation would go here
+            try {
+              let jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
+              
+              // Formato texto con opciones numeradas (más compatible)
+              const buttonsText = buttons?.map((btn, i) => 
+                `*${i + 1}.* ${btn.buttonText || btn.text || btn.label || ''}`
+              ).join('\n') || '';
+              
+              const fullText = `${bodyText}\n\n${buttonsText}\n\n_Responde con el número de tu opción_`;
+              
+              const sent = await socket.sendMessage(jid, { text: fullText });
+              logger.info({ waId: sent?.key?.id }, '[Worker] ✅ Buttons sent');
+              return sent;
+            } catch (error: any) {
+              logger.error({ to, error: error.message }, '[Worker] ❌ Error sending buttons');
+              throw error;
+            }
           },
+
           sendMediaMessage: async (to: string, url: string, options?: any) => {
-            logger.info({ to, url }, '[Worker] Sending media message');
-            // Implementation would go here
+            try {
+              let jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
+              const mediaType = options?.type || 'image';
+              
+              let messageContent: any;
+              
+              if (mediaType === 'image') {
+                messageContent = { image: { url }, caption: options?.caption || '' };
+              } else if (mediaType === 'video') {
+                messageContent = { video: { url }, caption: options?.caption || '' };
+              } else if (mediaType === 'document') {
+                messageContent = { 
+                  document: { url }, 
+                  mimetype: options?.mimetype || 'application/pdf',
+                  fileName: options?.fileName || 'document.pdf'
+                };
+              } else if (mediaType === 'audio') {
+                messageContent = { 
+                  audio: { url }, 
+                  mimetype: 'audio/mpeg',
+                  ptt: options?.voiceNote || false
+                };
+              } else {
+                messageContent = { image: { url }, caption: options?.caption || '' };
+              }
+
+              const sent = await socket.sendMessage(jid, messageContent);
+              logger.info({ waId: sent?.key?.id }, '[Worker] ✅ Media sent');
+              return sent;
+            } catch (error: any) {
+              logger.error({ to, error: error.message }, '[Worker] ❌ Error sending media');
+              throw error;
+            }
           },
         };
 
-        // Process the message through the flow engine
         const organizationConfig = {
           organizationId,
           conversationId,
@@ -64,9 +196,9 @@ async function createWorker() {
 
         await handleIncomingMessage(message, senderPhone, organizationConfig, waServiceAdapter);
 
-        logger.info({ messageId }, '[Worker] Message processed successfully');
-      } catch (error) {
-        logger.error({ messageId, error }, '[Worker] Error processing message');
+        logger.info({ messageId }, '[Worker] ✅ Message processed successfully');
+      } catch (error: any) {
+        logger.error({ messageId, error: error.message }, '[Worker] ❌ Error processing message');
         throw error;
       }
     },
@@ -77,38 +209,34 @@ async function createWorker() {
         maxRetriesPerRequest: 3,
       },
       concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5'),
-      limiter: {
-        max: 100,
-        duration: 60000, // 100 jobs per minute
-      },
+      limiter: { max: 100, duration: 60000 },
     }
   );
 
   worker.on('completed', (job) => {
-    logger.info({ jobId: job.id }, '[Worker] Job completed');
+    logger.info({ jobId: job.id }, '[Worker] ✅ Job completed');
   });
 
   worker.on('failed', (job, err) => {
-    logger.error({ jobId: job?.id, error: err.message }, '[Worker] Job failed');
+    logger.error({ jobId: job?.id, error: err.message }, '[Worker] ❌ Job failed');
   });
 
-  logger.info('[Worker] Message queue worker started');
+  logger.info('[Worker] 🎉 Message queue worker started successfully');
 
-  // Graceful shutdown
   process.on('SIGTERM', async () => {
-    logger.info('[Worker] SIGTERM received, shutting down gracefully');
+    logger.info('[Worker] SIGTERM received, shutting down');
     await worker.close();
     process.exit(0);
   });
 
   process.on('SIGINT', async () => {
-    logger.info('[Worker] SIGINT received, shutting down gracefully');
+    logger.info('[Worker] SIGINT received, shutting down');
     await worker.close();
     process.exit(0);
   });
 }
 
 createWorker().catch((error) => {
-  logger.error(error, '[Worker] Failed to start worker');
+  console.error('[Worker] 💥 Fatal error:', error);
   process.exit(1);
 });

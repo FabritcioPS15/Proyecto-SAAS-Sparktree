@@ -1,3 +1,4 @@
+import './core/config/fetch-polyfill';
 import dotenv from 'dotenv';
 // Load environment variables immediately
 dotenv.config();
@@ -9,6 +10,8 @@ import { createServer } from 'http';
 import promClient from 'prom-client';
 
 // Import all routes
+
+import metricsRoutes from './modules/metrics/metrics.routes';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
 import conversationRoutes from './modules/chat/conversations.routes';
@@ -307,6 +310,7 @@ app.use('/api/quotes', quotesRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/reminders', reminderRoutes);
+app.use('/api/metrics', metricsRoutes);
 app.use('/api/message-templates', messageTemplateRoutes);
 
 // Middleware to record metrics for all successful responses
@@ -394,6 +398,121 @@ import { remindersService } from './modules/reminders/reminders.service';
 //     activeConnections.dec();
 //   });
 // });
+// ============================================
+// INICIAR WORKER DE MENSAJES EN EL MISMO PROCESO
+// ============================================
+import { Worker as BullWorker, Job } from 'bullmq';
+import { handleIncomingMessage } from './modules/bots/engine/flow-core';
+
+
+// Logger simple
+const workerLogger = console;
+
+async function startMessageWorker() {
+  workerLogger.log('[Worker] 🚀 Starting WhatsApp message worker (in-process)...');
+
+  const worker = new BullWorker(
+    'whatsapp-messages',
+    async (job: Job) => {
+      const { messageId, connectionId, organizationId, conversationId, contactId, senderPhone, message } = job.data;
+
+      workerLogger.log(`[Worker] 📨 Processing message ${messageId} from ${senderPhone}`);
+
+      try {
+        // ✅ CLAVE: Usar el multiWhatsAppService del MISMO proceso (que tiene el socket real)
+        const connection = multiWhatsAppService.getConnection(connectionId);
+        
+        if (!connection || !connection.socket) {
+          workerLogger.warn(`[Worker] ⚠️ No socket for ${connectionId}, will retry`);
+          throw new Error(`No active socket for connection ${connectionId}`);
+        }
+
+        const socket = connection.socket;
+
+        // Adapter que usa el socket REAL compartido
+        const waServiceAdapter = {
+          sendTextMessage: async (to: string, body: string, options?: { jid?: string }) => {
+            try {
+              const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
+              workerLogger.log(`[Worker] 📤 Sending text to ${jid}`);
+              const sent = await socket.sendMessage(jid, { text: body });
+              workerLogger.log(`[Worker] ✅ Text sent: ${sent?.key?.id}`);
+              return sent;
+            } catch (error: any) {
+              workerLogger.error(`[Worker] ❌ Error sending text: ${error.message}`);
+              throw error;
+            }
+          },
+
+          sendButtonMessage: async (to: string, bodyText: string, buttons: any[], options?: { jid?: string }) => {
+            try {
+              const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
+              const buttonsText = buttons?.map((btn, i) => 
+                `*${i + 1}.* ${btn.buttonText || btn.text || ''}`
+              ).join('\n') || '';
+              const fullText = `${bodyText}\n\n${buttonsText}\n\n_Responde con el número de tu opción_`;
+              return await socket.sendMessage(jid, { text: fullText });
+            } catch (error: any) {
+              workerLogger.error(`[Worker] ❌ Error sending buttons: ${error.message}`);
+              throw error;
+            }
+          },
+
+          sendMediaMessage: async (to: string, url: string, options?: any) => {
+            try {
+              const jid = options?.jid || (to.includes('@') ? to : `${to}@s.whatsapp.net`);
+              const mediaType = options?.type || 'image';
+              let content: any;
+              if (mediaType === 'image') content = { image: { url }, caption: options?.caption || '' };
+              else if (mediaType === 'video') content = { video: { url }, caption: options?.caption || '' };
+              else if (mediaType === 'document') content = { document: { url }, mimetype: options?.mimetype || 'application/pdf' };
+              else content = { image: { url }, caption: options?.caption || '' };
+              return await socket.sendMessage(jid, content);
+            } catch (error: any) {
+              workerLogger.error(`[Worker] ❌ Error sending media: ${error.message}`);
+              throw error;
+            }
+          },
+        };
+
+        const organizationConfig = {
+          organizationId,
+          conversationId,
+          contactId,
+          whatsappConnectionId: connectionId,
+        };
+
+        await handleIncomingMessage(message, senderPhone, organizationConfig, waServiceAdapter);
+        workerLogger.log(`[Worker] ✅ Message ${messageId} processed successfully`);
+      } catch (error: any) {
+        workerLogger.error(`[Worker] ❌ Error: ${error.message}`);
+        throw error;
+      }
+    },
+    {
+      connection: {
+        host: process.env.REDIS_HOST || 'redis',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+      },
+      concurrency: 5,
+    }
+  );
+
+  worker.on('completed', (job) => {
+    workerLogger.log(`[Worker] ✅ Job ${job.id} completed`);
+  });
+
+  worker.on('failed', (job, err) => {
+    workerLogger.error(`[Worker] ❌ Job ${job?.id} failed: ${err.message}`);
+  });
+
+  workerLogger.log('[Worker] 🎉 In-process worker started successfully');
+}
+
+// Iniciar el worker
+startMessageWorker().catch((err) => {
+  console.error('[Worker] 💥 Fatal error:', err);
+});
 
 httpServer.listen(PORT, async () => {
   console.log(`🚀 SparkBot SaaS Backend running on port ${PORT}`);

@@ -29,6 +29,24 @@ export async function handleIncomingMessage(
   waService: any, // Pass the service instance (Cloud or QR)
   preloadedFlow?: any // Pass a specific flow if one is already resolved
 ) {
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('bot_enabled')
+    .eq('id', organizationConfig.organizationId)
+    .single();
+
+  if (org && org.bot_enabled === false) {
+    console.log(`[Bot Engine] ⏸️ Bot deshabilitado para organización ${organizationConfig.organizationId}. Mensaje encolado para atención manual.`);
+    
+    // Guardar el mensaje como "pendiente de atención manual"
+    await supabase
+      .from('messages')
+      .update({ status: 'pending_manual' })
+      .eq('id', message.id);
+    
+    return; // No procesar, dejar para atención manual
+  }
+    
 
   // Fetch contact to get stored JID if available
   const { data: contactData } = await supabase
@@ -222,38 +240,66 @@ export async function handleIncomingMessage(
         await new Promise(resolve => setTimeout(resolve, waitTime));
       } else if (node.type === 'knowledge_retrieval') {
         try {
-          // Extract query from message
+          // Extraer query del mensaje actual
           const query = message?.text?.body || message?.content || '';
-          console.log(`[Flow Engine] Executing RAG node for query: "${query}"`);
-          const ragResult = await executeRAGNode(
-            node.data || {},
-            {
-              query: query,
-              organizationId: organizationConfig.organizationId,
-              whatsappConnectionId: organizationConfig.whatsappConnectionId,
-              conversationId: organizationConfig.conversationId,
-            }
+          console.log(`[Flow Engine] 🤖 Executing AI node for query: "${query}"`);
+          
+          // Importar el servicio de IA (que ya funciona con vLLM)
+          const { aiService } = await import('../../../../ai/Local/aiService');
+          
+          // Procesar el mensaje con IA usando el contexto completo
+          const aiResponse = await aiService.processMessage(
+            organizationConfig.organizationId,
+            organizationConfig.contactId,
+            organizationConfig.conversationId,
+            query
           );
           
-          console.log(`[Flow Engine] RAG retrieved ${ragResult.sources.length} sources`);
+          console.log(`[Flow Engine] ✅ AI responded with intent: ${aiResponse.intent}`);
+          console.log(`[Flow Engine] AI response preview: ${aiResponse.response.substring(0, 100)}...`);
           
-          // Store RAG result in contact metadata for use in subsequent nodes
+          // Enviar la respuesta por WhatsApp
+          if (waService && aiResponse.response) {
+            console.log(`[Flow Engine] 📤 Sending AI response to ${senderPhone}`);
+            const sentResponse = await waService.sendTextMessage(
+              senderPhone,
+              aiResponse.response,
+              { jid: contactJid }
+            );
+            
+            console.log(`[Flow Engine] ✅ AI response sent. WA ID: ${sentResponse?.key?.id}`);
+            
+            // Guardar mensaje saliente en BD
+            await saveOutgoingMessage('text', aiResponse.response, sentResponse);
+          }
+          
+          // También guardar el contexto RAG en metadata (para futuros nodos)
           const currentAttributes = (contactData as any)?.custom_attributes || {};
           await supabase
             .from('contacts')
             .update({
               custom_attributes: {
                 ...currentAttributes,
-                rag_context: ragResult.context,
-                rag_sources: ragResult.sources,
-                rag_query: ragResult.query,
+                rag_context: aiResponse,
+                rag_query: query,
+                last_ai_interaction: new Date().toISOString(),
               }
             })
             .eq('id', organizationConfig.contactId);
             
-          console.log(`[Flow Engine] RAG context stored in contact metadata`);
-        } catch (error) {
-          console.error('[Flow Engine] RAG node failed:', error);
+        } catch (error: any) {
+          console.error('[Flow Engine] ❌ AI node failed:', error.message);
+          
+          // Fallback: enviar mensaje de error al usuario
+          try {
+            const fallbackMsg = 'Lo siento, estoy teniendo problemas técnicos. ¿Puedes reformular tu pregunta o prefieres hablar con un agente humano?';
+            if (waService) {
+              const sentFallback = await waService.sendTextMessage(senderPhone, fallbackMsg, { jid: contactJid });
+              await saveOutgoingMessage('text', fallbackMsg, sentFallback);
+            }
+          } catch (fallbackError) {
+            console.error('[Flow Engine] Fallback also failed:', fallbackError);
+          }
         }
       }
 

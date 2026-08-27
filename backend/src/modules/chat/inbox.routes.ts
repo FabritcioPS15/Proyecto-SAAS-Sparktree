@@ -110,6 +110,184 @@ router.get('/stats', tenantMiddleware, async (req: TenantRequest, res: Response)
     res.status(500).json({ error: error.message });
   }
 });
+// ============================================================
+// ENDPOINTS PARA MODO PRE-TEST (O₁) — Atención Manual
+// ============================================================
+
+// POST /api/inbox/toggle-bot - Activar/desactivar el bot de la organización
+router.post('/toggle-bot', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const orgId = req.organizationId;
+    const { enabled } = req.body;
+
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required' });
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled (boolean) is required' });
+    }
+
+    const { data, error } = await supabase
+      .from('organizations')
+      .update({ bot_enabled: enabled })
+      .eq('id', orgId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`[Inbox] Bot ${enabled ? 'ACTIVADO' : 'DESACTIVADO'} para org ${orgId}`);
+    res.json({ success: true, bot_enabled: enabled, organization: data });
+  } catch (error: any) {
+    console.error('Error in /inbox/toggle-bot:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/inbox/bot-status - Obtener estado actual del bot
+router.get('/bot-status', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required' });
+
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('id, name, bot_enabled')
+      .eq('id', orgId)
+      .single();
+
+    if (error) throw error;
+    res.json({ bot_enabled: data?.bot_enabled ?? true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/inbox/manual-reply - Responder manualmente (pre-test O₁)
+// Este endpoint:
+//   1. Envía el mensaje por WhatsApp
+//   2. Guarda el mensaje saliente en BD
+//   3. Registra en consultation_metrics con condition='pre'
+// POST /api/inbox/manual-reply - Responder manualmente (pre-test O₁)
+router.post('/manual-reply', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const orgId = req.organizationId;
+    const {
+      conversation_id,
+      contact_id,
+      contact_phone,
+      contact_jid,
+      connection_id,
+      reply_text,
+      original_message_id,
+    } = req.body;
+
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required' });
+    if (!reply_text) return res.status(400).json({ error: 'reply_text is required' });
+    if (!contact_jid && !contact_phone) {
+      return res.status(400).json({ error: 'contact_jid or contact_phone required' });
+    }
+
+    // 1. Obtener el socket de WhatsApp activo
+    const { multiWhatsAppService } = await import('../integrations/multiWhatsAppService');
+    const connId = connection_id || Array.from((multiWhatsAppService as any).connections?.keys?.() || [])[0];
+    const connection = connId ? multiWhatsAppService.getConnection(connId) : null;
+
+    if (!connection?.socket) {
+      return res.status(400).json({ error: 'No active WhatsApp socket' });
+    }
+
+    const jid = contact_jid || `${contact_phone}@s.whatsapp.net`;
+
+    // 2. Enviar respuesta por WhatsApp
+    const sentMessage = await connection.socket.sendMessage(jid, { text: reply_text });
+    console.log(`[Inbox] Manual reply sent to ${jid}: ${sentMessage?.key?.id}`);
+
+    // 3. Guardar mensaje saliente en BD
+    const { data: outMsg } = await supabase
+      .from('messages')
+      .insert({
+        organization_id: orgId,
+        conversation_id,
+        contact_id,
+        direction: 'outbound',
+        type: 'text',
+        content: reply_text,
+        whatsapp_message_id: sentMessage?.key?.id,
+        status: 'sent',
+      })
+      .select()
+      .single();
+
+    // 4. Obtener el mensaje original para calcular duración y extraer texto
+    let startedAt: Date | null = null;
+    let userMessage: string | null = null;
+
+    if (original_message_id) {
+      const { data: original } = await supabase
+        .from('messages')
+        .select('created_at, content')
+        .eq('id', original_message_id)
+        .single();
+
+      if (original) {
+        startedAt = new Date(original.created_at);
+        
+        // ⭐ EXTRAER TEXTO LIMPIO del JSON de Baileys
+        try {
+          const parsed = JSON.parse(original.content);
+          userMessage = 
+            parsed?.message?.conversation ||
+            parsed?.message?.extendedTextMessage?.text ||
+            parsed?.text?.body ||
+            parsed?.body ||
+            parsed?.message?.imageMessage?.caption ||
+            parsed?.message?.documentMessage?.caption ||
+            parsed?.message?.videoMessage?.caption ||
+            original.content;
+        } catch {
+          userMessage = original.content;
+        }
+      }
+    }
+
+    const endedAt = new Date();
+    const durationSec = startedAt
+      ? Math.round((endedAt.getTime() - startedAt.getTime()) / 1000)
+      : null;
+
+    // 5. Registrar en consultation_metrics como PRE-TEST
+    const { data: metric } = await supabase
+      .from('consultation_metrics')
+      .insert({
+        organization_id: orgId,
+        conversation_id,
+        contact_id,
+        channel: 'whatsapp',
+        condition: 'pre',
+        started_at: startedAt?.toISOString() || endedAt.toISOString(),
+        ended_at: endedAt.toISOString(),
+        duration_seconds: durationSec,
+        user_message: userMessage,  // ← TEXTO LIMPIO
+        bot_response: reply_text,
+        resolved_without_escalation: false,
+        escalated_to_human: true,
+        bot_enabled: false,
+        is_test: false,
+        source_message_id: original_message_id || outMsg?.id,
+      })
+      .select()
+      .single();
+
+    res.json({
+      success: true,
+      message: outMsg,
+      metric,
+      duration_seconds: durationSec,
+    });
+  } catch (error: any) {
+    console.error('Error in /inbox/manual-reply:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // GET /api/inbox/:conversationId - Get conversation with messages
 router.get('/:conversationId', tenantMiddleware, async (req: TenantRequest, res: Response) => {
@@ -258,5 +436,8 @@ router.patch('/:conversationId/status', tenantMiddleware, async (req: TenantRequ
     res.status(500).json({ error: error.message });
   }
 });
+
+
+
 
 export default router;
