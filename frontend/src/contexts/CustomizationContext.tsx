@@ -169,7 +169,7 @@ export const CustomizationProvider = ({ children }: { children: ReactNode }) => 
   const [layoutMode, setLayoutMode] = useState(() => localStorage.getItem('layout-mode') || 'fluid');
   const [cardStyle, setCardStyle] = useState(() => localStorage.getItem('card-style') || 'bordered');
   const [fontSize, setFontSize] = useState(() => localStorage.getItem('font-size') || 'normal');
-  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('font-family') || 'inter');
+  const [fontFamily, setFontFamily] = useState(() => localStorage.getItem('font-family') || 'outfit');
   const [radiusSize, setRadiusSize] = useState(() => localStorage.getItem('radius-size') || 'normal');
   const [statusColors, setStatusColors] = useState<Record<string, string>>(() => {
     try { return JSON.parse(localStorage.getItem('status-colors') || 'null') || defaultStatusColors; }
@@ -177,11 +177,12 @@ export const CustomizationProvider = ({ children }: { children: ReactNode }) => 
   });
 
   const fontFamilyMap: Record<string, string> = {
-    inter: "'Inter', sans-serif",
-    system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    outfit: "'Outfit', 'Plus Jakarta Sans', 'Inter', sans-serif",
+    inter: "'Outfit', 'Plus Jakarta Sans', 'Inter', sans-serif",
+    system: "'Outfit', 'Plus Jakarta Sans', 'Inter', sans-serif",
     mono: "'JetBrains Mono', 'Fira Code', monospace",
-    sans: "'Open Sans', 'Noto Sans', sans-serif",
-    serif: "'Merriweather', 'Georgia', serif",
+    sans: "'Outfit', 'Plus Jakarta Sans', 'Inter', sans-serif",
+    serif: "'Outfit', 'Plus Jakarta Sans', 'Inter', sans-serif",
   };
 
   useEffect(() => {

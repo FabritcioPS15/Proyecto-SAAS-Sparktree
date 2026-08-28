@@ -94,6 +94,26 @@ interface EcosystemStatusProps {
   platform?: string;
 }
 
+const BOT_TYPE_LABELS: Record<string, string> = {
+  sales: 'Bot de Ventas',
+  support: 'Bot de Soporte',
+  marketing: 'Bot de Marketing',
+  onboarding: 'Bot de Inducción',
+  welcome: 'Bot de Bienvenida',
+  other: 'Bot General',
+  general: 'Bot General'
+};
+
+const BOT_TYPE_COLORS: Record<string, string> = {
+  sales: 'bg-accent-500/10 text-accent-500 border-accent-500/20',
+  support: 'bg-accent-500/10 text-accent-500 border-accent-500/20',
+  marketing: 'bg-accent-500/10 text-accent-500 border-accent-500/20',
+  onboarding: 'bg-accent-500/10 text-accent-500 border-accent-500/20',
+  welcome: 'bg-accent-500/10 text-accent-500 border-accent-500/20',
+  other: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
+  general: 'bg-slate-500/10 text-slate-500 border-slate-500/20'
+};
+
 export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
   const [flows, setFlows] = useState<any[]>([]);
   const [flowsLoading, setFlowsLoading] = useState(false);
@@ -115,49 +135,72 @@ export const EcosystemStatus = ({ platform }: EcosystemStatusProps) => {
     loadFlows();
   }, [platform]);
 
+  const activeFlows = flows.filter((f: any) => f.status === 'active');
+  const activeBotTypes = activeFlows
+    .map((f: any) => BOT_TYPE_LABELS[f.category] || BOT_TYPE_LABELS.other)
+    .filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i);
+
   return (
-    <div className="p-6 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
+    <div className="p-5 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2.5 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl shadow-lg shadow-accent-500/20">
           <Activity className="w-4 h-4 text-white" />
         </div>
-        <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Estado del Ecosistema</h4>
+        <div>
+          <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Automatización activa:</h4>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{platform || 'Integrada'}</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="p-3.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Plataforma</p>
-          <p className="text-sm font-black text-slate-900 dark:text-white capitalize">{platform || 'Integrada'}</p>
-        </div>
-        <div className="p-3.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Bots Activos</p>
-          <div className="text-sm font-black text-slate-900 dark:text-white">
-            {flowsLoading ? <Loader size="xs" /> : flows.length}
+      <div className="space-y-2 mb-5">
+        {activeBotTypes.map((label, i) => (
+          <div key={i} className="flex items-center gap-2.5 p-2.5 bg-accent-50 dark:bg-accent-500/10 rounded-xl border border-accent-200 dark:border-accent-500/20">
+            <div className="relative">
+              <div className="p-1.5 bg-accent-500/10 rounded-lg">
+                <Bot className="w-4 h-4 text-accent-500" />
+              </div>
+              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-accent-500 rounded-full animate-pulse" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-slate-900 dark:text-white truncate">{label}</p>
+            </div>
+            <span className="px-2 py-0.5 bg-accent-500 text-black text-[8px] font-black uppercase tracking-wider rounded-md">Activo</span>
           </div>
-        </div>
+        ))}
+        {activeBotTypes.length === 0 && (
+          <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30">
+            <div className="p-1.5 bg-slate-500/10 rounded-lg">
+              <Bot className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate">Bot General</p>
+            </div>
+            <span className="px-2 py-0.5 bg-slate-500/10 text-slate-500 text-[8px] font-black uppercase tracking-wider rounded-md">Inactivo</span>
+          </div>
+        )}
       </div>
 
-      {flows.length > 0 && (
+      {flowsLoading ? (
+        <div className="flex justify-center py-3"><Loader size="sm" /></div>
+      ) : activeFlows.length > 0 ? (
         <div className="mb-4 space-y-2">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Flujos activos</p>
-          {flows.map((flow: any) => (
+          {activeFlows.map((flow: any) => (
             <Link key={flow.id || flow._id} to="/flow-manager"
               className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/30 hover:border-accent-500/30 transition-all group"
             >
-              <div className="p-1.5 bg-emerald-500/10 rounded-lg">
-                <Bot className="w-3.5 h-3.5 text-emerald-500" />
-              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{flow.name}</p>
                 <p className="text-[9px] text-slate-400 truncate">{flow.description}</p>
               </div>
+              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${BOT_TYPE_COLORS[flow.category] || BOT_TYPE_COLORS.other}`}>
+                {BOT_TYPE_LABELS[flow.category]?.replace('Bot de ', '').replace('Bot ', '') || 'General'}
+              </span>
               <ArrowUpRight className="w-3 h-3 text-slate-400 group-hover:text-accent-500 transition-colors shrink-0" />
             </Link>
           ))}
         </div>
-      )}
-
-      {flows.length === 0 && !flowsLoading && (
+      ) : (
         <div className="space-y-3 mb-4">
           <Link to="/flow-manager" className="block">
             <div className="flex items-start gap-3 p-3.5 bg-accent-500/5 rounded-xl border border-accent-500/10 hover:border-accent-500/30 hover:bg-accent-500/10 transition-all cursor-pointer group">

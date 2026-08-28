@@ -172,6 +172,48 @@ router.post('/connections/:id/delete', tenantMiddleware, async (req: TenantReque
   }
 });
 
+// PATCH /api/platform/connections/:id/phone
+router.patch('/connections/:id/phone', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const orgId = req.organizationId;
+    const { phoneNumber } = req.body;
+
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required. Add X-Organization-ID header.' });
+    if (!phoneNumber) return res.status(400).json({ error: 'Phone number is required' });
+
+    const { data: connection, error: fetchError } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (fetchError || !connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+
+    const currentConfig = connection.config || {};
+    const { data: updated, error } = await supabase
+      .from('platform_connections')
+      .update({ config: { ...currentConfig, phone_number: phoneNumber } })
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating connection phone number:', error);
+      return res.status(500).json({ error: error.message || 'Failed to update phone number' });
+    }
+
+    res.json({ message: 'Phone number updated', connection: updated });
+  } catch (error: any) {
+    console.error('Error in /platform/connections/:id/phone:', error);
+    if (!res.headersSent) res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /api/platform/whatsapp-cloud
 router.post('/whatsapp-cloud', tenantMiddleware, async (req: TenantRequest, res: Response) => {
   try {

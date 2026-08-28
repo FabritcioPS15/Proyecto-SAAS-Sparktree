@@ -82,7 +82,7 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
         platform_type: (conn.platformType || conn.platform_type || '') === 'facebook_messenger' ? 'facebook_messenger' : (conn.platformType || conn.platform_type) as PlatformType,
         display_name: conn.displayName || conn.display_name || 'Conexión',
         status: conn.status,
-        phone_number: conn.phone_number || conn.platform_account_id || conn.platformAccountId || conn.config?.phone_number_id,
+        phone_number: conn.phone_number || conn.config?.phone_number || undefined,
         username: conn.botUsername || conn.username || conn.platformAccountId || conn.platform_account_id,
         connected_at: conn.lastConnectedAt || conn.connected_at
       }));

@@ -88,8 +88,6 @@ export const FlowManager = () => {
     category: 'other' as 'sales' | 'support' | 'marketing' | 'onboarding' | 'other',
     triggers: [] as string[]
   });
-  const [quickEditId, setQuickEditId] = useState<string | null>(null);
-  const [quickEditName, setQuickEditName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<FlowBot | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { addNotification } = useNotifications();
@@ -402,7 +400,7 @@ export const FlowManager = () => {
 
                   <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-slate-300 dark:text-slate-600 font-medium group-hover/card:opacity-0 transition-opacity">
-                      {new Date(flow.updatedAt || flow.createdAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                      {new Date(flow.updated_at || flow.created_at || flow.lastModified || '').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
                     </span>
                     <div className="flex items-center gap-1.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200">
                       <button
@@ -541,7 +539,7 @@ export const FlowManager = () => {
                 <span className="text-slate-300 dark:text-slate-600">·</span>
                 <span className="text-slate-500 dark:text-slate-400">{CATEGORY_LABELS[selectedDetailFlow.category] || 'Sin categoría'}</span>
                 <span className="text-slate-300 dark:text-slate-600">·</span>
-                <span className="text-slate-400 dark:text-slate-500">{new Date(selectedDetailFlow.updatedAt || selectedDetailFlow.createdAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <span className="text-slate-400 dark:text-slate-500">{new Date(selectedDetailFlow.updated_at || selectedDetailFlow.created_at || selectedDetailFlow.lastModified || '').toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
               </div>
 
               {/* Descripción editable */}

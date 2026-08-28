@@ -415,12 +415,23 @@ export const createWhatsAppCloudConnection = async (data: {
   accessToken: string;
   displayName: string;
   webhookVerifyToken?: string;
+  phoneNumber?: string;
 }) => {
   try {
     const response = await api.post('/platform/whatsapp-cloud', data);
     return response.data;
   } catch (error) {
     console.error('Error creating WhatsApp Cloud connection:', error);
+    throw error;
+  }
+};
+
+export const updateWhatsAppCloudPhone = async (connectionId: string, phoneNumber: string) => {
+  try {
+    const response = await api.patch(`/platform/connections/${connectionId}/phone`, { phoneNumber });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating WhatsApp Cloud phone number:', error);
     throw error;
   }
 };
