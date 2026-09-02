@@ -5,7 +5,7 @@ import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable } from '../../../components/ui/DataTable';
 import { SearchBar } from '../../../components/ui/SearchBar';
-import { FilterSelect } from '../../../components/ui/FilterSelect';
+import { Dropdown } from '../../../components/ui/Dropdown';
 import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { TableCard } from '../../../components/ui/TableCard';
 import { GridCard } from '../../../components/ui/GridCard';
@@ -38,7 +38,7 @@ const ACTION_VARIANTS: Record<string, 'success' | 'info' | 'danger' | 'default'>
 export const AuditLogs = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [currentPage, setCurrentPage] = useState(1);
 
   const columns = [
@@ -63,18 +63,18 @@ export const AuditLogs = () => {
       />
       <PageBody>
         <TableCard>
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <SearchBar
               placeholder="Buscar por usuario o acción..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <FilterSelect
+            <div className="flex items-center gap-2 shrink-0">
+              <Dropdown
                 value={filterAction}
                 onChange={(v) => { setFilterAction(v); setCurrentPage(1); }}
                 options={[
-                  { value: 'all', label: 'Todas las acciones' },
+                  { value: 'all', label: 'Todas las Acciones' },
                   { value: 'CREATE', label: 'Crear' },
                   { value: 'UPDATE', label: 'Actualizar' },
                   { value: 'DELETE', label: 'Eliminar' },

@@ -118,6 +118,11 @@ export const handleIncomingWebhook = async (req: Request, res: Response) => {
 };
 
 async function processChange(changeValue: any) {
+    // MM API for WhatsApp: eventos account_update (onboarding)
+    if (changeValue.event) {
+      await handleAccountUpdateEvent(changeValue);
+    }
+
     // Process messages (Meta can send multiple messages in one payload)
     if (changeValue.messages && Array.isArray(changeValue.messages)) {
       for (const message of changeValue.messages) {
@@ -145,6 +150,45 @@ async function processChange(changeValue: any) {
       }
     }
 };
+
+/**
+ * MM API for WhatsApp: procesa los eventos account_update de onboarding.
+ * Eventos: MM_LITE_TERMS_SIGNED (ToS firmado) y AD_ACCOUNT_LINKED (legacy).
+ * value = { event, waba_info: { owner_business_id, waba_id, ad_account_id } }
+ */
+async function handleAccountUpdateEvent(value: any) {
+  const event = value.event;
+  const info = value.waba_info || {};
+  const wabaId = info.waba_id;
+  const ownerBusinessId = info.owner_business_id;
+  const adAccountId = info.ad_account_id;
+
+  console.log(`[Webhook] MM API account_update: ${event} | waba=${wabaId} | business=${ownerBusinessId}${adAccountId ? ` | adAccount=${adAccountId}` : ''}`);
+
+  // Persistir el evento (best-effort; si la tabla aún no existe, no interrumpe el webhook).
+  try {
+    await supabase.from('platform_webhook_events').insert({
+      platform: 'whatsapp',
+      event_type: 'account_update',
+      event_name: event,
+      waba_id: wabaId,
+      owner_business_id: ownerBusinessId,
+      ad_account_id: adAccountId,
+      raw_payload: value,
+    });
+  } catch (err: any) {
+    const msg = err?.message || '';
+    if (err?.code !== '42P01' && !msg.includes('not find the table') && !msg.includes('relation') && !msg.includes('42P01')) {
+      console.error('[Webhook] Error persisting account_update event:', err?.message || err);
+    }
+  }
+
+  // Si terminó el onboarding (ToS firmado), marcamos la conexión WhatsApp como onboarded
+  // en memoria para que el status refleje la elegibilidad sin depender del mapeo WABA→número.
+  if (event === 'MM_LITE_TERMS_SIGNED' && wabaId) {
+    console.log(`[Webhook] MM API ToS firmado para WABA ${wabaId} (business ${ownerBusinessId}). El cliente ya puede enviar marketing optimizado.`);
+  }
+}
 
 /**
  * Process a single incoming message from the webhook payload
@@ -296,7 +340,8 @@ async function processIncomingMessage(message: any, changeValue: any) {
     const organizationConfig = {
       organizationId: organization.id,
       conversationId: conversation?.id,
-      contactId: contact.id
+      contactId: contact.id,
+      whatsappConnectionId: platformConnectionId || undefined
     };
 
     let waService;

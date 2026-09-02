@@ -3,10 +3,13 @@ import { supabase } from '../../core/config/supabase';
 
 const router = Router();
 
+const maskKey = (key?: string | null) => {
+  if (!key || key.length < 8) return '';
+  return `${key.slice(0, 4)}...${key.slice(-4)}`;
+};
+
 const getOrgId = (req: Request): string | null => {
-  const orgId = (req as any).organizationId;
-  const bodyTenant = (req.body as any)?.tenantId;
-  return orgId || bodyTenant || null;
+  return (req as any).organizationId || null;
 };
 
 // GET /api/ai/providers
@@ -29,7 +32,7 @@ router.get('/providers', async (req: Request, res: Response) => {
     const formatted = (data || []).map((p: any) => ({
       id: p.id,
       provider: p.provider,
-      apiKey: p.api_key,
+      apiKey: maskKey(p.api_key),
       model: p.default_model,
       baseUrl: p.base_url,
       configured: p.is_active,
@@ -78,7 +81,7 @@ router.post('/providers', async (req: Request, res: Response) => {
     res.status(201).json({
       id: data.id,
       provider: data.provider,
-      apiKey: data.api_key,
+      apiKey: maskKey(data.api_key),
       model: data.default_model,
       baseUrl: data.base_url,
       configured: true,
@@ -119,7 +122,8 @@ router.delete('/providers/:provider', async (req: Request, res: Response) => {
 // POST /api/ai/providers/:tenantId/:provider/test
 router.post('/providers/:tenantId/:provider/test', async (req: Request, res: Response) => {
   try {
-    const orgId = (req as any).organizationId || req.params.tenantId;
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(401).json({ error: 'Organization ID requerido' });
     const { provider } = req.params;
 
     const { data, error } = await supabase

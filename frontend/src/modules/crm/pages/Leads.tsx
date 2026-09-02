@@ -10,7 +10,8 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { ResponsiveList, ResponsiveColumn } from '../../../components/ui/ResponsiveList';
 import { SearchBar } from '../../../components/ui/SearchBar';
-import { FilterSelect } from '../../../components/ui/FilterSelect';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { Badge } from '../../../components/ui/Badge';
 import { TagChip } from '../../../components/ui/TagChip';
 import { TableCard } from '../../../components/ui/TableCard';
@@ -48,6 +49,7 @@ export const Leads = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -265,25 +267,26 @@ export const Leads = () => {
 
       <PageBody>
         <TableCard>
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
+          {/* ── Barra de filtros unificada ── */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <SearchBar
               placeholder="Buscar por nombre, empresa o teléfono..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <FilterSelect
+            <div className="flex items-center gap-2 shrink-0">
+              <Dropdown
                 value={statusFilter}
                 onChange={setStatusFilter}
                 options={[
-                  { value: 'all', label: 'Todos los estados' },
+                  { value: 'all', label: 'Todos los Estados' },
                   { value: 'new', label: 'Nuevos' },
                   { value: 'contacted', label: 'Contactados' },
                   { value: 'qualified', label: 'Calificados' },
                   { value: 'converted', label: 'Convertidos' },
                 ]}
               />
-              <FilterSelect
+              <Dropdown
                 value={priorityFilter}
                 onChange={setPriorityFilter}
                 options={[
@@ -293,24 +296,104 @@ export const Leads = () => {
                   { value: 'low', label: 'Prioridad Baja' },
                 ]}
               />
+              <ViewToggle value={viewMode} onChange={setViewMode} />
             </div>
           </div>
 
-          <ResponsiveList
-            columns={responsiveColumns}
-            data={paginatedLeads}
-            onRowClick={(lead) => setSelectedLead(lead)}
-            getId={(lead) => lead.id}
-            actions={(lead) => [
-              { icon: <Eye className="w-4 h-4" />, label: 'Ver Detalle', onClick: () => setSelectedLead(lead), tooltip: 'Ver Detalle' },
-              { icon: <MessageSquare className="w-4 h-4" />, label: 'Enviar Mensaje', onClick: () => { }, tooltip: 'Enviar Mensaje' },
-            ]}
-            pagination={{
-              currentPage,
-              totalPages,
-              onPageChange: setCurrentPage
-            }}
-          />
+          {viewMode === 'table' ? (
+            <ResponsiveList
+              columns={responsiveColumns}
+              data={paginatedLeads}
+              onRowClick={(lead) => setSelectedLead(lead)}
+              getId={(lead) => lead.id}
+              actions={(lead) => [
+                { icon: <Eye className="w-4 h-4" />, label: 'Ver Detalle', onClick: () => setSelectedLead(lead), tooltip: 'Ver Detalle' },
+                { icon: <MessageSquare className="w-4 h-4" />, label: 'Enviar Mensaje', onClick: () => { }, tooltip: 'Enviar Mensaje' },
+              ]}
+              pagination={{
+                currentPage,
+                totalPages,
+                onPageChange: setCurrentPage
+              }}
+            />
+          ) : (
+            <>
+              {paginatedLeads.length === 0 ? (
+                <div className="text-center py-16 text-slate-400">
+                  <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-semibold">Sin leads</p>
+                  <p className="text-sm">Ajusta los filtros para ver resultados.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {paginatedLeads.map((lead) => (
+                    <div
+                      key={lead.id}
+                      onClick={() => setSelectedLead(lead)}
+                      className="group bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 hover:border-accent-500/40 hover:shadow-lg hover:shadow-accent-500/5 transition-all cursor-pointer"
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center font-black text-accent-600 dark:text-accent-400 text-sm">
+                            {lead.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight">{lead.name}</p>
+                            <p className="text-xs text-slate-500 font-medium">{lead.company || 'Personal'}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shadow-sm ${getScoreColor(lead.score)}`}>
+                            {lead.score}
+                          </div>
+                          <span className="text-[8px] font-black text-slate-400 uppercase mt-0.5">Score</span>
+                        </div>
+                      </div>
+
+                      {/* Tags */}
+                      {lead.tags.length > 0 && (
+                        <div className="flex gap-1 flex-wrap mb-3">
+                          {lead.tags.slice(0, 3).map((tag, i) => (
+                            <span key={i} className="text-[10px] font-bold px-2 py-0.5 bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded-full">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Status & Priority */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                        <Badge variant={getStatusVariant(lead.status)} size="xs" dot>
+                          {getStatusText(lead.status)}
+                        </Badge>
+                        <Badge variant={getPriorityVariant(lead.priority)} size="xs" shape="rounded">
+                          {getPriorityText(lead.priority)}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
+                        page === currentPage
+                          ? 'bg-accent-500 text-black'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </TableCard>
 
         {/* Modern Lead Detail Modal */}

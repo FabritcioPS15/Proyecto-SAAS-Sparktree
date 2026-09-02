@@ -3,9 +3,12 @@ import { adminService } from './adminService';
 
 const router = express.Router();
 
-// Middleware to check if user is SuperAdmin (placeholder for real auth)
+// Middleware to check if user is SuperAdmin (role derived from authenticated user)
 const isSuperAdmin = async (req: any, res: any, next: any) => {
-  // In a real app, verify role from JWT
+  const role = req.user?.role;
+  if (role !== 'super_admin') {
+    return res.status(403).json({ error: 'Forbidden: se requiere rol super_admin' });
+  }
   next();
 };
 

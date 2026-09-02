@@ -9,12 +9,16 @@ router.get('/', async (req, res) => {
     const orgId = (req as any).organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
-    // Fetch contacts
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 200, 500);
+    const offset = Math.max(parseInt(req.query.offset as string, 10) || 0, 0);
+
+    // Fetch contacts (bounded to prevent unbounded scans)
     const { data: contacts, error: contactsError } = await supabase
       .from('contacts')
       .select('id, phone_number, profile_name, last_active_at, created_at, bot_state')
       .eq('organization_id', orgId)
-      .order('last_active_at', { ascending: false });
+      .order('last_active_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (contactsError) throw contactsError;
 

@@ -60,7 +60,7 @@ router.post('/', async (req: any, res: any) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
-    const { name, messageTemplate, whatsappConnectionId, delayMs, contacts, metaTemplateName, metaTemplateLanguage } = req.body;
+    const { name, messageTemplate, whatsappConnectionId, delayMs, contacts, metaTemplateName, metaTemplateLanguage, useMarketingApi } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'El nombre de la campaña es obligatorio' });
@@ -82,6 +82,7 @@ router.post('/', async (req: any, res: any) => {
       createdBy: (req as any).userId || null,
       metaTemplateName: metaTemplateName || null,
       metaTemplateLanguage: metaTemplateLanguage || 'es',
+      useMarketingApi: useMarketingApi === true,
     });
 
     res.status(201).json(campaign);
@@ -102,6 +103,9 @@ router.put('/:id', async (req: any, res: any) => {
     if (req.body.messageTemplate !== undefined) updates.message_template = req.body.messageTemplate;
     if (req.body.whatsappConnectionId !== undefined) updates.whatsapp_connection_id = req.body.whatsappConnectionId;
     if (req.body.delayMs !== undefined) updates.delay_ms = Math.max(Number(req.body.delayMs) || 3000, 500);
+    if (req.body.useMarketingApi !== undefined) updates.use_marketing_api = req.body.useMarketingApi === true;
+    if (req.body.metaTemplateName !== undefined) updates.meta_template_name = req.body.metaTemplateName;
+    if (req.body.metaTemplateLanguage !== undefined) updates.meta_template_language = req.body.metaTemplateLanguage;
 
     const campaign = await campaignsService.updateCampaign(req.params.id, orgId, updates);
     res.json(campaign);

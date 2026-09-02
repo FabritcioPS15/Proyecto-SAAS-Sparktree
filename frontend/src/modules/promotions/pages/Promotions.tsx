@@ -162,18 +162,20 @@ export const Promotions = () => {
           <div className="mb-4 text-xs text-slate-400 flex items-center gap-2"><Loader size="xs" /> Cargando promociones...</div>
         )}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar por código..." className="flex-1" />
-            <Dropdown
-              value={filterStatus}
-              onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}
-              options={[
-                { value: 'all', label: 'Todos los estados' },
-                { value: 'active', label: 'Activo' },
-                { value: 'inactive', label: 'Inactivo' },
-              ]}
-            />
-            <ViewToggle value={viewMode} onChange={setViewMode} />
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar por código..." />
+            <div className="flex items-center gap-2 shrink-0">
+              <Dropdown
+                value={filterStatus}
+                onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}
+                options={[
+                  { value: 'all', label: 'Todos los Estados' },
+                  { value: 'active', label: 'Activo' },
+                  { value: 'inactive', label: 'Inactivo' },
+                ]}
+              />
+              <ViewToggle value={viewMode} onChange={setViewMode} />
+            </div>
           </div>
 
           {viewMode === 'grid' ? (

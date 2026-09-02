@@ -11,6 +11,9 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable } from '../../../components/ui/DataTable';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Modal } from '../../../components/ui/Modal';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { CreateCampaignModal } from '../components/CreateCampaignModal';
 import {
@@ -62,6 +65,9 @@ export const Campaigns = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const hasActiveSend = useCallback((list: Campaign[]) => {
@@ -227,28 +233,146 @@ export const Campaigns = () => {
       />
       <PageBody>
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          {campaigns.length === 0 && !loading ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="p-4 bg-accent-500/10 rounded-2xl mb-4">
-                <Megaphone className="w-10 h-10 text-accent-500" />
-              </div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white mb-1">Aún no tienes campañas</h3>
-              <p className="text-xs text-slate-400 max-w-sm mb-5">
-                Carga un Excel con los teléfonos de tus clientes y envía mensajes personalizados automáticamente.
-              </p>
-              <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
-                <Plus className="w-4 h-4" /> Crear mi primera campaña
-              </button>
-            </div>
-          ) : (
-            <DataTable
-              data={campaigns}
-              columns={columns}
-              loading={loading}
-              onRowClick={openDetail}
-              emptyMessage="No hay campañas disponibles"
+          {/* ── Barra de filtros unificada ── */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-5">
+            <SearchBar
+              placeholder="Buscar campaña por nombre..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-          )}
+            <div className="flex items-center gap-2 shrink-0">
+              <Dropdown
+                value={filterStatus}
+                onChange={setFilterStatus}
+                options={[
+                  { value: 'all', label: 'Todos los Estados' },
+                  { value: 'draft', label: 'Borrador' },
+                  { value: 'ready', label: 'Lista' },
+                  { value: 'sending', label: 'Enviando' },
+                  { value: 'paused', label: 'Pausada' },
+                  { value: 'completed', label: 'Completada' },
+                  { value: 'cancelled', label: 'Cancelada' },
+                ]}
+              />
+              <ViewToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+
+          {(() => {
+            const filtered = campaigns.filter(c => {
+              const matchesSearch = !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase());
+              const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
+              return matchesSearch && matchesStatus;
+            });
+
+            if (filtered.length === 0 && !loading) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="p-4 bg-accent-500/10 rounded-2xl mb-4">
+                    <Megaphone className="w-10 h-10 text-accent-500" />
+                  </div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white mb-1">
+                    {searchTerm || filterStatus !== 'all' ? 'Sin resultados' : 'Aún no tienes campañas'}
+                  </h3>
+                  <p className="text-xs text-slate-400 max-w-sm mb-5">
+                    {searchTerm || filterStatus !== 'all'
+                      ? 'Ajusta los filtros para ver resultados.'
+                      : 'Carga un Excel con los teléfonos de tus clientes y envía mensajes personalizados automáticamente.'}
+                  </p>
+                  {!searchTerm && filterStatus === 'all' && (
+                    <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-5 h-10 bg-gradient-to-r from-accent-500 to-accent-600 text-black text-sm font-black rounded-xl hover:opacity-90 transition-all">
+                      <Plus className="w-4 h-4" /> Crear mi primera campaña
+                    </button>
+                  )}
+                </div>
+              );
+            }
+
+            if (viewMode === 'table') {
+              return (
+                <DataTable
+                  data={filtered}
+                  columns={columns}
+                  loading={loading}
+                  onRowClick={openDetail}
+                  emptyMessage="No hay campañas disponibles"
+                />
+              );
+            }
+
+            // Grid view
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((campaign) => {
+                  const pct = campaign.total > 0 ? Math.min(100, Math.round(((campaign.sent + campaign.failed) / campaign.total) * 100)) : 0;
+                  const meta = campaignStatusMeta[campaign.status];
+                  return (
+                    <div
+                      key={campaign.id}
+                      onClick={() => openDetail(campaign)}
+                      className="group bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 hover:border-accent-500/40 hover:shadow-lg hover:shadow-accent-500/5 transition-all cursor-pointer"
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center">
+                            <Megaphone className="w-5 h-5 text-accent-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight truncate max-w-[150px]">{campaign.name}</p>
+                            <p className="text-[10px] text-slate-400">{new Date(campaign.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <StatusBadge status={campaign.status} variant={statusVariant(campaign.status)} />
+                      </div>
+
+                      {/* Progress */}
+                      <div className="mb-3">
+                        <div className="flex justify-between text-[10px] font-bold mb-1">
+                          <span className="text-slate-500">{campaign.sent + campaign.failed}/{campaign.total} envíos</span>
+                          <span className="text-accent-500">{pct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              campaign.failed > 0 && campaign.sent === 0 ? 'bg-red-500' : 'bg-gradient-to-r from-accent-500 to-accent-600'
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        {campaign.failed > 0 && <p className="text-[9px] text-red-400 mt-0.5">{campaign.failed} fallaron</p>}
+                      </div>
+
+                      {/* Actions row */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                        <div className="flex items-center gap-1">
+                          {campaign.status === 'sending' ? (
+                            <button onClick={(e) => { e.stopPropagation(); handlePause(campaign); }} className="flex items-center gap-1 px-2 h-7 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg text-[10px] font-bold hover:bg-amber-500/20 transition-colors">
+                              <Pause className="w-3 h-3" /> Pausar
+                            </button>
+                          ) : campaign.status === 'paused' ? (
+                            <button onClick={(e) => { e.stopPropagation(); handleResume(campaign); }} className="flex items-center gap-1 px-2 h-7 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold hover:bg-emerald-500/20 transition-colors">
+                              <Play className="w-3 h-3" /> Reanudar
+                            </button>
+                          ) : (
+                            <button onClick={(e) => { e.stopPropagation(); handleSend(campaign); }} disabled={!canSend(campaign)} className="flex items-center gap-1 px-2 h-7 bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded-lg text-[10px] font-bold hover:bg-accent-500/20 transition-colors disabled:opacity-40">
+                              <Send className="w-3 h-3" /> Enviar
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(campaign); }}
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="mt-4 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-amber-600 dark:text-amber-400 flex items-start gap-2">

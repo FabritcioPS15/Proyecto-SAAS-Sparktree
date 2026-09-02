@@ -22,7 +22,8 @@ export const TelegramConfig = () => {
   const { addNotification } = useNotifications();
   const { addConnection, removeConnection, getConnectionByPlatform, isConnecting } = useConnections();
   const existingConnection = getConnectionByPlatform('telegram');
-  const isConnected = !!existingConnection;
+  const isConnected = existingConnection?.status === 'connected';
+  const hasFailedConnection = !!existingConnection && !isConnected;
 
   // Form state
   const [botToken, setBotToken] = useState('');
@@ -51,6 +52,14 @@ export const TelegramConfig = () => {
     setError('');
     try {
       const cleanUsername = botToken.split(':')[0];
+      // Eliminar conexión fallida previa antes de reconectar (evita duplicados)
+      if (existingConnection && !isConnected) {
+        try {
+          await removeConnection(existingConnection.id);
+        } catch (remErr) {
+          console.error('Error removing stale Telegram connection:', remErr);
+        }
+      }
       await addConnection('telegram', {
         botToken: botToken,
         botUsername: cleanUsername,
@@ -59,9 +68,11 @@ export const TelegramConfig = () => {
       });
       addNotification({ type: 'success', title: 'Telegram conectado', message: 'El bot de Telegram se conectó correctamente.' });
       setBotToken('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error connecting Telegram:', err);
-      addNotification({ type: 'error', title: 'Error de conexión', message: 'No se pudo conectar Telegram. Verifica el token.' });
+      const message = err?.response?.data?.error || err?.message || 'No se pudo conectar Telegram. Verifica el token.';
+      setError(message);
+      addNotification({ type: 'error', title: 'Error de conexión', message });
     } finally {
       setLoading(false);
     }
@@ -194,6 +205,17 @@ export const TelegramConfig = () => {
           </>
         ) : (
           <>
+            {hasFailedConnection && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 mb-4">
+                <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <div className="text-xs text-red-400 leading-relaxed">
+                  <span className="font-black uppercase tracking-widest">Conexión anterior con error.</span>
+                  <br />
+                  El intento anterior no se completó correctamente. Introduce un token válido y vuelve a pulsar
+                  <span className="font-bold"> "Validar y Conectar"</span> para reintentar.
+                </div>
+              </div>
+            )}
             {/* Instructions block */}
             <div className="bg-white dark:bg-dark-card rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
               <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">

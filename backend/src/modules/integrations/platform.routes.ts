@@ -6,6 +6,48 @@ import { tenantMiddleware, TenantRequest } from '../../core/middleware/tenant';
 
 const router = Router();
 
+const SENSITIVE_CONFIG_KEYS = [
+  'access_token',
+  'refresh_token',
+  'bot_token',
+  'page_access_token',
+  'app_secret',
+  'appsecret',
+  'webhook_secret',
+  'verify_token',
+  'webhook_verify_token',
+  'phone_number_id',
+  'instagram_business_account_id',
+  'facebook_page_id',
+];
+
+const sanitizeConfig = (config: Record<string, any> | null | undefined): Record<string, any> | undefined => {
+  if (!config || typeof config !== 'object') return undefined;
+  const safe: Record<string, any> = {};
+  for (const [key, value] of Object.entries(config)) {
+    if (SENSITIVE_CONFIG_KEYS.includes(key)) continue;
+    safe[key] = value;
+  }
+  return safe;
+};
+
+const sanitizeConnection = (conn: any) => {
+  if (!conn) return conn;
+  return {
+    id: conn.id,
+    organization_id: conn.organization_id,
+    user_id: conn.user_id,
+    platform_type: conn.platform_type,
+    display_name: conn.display_name,
+    platform_account_id: conn.platform_account_id,
+    status: conn.status,
+    connected_at: conn.connected_at,
+    last_connected_at: conn.last_connected_at,
+    created_at: conn.created_at,
+    config: sanitizeConfig(conn.config),
+  };
+};
+
 // GET /api/platform/connections
 router.get('/connections', tenantMiddleware, async (req: TenantRequest, res: Response) => {
   try {
@@ -26,7 +68,7 @@ router.get('/connections', tenantMiddleware, async (req: TenantRequest, res: Res
       return res.status(500).json({ error: error.message });
     }
 
-    return res.json(connections || []);
+    return res.json((connections || []).map(sanitizeConnection));
   } catch (error: any) {
     console.error('Error in /platform/connections:', error);
     if (!res.headersSent) res.status(500).json({ error: error.message });
@@ -211,6 +253,76 @@ router.patch('/connections/:id/phone', tenantMiddleware, async (req: TenantReque
   } catch (error: any) {
     console.error('Error in /platform/connections/:id/phone:', error);
     if (!res.headersSent) res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/platform/connections/:id/marketing-eligibility
+router.get('/connections/:id/marketing-eligibility', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required.' });
+
+    const { data: connection, error } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (error || !connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    if (connection.platform_type !== 'whatsapp') {
+      return res.status(400).json({ error: 'MM API for WhatsApp solo aplica a conexiones WhatsApp Cloud' });
+    }
+
+    await whatsappCloudService.initializeConnection(connection);
+    const eligibility = await whatsappCloudService.getMarketingMessagesEligibility(id);
+    res.json(eligibility);
+  } catch (error: any) {
+    console.error('Error in /platform/connections/:id/marketing-eligibility:', error);
+    if (!res.headersSent) res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/platform/connections/:id/marketing-message
+router.post('/connections/:id/marketing-message', tenantMiddleware, async (req: TenantRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(400).json({ error: 'Organization ID required.' });
+
+    const { to, body, messageActivitySharing, templateName, languageCode, components } = req.body;
+    if (!to) return res.status(400).json({ error: 'to (número de WhatsApp) es requerido' });
+
+    const { data: connection, error } = await supabase
+      .from('platform_connections')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (error || !connection) {
+      return res.status(404).json({ error: 'Connection not found' });
+    }
+    if (connection.platform_type !== 'whatsapp') {
+      return res.status(400).json({ error: 'MM API for WhatsApp solo aplica a conexiones WhatsApp Cloud' });
+    }
+
+    await whatsappCloudService.initializeConnection(connection);
+    const result = await whatsappCloudService.sendMarketingMessage(id, to, body || '', {
+      messageActivitySharing,
+      templateName,
+      languageCode,
+      components,
+    });
+
+    res.json({ message: 'Mensaje de marketing enviado', result });
+  } catch (error: any) {
+    const metaError = error?.response?.data?.error?.message || error?.response?.data?.error || error.message;
+    console.error('Error in /platform/connections/:id/marketing-message:', metaError);
+    if (!res.headersSent) res.status(500).json({ error: metaError });
   }
 });
 

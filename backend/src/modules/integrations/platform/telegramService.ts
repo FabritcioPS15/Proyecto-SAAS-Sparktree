@@ -63,11 +63,26 @@ export class TelegramService extends BasePlatformService {
         
         await this.updateConnectionStatus(connectionId, 'connected', response.data.result.username);
         await this.setupWebhook(connection, botConfig);
+      } else {
+        connection.status = 'error';
+        await this.updateConnectionStatus(connectionId, 'error');
+        throw new Error(
+          `Telegram rechazó el token (${response.data.error_code || 'error'}). ${response.data.description || 'Token inválido o revocado.'}`
+        );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error verifying Telegram bot:', error);
+      const detail = error?.response?.data?.description
+        || error?.response?.data?.error_code
+        ? `Telegram: ${error.response.data.error_code} ${error.response.data.description}`
+        : (error?.message || 'Error verificando el token de Telegram');
+
       connection.status = 'error';
       await this.updateConnectionStatus(connectionId, 'error');
+      if (error instanceof Error && /Telegram rechazó|Token inválido/.test(error.message)) {
+        throw error;
+      }
+      throw new Error(detail);
     }
   }
 

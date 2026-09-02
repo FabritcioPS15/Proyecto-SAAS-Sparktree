@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { QrCode, RefreshCw, LogOut, CheckCircle, Smartphone, Cloud, ScanLine, Trash2, ExternalLink, Shield, KeyRound, Webhook, MessageSquare, Pencil, Check } from 'lucide-react';
+import { QrCode, RefreshCw, LogOut, CheckCircle, Smartphone, Cloud, ScanLine, Trash2, ExternalLink, Shield, Webhook, MessageSquare, Pencil, Check } from 'lucide-react';
 import { getQRStatus, initializeQR, logoutQR, getSettings, createWhatsAppCloudConnection, updateWhatsAppCloudPhone } from '../../../services/api';
 import { useWhatsApp } from '../../../contexts/WhatsAppContext';
 import { useConnections } from '../../../contexts/ConnectionsContext';

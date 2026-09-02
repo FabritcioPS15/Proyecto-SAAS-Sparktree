@@ -36,11 +36,16 @@ router.get('/', async (req, res) => {
     const { data: org } = await supabase.from('organizations').select('*').eq('id', orgId).single();
     if (!org) return res.status(404).json({ error: 'Settings not found' });
 
+    const maskToken = (token?: string | null) => {
+      if (!token || token.length < 8) return '';
+      return `${token.slice(0, 4)}...${token.slice(-4)}`;
+    };
+
     res.status(200).json({
       botName: org.name,
       systemStatus: 'active',
-      whatsappToken: org.whatsapp_access_token || '',
-      verifyToken: org.whatsapp_verify_token || '',
+      whatsappToken: maskToken(org.whatsapp_access_token),
+      verifyToken: maskToken(org.whatsapp_verify_token),
       phoneNumberId: org.whatsapp_phone_number_id || '',
       connectionMethod: org.whatsapp_connection_method || 'qr'
     });

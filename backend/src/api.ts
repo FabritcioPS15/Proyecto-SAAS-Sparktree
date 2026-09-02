@@ -4,6 +4,7 @@ dotenv.config();
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { createServer } from 'http';
 // import { Server } from 'socket.io';
 import promClient from 'prom-client';
@@ -41,6 +42,8 @@ import ordersRoutes from './modules/orders/orders.routes';
 import campaignRoutes from './modules/campaigns/campaigns.routes';
 import reminderRoutes from './modules/reminders/reminders.routes';
 import messageTemplateRoutes from './modules/templates/messageTemplates.routes';
+
+import { securityHeaders, globalRateLimit, apiRateLimit, authRateLimit } from './security/middleware/security.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -135,6 +138,13 @@ app.use(cors({
   credentials: true
 }));
 
+// Security headers (helmet) + custom hardening
+app.use(helmet());
+app.use(securityHeaders);
+
+// Global rate limit per IP (webhooks y rutas públicas incluidas)
+app.use(globalRateLimit);
+
 // Initialize request start time BEFORE body parsing so that errors raised
 // by express.json (e.g. malformed JSON) still have a valid startTime.
 app.use((req, res, next) => {
@@ -215,10 +225,10 @@ const dimColor = '\x1b[2m';
 app.use((req, res, next) => {
   // Ignorar rutas ruidosas (polling del frontend) para mantener limpia la consola
   const noisyRoutes = [
-    '/api/leads', 
-    '/api/platform/connections', 
-    '/api/qr/status', 
-    '/api/conversations', 
+    '/api/leads',
+    '/api/platform/connections',
+    '/api/qr/status',
+    '/api/conversations',
     '/api/reminders'
   ];
   const isNoisy = noisyRoutes.some(route => req.originalUrl.startsWith(route)) && req.method === 'GET';
@@ -226,19 +236,19 @@ app.use((req, res, next) => {
   if (!isNoisy) {
     const time = new Date().toLocaleTimeString('es-ES', { hour12: false });
     const mColor = methodColors[req.method] || '\x1b[37m'; // White default
-    const bodyStr = Object.keys(req.body || {}).length > 0 
-      ? `\n${dimColor}↳ Body: ${JSON.stringify(req.body).substring(0, 200)}${resetColor}` 
+    const bodyStr = Object.keys(req.body || {}).length > 0
+      ? `\n${dimColor}↳ Body: ${JSON.stringify(req.body).substring(0, 200)}${resetColor}`
       : '';
 
     console.log(`${dimColor}[${time}]${resetColor} ${mColor}${req.method.padEnd(6)}${resetColor} ${req.originalUrl}${bodyStr}`);
   }
-  
+
   // Start timing for Prometheus metrics
   const start = Date.now();
-  
+
   // Store start time on request for later use
   (req as any).startTime = start;
-  
+
   next();
 });
 
@@ -246,8 +256,8 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     service: 'SparkBot SaaS Backend'
   });
@@ -264,7 +274,7 @@ app.get('/metrics', async (req: Request, res: Response) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRateLimit, authRoutes);
 
 // Auth and Tenant Middleware (Applied to all following /api routes)
 import { authenticateToken } from './core/middleware/auth';
@@ -275,7 +285,8 @@ app.get('/api/webhook', verifyWebhook);
 app.post('/api/webhook', handleIncomingWebhook);
 app.use('/api/webhooks', webhookRoutes);
 
-// Enforce authentication + tenant isolation on every /api request
+// Enforce authentication + tenant isolation + API rate limit on every /api request
+app.use('/api', apiRateLimit);
 app.use('/api', authenticateToken);
 app.use('/api', tenantMiddleware);
 
@@ -312,7 +323,7 @@ app.use('/api/message-templates', messageTemplateRoutes);
 // Middleware to record metrics for all successful responses
 app.use((req: Request, res: Response, next: NextFunction) => {
   const originalJson = res.json;
-  res.json = function(data) {
+  res.json = function (data) {
     // Record metrics for successful responses
     const duration = (Date.now() - ((req as any).startTime || Date.now())) / 1000;
     const statusCode = res.statusCode;
@@ -321,7 +332,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       duration
     );
     httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: statusCode });
-    
+
     return originalJson.call(this, data);
   };
   next();
@@ -332,7 +343,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('API Error:', err);
-  
+
   if (res.headersSent) {
     return next(err);
   }
@@ -344,7 +355,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     duration
   );
   httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: 500 });
-  
+
   res.status(err.status || err.statusCode || 500).json({
     error: 'Internal Server Error',
     message: err.message,
@@ -361,7 +372,7 @@ app.use('*', (req: Request, res: Response) => {
     duration
   );
   httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: 404 });
-  
+
   res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.method} ${req.originalUrl} not found`,
@@ -398,7 +409,7 @@ import { remindersService } from './modules/reminders/reminders.service';
 httpServer.listen(PORT, async () => {
   console.log(`🚀 SparkBot SaaS Backend running on port ${PORT}`);
   console.log(`🔌 WebSocket server enabled for real-time updates`);
-  
+
   // Initialize WhatsApp connections
   try {
     await multiWhatsAppService.initializeAllConnections();
@@ -437,6 +448,19 @@ httpServer.listen(PORT, async () => {
   console.log(`📸 QR API: http://localhost:${PORT}/api/qr`);
   console.log(`🌐 Platform Connections API: http://localhost:${PORT}/api/platform/connections`);
   console.log(`🔗 Webhooks: http://localhost:${PORT}/api/webhooks`);
+
+  // Start ngrok forwarding for webhooks
+  try {
+    const ngrok = require("@ngrok/ngrok");
+    const forwarder = await ngrok.forward({
+      addr: 3000,
+      authtoken_from_env: true,
+      domain: "daintily-bundle-diocese.ngrok-free.dev",
+    });
+    console.log(`🌐 Ngrok available at: ${forwarder.url()}`);
+  } catch (error) {
+    console.error("Failed to start ngrok:", error);
+  }
 });
 
 export default app;

@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, ReactNode } from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { WhatsAppProvider } from './contexts/WhatsAppContext';
@@ -9,8 +9,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CustomizationProvider } from './contexts/CustomizationContext';
 import { Navigate, useLocation } from 'react-router-dom';
 import { PageLoader } from './components/layout/PageLoader';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { NotificationsProvider, setUpNotifications, useNotifications } from 'reapop';
 import { CustomNotification } from './components/ui/CustomNotification';
 
@@ -233,9 +231,24 @@ const GlobalNotifications = () => {
   );
 };
 
+// Lazy-load MUI LocalizationProvider para no cargar el pesado chunk de DatePicker
+// en el primer paint. Tras la primera carga queda cacheado.
+const AppLocalizationProvider = lazy(async () => {
+  const [{ LocalizationProvider }, { AdapterDayjs }] = await Promise.all([
+    import('@mui/x-date-pickers/LocalizationProvider'),
+    import('@mui/x-date-pickers/AdapterDayjs'),
+  ]);
+  return {
+    default: ({ children }: { children: ReactNode }) => (
+      <LocalizationProvider dateAdapter={AdapterDayjs}>{children}</LocalizationProvider>
+    ),
+  };
+});
+
 function App() {
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <Suspense fallback={null}>
+    <AppLocalizationProvider>
     <ThemeProvider>
       <NotificationsProvider>
         <NotificationProvider>
@@ -254,7 +267,8 @@ function App() {
         </NotificationProvider>
       </NotificationsProvider>
     </ThemeProvider>
-    </LocalizationProvider>
+    </AppLocalizationProvider>
+    </Suspense>
   );
 }
 

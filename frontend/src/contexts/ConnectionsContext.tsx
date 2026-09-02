@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { 
   getPlatformConnections, 
@@ -109,15 +109,33 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Poll for status updates
+  // Poll for status updates, pausado cuando la pestaña no está visible
   useEffect(() => {
     refreshConnections();
-    
-    const interval = setInterval(() => {
-      refreshConnections();
-    }, 30000); // refresh every 30 seconds
 
-    return () => clearInterval(interval);
+    const startPolling = () => {
+      return setInterval(() => {
+        refreshConnections();
+      }, 30000);
+    };
+
+    let interval: ReturnType<typeof setInterval> | undefined = startPolling();
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (interval) clearInterval(interval);
+        interval = undefined;
+      } else if (!interval) {
+        refreshConnections();
+        interval = startPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [user]);
 
   const addConnection = async (platform: PlatformType, data: any) => {
@@ -233,16 +251,22 @@ export const ConnectionsProvider = ({ children }: { children: ReactNode }) => {
     return conn?.status === 'connecting';
   };
 
-  return (
-    <ConnectionsContext.Provider value={{
+  const contextValue = useMemo<ConnectionsContextType>(
+    () => ({
       connections,
       addConnection,
       removeConnection,
       getConnectionByPlatform,
       isConnecting,
       refreshConnections,
-      loading
-    }}>
+      loading,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [connections, loading, user]
+  );
+
+  return (
+    <ConnectionsContext.Provider value={contextValue}>
       {children}
     </ConnectionsContext.Provider>
   );

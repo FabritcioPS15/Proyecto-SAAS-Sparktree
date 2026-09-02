@@ -3,17 +3,21 @@ import { supabase } from '../../core/config/supabase';
 
 const router = express.Router();
 
-// GET /api/crm/clients - Get all CRM clients
+// GET /api/crm/clients - Get CRM clients (bounded cap to prevent unbounded scans)
 router.get('/clients', async (req, res) => {
   try {
     const orgId = (req as any).organizationId;
     if (!orgId) return res.status(404).json({ error: 'Organization not found' });
 
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 1000, 1000);
+    const offset = Math.max(parseInt(req.query.offset as string, 10) || 0, 0);
+
     const { data, error } = await supabase
       .from('crm_clients')
       .select('*')
       .eq('organization_id', orgId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Error fetching CRM clients:', error);

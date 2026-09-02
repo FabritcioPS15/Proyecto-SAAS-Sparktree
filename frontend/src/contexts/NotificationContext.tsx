@@ -225,11 +225,26 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     };
 
     // Configurar verificación periódica (cada 30 segundos para reducir carga del servidor)
-    const interval = setInterval(checkNewMessages, 30000);
+    const startPolling = () => setInterval(checkNewMessages, 30000);
+    let interval: ReturnType<typeof setInterval> | undefined = startPolling();
     checkNewMessages(); // Verificación inicial
 
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (interval) clearInterval(interval);
+        interval = undefined;
+      } else if (!interval) {
+        checkNewMessages();
+        interval = startPolling();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     // Cleanup al desmontar
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []); // Sin dependencias para ejecutar solo una vez
 
   return (

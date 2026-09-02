@@ -224,6 +224,22 @@ CREATE INDEX IF NOT EXISTS idx_analytics_org_id ON public.analytics(organization
 CREATE INDEX IF NOT EXISTS idx_analytics_date ON public.analytics(date);
 CREATE INDEX IF NOT EXISTS idx_analytics_org_date ON public.analytics(organization_id, date);
 
+-- Índices compuestos para las consultas calientes (filtro por org + rango/orden)
+CREATE INDEX IF NOT EXISTS idx_messages_org_created ON public.messages(organization_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_org_contact ON public.messages(organization_id, contact_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_org_last ON public.conversations(organization_id, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contacts_org_created ON public.contacts(organization_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_contacts_org_last_active ON public.contacts(organization_id, last_active_at DESC);
+CREATE INDEX IF NOT EXISTS idx_flow_exec_org_executed ON public.flow_executions(organization_id, executed_at);
+
+-- Índice compuesto para CRM (tabla puede crearse en schema_crm.sql / dashboard)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'crm_clients') THEN
+    CREATE INDEX IF NOT EXISTS idx_crm_clients_org_created ON public.crm_clients(organization_id, created_at DESC);
+  END IF;
+END $$;
+
 -- ========================================
 -- DATOS INICIALES (DEMO)
 -- ========================================

@@ -53,6 +53,39 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
+// Convierte valores de celdas: fechas de Excel (serial numérico u objeto Date) a YYYY-MM-DD.
+// Solo convierte si la columna parece fecha, para no corromper variables numéricas (DNI, montos, etc.).
+const DATE_HINT_PATTERN = /fecha|fec\.?|date|vence|vencimiento|revis|dia|day|nacimiento|nac\b|hora|fecha_revision/i;
+
+function normalizeCellValue(value: any, key: string): string {
+  if (typeof value === 'string') return value;
+
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  const looksDate = DATE_HINT_PATTERN.test(key);
+  if (
+    looksDate &&
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 20000 &&
+    value <= 70000
+  ) {
+    const parsed: any = XLSX.SSF.parse_date_code(value);
+    if (parsed && parsed.y && parsed.m && parsed.d) {
+      const m = String(parsed.m).padStart(2, '0');
+      const d = String(parsed.d).padStart(2, '0');
+      return `${parsed.y}-${m}-${d}`;
+    }
+  }
+
+  return String(value ?? '');
+}
+
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -92,7 +125,7 @@ export function parseExcelBase64(base64Data: string): ParsedExcel {
 
     const variables: Record<string, string> = {};
     for (const h of headers) {
-      variables[h] = String(row[h] ?? '');
+      variables[h] = normalizeCellValue(row[h], h);
     }
 
     rows.push({ phone, variables });
@@ -442,6 +475,42 @@ export class RemindersService {
         .eq('status', 'pending')
         .order('created_at', { ascending: true });
 
+      // Detecta una sola vez (y no por contacto) si la plantilla aprobada de Meta usa
+      // parámetros posicionales ({{1}}) o nombrados ({{nombre}}). Meta lanza #132000 si
+      // enviamos parameter_name a una plantilla posicional (o index a una nombrada).
+      let tplUseNamedParams = true;
+      let tplLang = (reminder.meta_template_language || 'es') as string;
+      if (isCloudApi && reminder.meta_template_name) {
+        tplLang = reminder.meta_template_language || 'es';
+        try {
+          const templates = await whatsappCloudService.getMetaTemplates(connection.id);
+          const metaTpl = (templates || []).find(
+            (t: any) => t.name === reminder.meta_template_name && t.language === tplLang
+          ) || (templates || []).find((t: any) => t.name === reminder.meta_template_name);
+          const body = (metaTpl?.components || []).find((c: any) => c.type === 'BODY') || {};
+          const raw: any[] = body.variables || [];
+          if (raw.length > 0) {
+            tplUseNamedParams = raw.some((v: any) => !/^\d+$/.test(String(v?.name ?? '')));
+          } else {
+            tplUseNamedParams = /\{\{\s*[A-Za-z_]/.test(String(body.text || ''));
+          }
+        } catch (e: any) {
+          console.warn(`[Reminders] No se pudo verificar formato de plantilla (${e?.message || e}); asume nombrado.`);
+        }
+        console.log(`[Reminders] Plantilla "${reminder.meta_template_name}" lang=${tplLang} formato=${tplUseNamedParams ? 'nombrado' : 'posicional'}`);
+      }
+
+      // Batching de escrituras
+      const BATCH_SIZE = 50;
+      const updatesBatch: any[] = [];
+      const flushUpdates = async () => {
+        if (updatesBatch.length === 0) return;
+        const rows = updatesBatch.splice(0, updatesBatch.length);
+        const { error } = await supabase.from('reminder_contacts').upsert(rows, { onConflict: 'id' });
+        if (error) console.error('[Reminders] Error updating contacts:', error);
+        await updateProgress(reminder.id);
+      };
+
       for (const contact of contacts || []) {
         if (state.cancelled) return;
 
@@ -454,27 +523,26 @@ export class RemindersService {
           const text = renderTemplate(reminder.message_template, contact.variables);
           const phone = normalizePhone(contact.phone);
           if (isCloudApi && reminder.meta_template_name) {
-            const langCode = reminder.meta_template_language || 'es';
+            const langCode = tplLang;
             if (!(adapter as any).sendTemplateMessage) {
               throw new Error('sendTemplateMessage no disponible en el adaptador');
             }
-            // Extract variables: first try {{var}} format, then bare variable names
+            // Extrae las variables en el orden en que aparecen en el mensaje ({{var}}).
             let varNames = [...reminder.message_template.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
-            if (varNames.length === 0) {
-              // Fallback: try to extract variable-like words from the template text
-              // Look for known variable names from contact.variables
-              if (contact.variables && typeof contact.variables === 'object') {
-                varNames = Object.keys(contact.variables);
-              }
+            if (varNames.length === 0 && contact.variables && typeof contact.variables === 'object') {
+              varNames = Object.keys(contact.variables);
             }
-            console.log(`[Reminders] Template: "${reminder.meta_template_name}", lang: ${langCode}, vars: [${varNames.join(', ')}], variables:`, contact.variables);
+            const parameters = varNames.map((name, i) => {
+              const base: any = { type: 'text', text: String(contact.variables?.[name] ?? '') };
+              if (tplUseNamedParams) {
+                base.parameter_name = name;
+              } else {
+                base.index = i + 1;
+              }
+              return base;
+            });
+            console.log(`[Reminders] Template: "${reminder.meta_template_name}", lang: ${langCode}, formato: ${tplUseNamedParams ? 'nombrado' : 'posicional'}, vars: [${varNames.join(', ')}]`);
             if (varNames.length > 0) {
-              const parameters = varNames.map(name => ({
-                type: 'text',
-                parameter_name: name,
-                text: String(contact.variables?.[name] ?? ''),
-              }));
-              console.log(`[Reminders] Sending with parameters:`, JSON.stringify(parameters));
               await (adapter as any).sendTemplateMessage(phone, reminder.meta_template_name, langCode, [
                 { type: 'body', parameters },
               ]);
@@ -487,24 +555,29 @@ export class RemindersService {
           } else {
             await adapter.sendTextMessage(phone, text);
           }
-          await supabase
-            .from('reminder_contacts')
-            .update({ status: 'sent', sent_at: new Date().toISOString(), error_message: null })
-            .eq('id', contact.id);
+          updatesBatch.push({
+            ...contact,
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            error_message: null,
+          });
         } catch (err: any) {
           const metaError = err?.response?.data?.error || err?.response?.data;
           const errorMsg = metaError
             ? `Meta API ${metaError.code || ''}: ${metaError.message || JSON.stringify(metaError)}`
             : String(err?.message || err);
           console.error(`[Reminders] Send FAILED for ${contact.phone}: ${errorMsg}`);
-          await supabase
-            .from('reminder_contacts')
-            .update({ status: 'failed', error_message: errorMsg })
-            .eq('id', contact.id);
+          updatesBatch.push({
+            ...contact,
+            status: 'failed',
+            error_message: errorMsg,
+          });
         }
 
-        await updateProgress(reminder.id);
-        
+        if (updatesBatch.length >= BATCH_SIZE) {
+          await flushUpdates();
+        }
+
         // Log progress visually
         const processed = (contact as any)._index !== undefined ? (contact as any)._index + 1 : ((contacts || []).indexOf(contact) + 1);
         const total = reminder.total;
@@ -516,8 +589,7 @@ export class RemindersService {
         await sleep(delayMs);
       }
 
-      await updateProgress(reminder.id);
-
+      await flushUpdates();
       const [sentCount, failedCount] = await Promise.all([
         countContacts(reminder.id, 'sent'),
         countContacts(reminder.id, 'failed'),

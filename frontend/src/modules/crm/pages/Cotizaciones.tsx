@@ -6,7 +6,7 @@ import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { DataTable, Column } from '../../../components/ui/DataTable';
 import { SearchBar } from '../../../components/ui/SearchBar';
-import { FilterSelect } from '../../../components/ui/FilterSelect';
+import { Dropdown } from '../../../components/ui/Dropdown';
 import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { TableCard } from '../../../components/ui/TableCard';
 import { KebabMenu } from '../../../components/ui/KebabMenu';
@@ -408,10 +408,12 @@ export const Cotizaciones = () => {
           ))}
         </div>
 
-        <div className="flex items-center gap-3 mb-4">
-          <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar por número, cliente o email..." className="flex-1" />
-          <FilterSelect value={filterStatus} onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }} options={STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
-          <ViewToggle value={viewMode} onChange={setViewMode} />
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar por número, cliente o email..." />
+          <div className="flex items-center gap-2 shrink-0">
+            <Dropdown value={filterStatus} onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }} options={STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+          </div>
         </div>
 
         {viewMode === 'grid' ? (

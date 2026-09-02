@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   RefreshCw, Plus, Trash2, CheckCircle2, Clock, XCircle, AlertTriangle,
-  Copy, Cloud, ExternalLink, Search, Eye, FileText, LayoutGrid, List,
+  Copy, Cloud, ExternalLink, Eye, FileText,
   ChevronDown, Globe, Zap, MessageSquare, X, AlertCircle, Shield
 } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
@@ -10,6 +10,8 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { Modal } from '../../../components/ui/Modal';
 import { HeaderButton } from '../../../components/ui/HeaderButton';
 import { Loader } from '../../../components/ui/Loader';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { Dropdown } from '../../../components/ui/Dropdown';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import api, {
@@ -638,22 +640,23 @@ export const WhatsAppTemplates = () => {
         {/* Search + filters */}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 p-4 mb-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#25D366] transition-colors" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar templates por nombre..." className="w-full pl-10 pr-4 py-2.5 dark:bg-transparent border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] transition-all text-sm text-slate-900 dark:text-white" />
-            </div>
-            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-4 py-2.5 dark:bg-dark-card border border-slate-200 dark:border-white/5 rounded-xl outline-none text-sm font-bold text-slate-900 dark:text-white">
-              <option value="ALL">Todas las categorías</option>
-              <option value="MARKETING">Marketing</option>
-              <option value="UTILITY">Utilidad</option>
-              <option value="AUTHENTICATION">Autenticación</option>
-            </select>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center dark:bg-dark-card rounded-xl p-1 border border-slate-200 dark:border-white/5">
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 shadow-sm text-[#25D366]' : 'text-slate-400'}`}><LayoutGrid className="w-4 h-4" /></button>
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 shadow-sm text-[#25D366]' : 'text-slate-400'}`}><List className="w-4 h-4" /></button>
-              </div>
-              <button onClick={() => loadTemplates(true)} disabled={syncing} className="flex items-center gap-2 px-4 h-10 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:border-[#25D366] hover:text-[#25D366] transition-all">
+            <SearchBar
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar templates por nombre..."
+            />
+            <div className="flex items-center gap-2 shrink-0">
+              <Dropdown
+                value={filterCategory}
+                onChange={setFilterCategory}
+                options={[
+                  { value: 'ALL', label: 'Todas las Categorías' },
+                  { value: 'MARKETING', label: 'Marketing' },
+                  { value: 'UTILITY', label: 'Utilidad' },
+                  { value: 'AUTHENTICATION', label: 'Autenticación' },
+                ]}
+              />
+              <button onClick={() => loadTemplates(true)} disabled={syncing} className="flex items-center gap-2 px-4 h-10 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:border-[#25D366] hover:text-[#25D366] transition-all shrink-0">
                 <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
                 Sincronizar
               </button>

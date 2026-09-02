@@ -6,6 +6,30 @@ import { supabase } from '../../core/config/supabase';
 
 const router = express.Router();
 
+// Caché de imágenes QR: evita re-codificar el PNG en cada poll (5s/30s).
+// La clave incluye el payload QR; cuando cambia (init/logout) se regenera.
+const qrImageCache = new Map<string, string>();
+
+async function getQRImage(connection: any): Promise<string | null> {
+  if (!connection?.qr) return null;
+  const cacheKey = `${connection.id}:${connection.qr}`;
+  const cached = qrImageCache.get(cacheKey);
+  if (cached) return cached;
+  try {
+    const dataUrl = await QRCode.toDataURL(connection.qr);
+    qrImageCache.set(cacheKey, dataUrl);
+    // Limitar el tamaño del caché por si hay muchas conexiones
+    if (qrImageCache.size > 200) {
+      const firstKey = qrImageCache.keys().next().value;
+      if (firstKey) qrImageCache.delete(firstKey);
+    }
+    return dataUrl;
+  } catch (err) {
+    console.error('Error generating QR image:', err);
+    return null;
+  }
+}
+
 // Helper to get primary connection for organization
 async function getOrgConnection(orgId: string) {
   let connections = multiWhatsAppService.getOrganizationConnections(orgId);
@@ -40,14 +64,7 @@ router.get('/status', async (req, res) => {
       return res.json({ status: 'disconnected', message: 'No connection found for this organization' });
     }
 
-    let qrImage = null;
-    if (connection.qr) {
-      try {
-        qrImage = await QRCode.toDataURL(connection.qr);
-      } catch (err) {
-        console.error('Error generating QR image:', err);
-      }
-    }
+    let qrImage = await getQRImage(connection);
 
     res.json({
       id: connection.id,

@@ -15,7 +15,7 @@ router.get('/template-excel', async (req: any, res: any) => {
   try {
     const wb = XLSX.utils.book_new();
 
-    const headers = ['telefono', 'placa', 'nombre_completo', 'dni', 'fecha_revision', 'dias_restantes', 'mensaje'];
+    const headers = ['telefono', 'placa', 'nombre_completo', 'dni', 'fecha_revision', 'dias', 'mensaje'];
     const sampleData = [
       ['999888777', 'ABC-123', 'Juan Pérez García', '45678901', '15/08/2026', 12, 'Estimado(a) Juan, su vehículo con placa ABC-123 pasó su revisión el día 15/08/2026 y está próxima a vencer. Le invitamos a pasar su revisión técnica con nosotros. Si es así, escribe "REVISIÓN" para que podamos atenderlo.'],
       ['999777666', 'XYZ-456', 'María López Martínez', '12345678', '20/08/2026', 17, 'Estimado(a) María, su vehículo con placa XYZ-456 pasó su revisión el día 20/08/2026 y está próxima a vencer. Le invitamos a pasar su revisión técnica con nosotros. Si es así, escribe "REVISIÓN" para que podamos atenderlo.'],

@@ -47,6 +47,39 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
+// Convierte valores de celdas: fechas de Excel (serial numérico u objeto Date) a YYYY-MM-DD.
+// Solo convierte si la columna parece fecha, para no corromper variables numéricas (DNI, montos, etc.).
+const DATE_HINT_PATTERN = /fecha|fec\.?|date|vence|vencimiento|revis|dia|day|nacimiento|nac\b|hora|fecha_revision/i;
+
+function normalizeCellValue(value: any, key: string): string {
+  if (typeof value === 'string') return value;
+
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  const looksDate = DATE_HINT_PATTERN.test(key);
+  if (
+    looksDate &&
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 20000 &&
+    value <= 70000
+  ) {
+    const parsed: any = XLSX.SSF.parse_date_code(value);
+    if (parsed && parsed.y && parsed.m && parsed.d) {
+      const m = String(parsed.m).padStart(2, '0');
+      const d = String(parsed.d).padStart(2, '0');
+      return `${parsed.y}-${m}-${d}`;
+    }
+  }
+
+  return String(value ?? '');
+}
+
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -87,7 +120,7 @@ export function parseExcelBase64(base64Data: string): ParsedExcel {
 
     const variables: Record<string, string> = {};
     for (const h of headers) {
-      variables[h] = String(row[h] ?? '');
+      variables[h] = normalizeCellValue(row[h], h);
     }
 
     rows.push({ phone, variables });
@@ -163,6 +196,7 @@ export class CampaignsService {
     createdBy?: string | null;
     metaTemplateName?: string | null;
     metaTemplateLanguage?: string | null;
+    useMarketingApi?: boolean;
   }) {
     const total = data.contacts.length;
     const insertData: any = {
@@ -177,6 +211,7 @@ export class CampaignsService {
     };
     if (data.metaTemplateName) insertData.meta_template_name = data.metaTemplateName;
     if (data.metaTemplateLanguage) insertData.meta_template_language = data.metaTemplateLanguage;
+    if (data.useMarketingApi !== undefined) insertData.use_marketing_api = data.useMarketingApi;
 
     const { data: campaign, error } = await supabase
       .from('campaigns')
@@ -377,6 +412,17 @@ export class CampaignsService {
         .eq('status', 'pending')
         .order('created_at', { ascending: true });
 
+      // Batching de escrituras: se acumulan y se vacían cada BATCH_SIZE registros
+      const BATCH_SIZE = 50;
+      const updatesBatch: any[] = [];
+      const flushUpdates = async () => {
+        if (updatesBatch.length === 0) return;
+        const rows = updatesBatch.splice(0, updatesBatch.length);
+        const { error } = await supabase.from('campaign_contacts').upsert(rows, { onConflict: 'id' });
+        if (error) console.error('[Campaigns] Error updating contacts:', error);
+        await updateProgress(campaign.id);
+      };
+
       for (const contact of contacts || []) {
         if (state.cancelled) return;
 
@@ -388,7 +434,27 @@ export class CampaignsService {
         try {
           const text = renderTemplate(campaign.message_template, contact.variables);
           const phone = normalizePhone(contact.phone);
-          if (isCloudApi && campaign.meta_template_name) {
+
+          // MM API for WhatsApp: envía template de marketing optimizado via /marketing_messages
+          if (isCloudApi && campaign.use_marketing_api && campaign.meta_template_name) {
+            if (!(adapter as any).sendMarketingMessage) {
+              throw new Error('sendMarketingMessage no disponible en el adaptador');
+            }
+            const langCode = campaign.meta_template_language || 'es';
+            let varNames = [...campaign.message_template.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
+            if (varNames.length === 0 && contact.variables && typeof contact.variables === 'object') {
+              varNames = Object.keys(contact.variables);
+            }
+            const components = varNames.length > 0
+              ? [{ type: 'body', parameters: varNames.map(name => ({ type: 'text', parameter_name: name, text: String(contact.variables?.[name] ?? '') })) }]
+              : [];
+            console.log(`[Campaigns] MM API: template "${campaign.meta_template_name}", lang: ${langCode}`);
+            await (adapter as any).sendMarketingMessage(phone, text, {
+              templateName: campaign.meta_template_name,
+              languageCode: langCode,
+              components,
+            });
+          } else if (isCloudApi && campaign.meta_template_name) {
             const langCode = campaign.meta_template_language || 'es';
             if (!(adapter as any).sendTemplateMessage) {
               throw new Error('sendTemplateMessage no disponible en el adaptador');
@@ -415,24 +481,30 @@ export class CampaignsService {
           } else {
             await adapter.sendTextMessage(phone, text);
           }
-          await supabase
-            .from('campaign_contacts')
-            .update({ status: 'sent', sent_at: new Date().toISOString(), error_message: null })
-            .eq('id', contact.id);
+          updatesBatch.push({
+            ...contact,
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            error_message: null,
+          });
         } catch (err: any) {
           const metaError = err?.response?.data?.error || err?.response?.data;
           const errorMsg = metaError
             ? `Meta API ${metaError.code || ''}: ${metaError.message || JSON.stringify(metaError)}`
             : String(err?.message || err);
           console.error(`[Campaigns] Send FAILED for ${contact.phone}: ${errorMsg}`);
-          await supabase
-            .from('campaign_contacts')
-            .update({ status: 'failed', error_message: errorMsg })
-            .eq('id', contact.id);
+          updatesBatch.push({
+            ...contact,
+            status: 'failed',
+            error_message: errorMsg,
+          });
         }
 
-        await updateProgress(campaign.id);
-        
+        // Vaciar el lote periódicamente para no escribir fila por fila
+        if (updatesBatch.length >= BATCH_SIZE) {
+          await flushUpdates();
+        }
+
         // Log progress visually
         const processed = (contact as any)._index !== undefined ? (contact as any)._index + 1 : ((contacts || []).indexOf(contact) + 1);
         const total = campaign.total;
@@ -444,7 +516,7 @@ export class CampaignsService {
         await sleep(delayMs);
       }
 
-      await updateProgress(campaign.id);
+      await flushUpdates();
       await supabase
         .from('campaigns')
         .update({ status: 'completed', finished_at: new Date().toISOString() })

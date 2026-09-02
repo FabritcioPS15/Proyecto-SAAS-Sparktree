@@ -214,35 +214,65 @@ export class WhatsAppCloudService extends BasePlatformService {
       sendButtonMessage: async (to: string, bodyText: string, buttons: any[], options?: any) => {
         const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
         const url = `https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`;
-        
-        const actionButtons = buttons.slice(0, 3).map((btn, index) => ({
-          type: 'reply',
-          reply: {
-            id: btn.id || `btn_${index}`,
-            title: btn.title || btn.text || `Option ${index + 1}`,
-          },
-        }));
 
-        const response = await axios({
-          method: 'POST',
-          url,
-          headers: {
-            'Authorization': `Bearer ${config.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          data: {
-            messaging_product: 'whatsapp',
-            to: phoneNumber,
-            type: 'interactive',
-            interactive: {
-              type: 'button',
-              body: { text: bodyText },
-              action: { buttons: actionButtons },
-            },
-          },
+        const buttonMapping: { [key: string]: string } = {};
+        const actionButtons = buttons.slice(0, 3).map((btn, index) => {
+          const btnId = btn.id || `btn_${index}`;
+          const btnTitle = (btn.title || btn.text || `Opción ${index + 1}`).substring(0, 20);
+          buttonMapping[(index + 1).toString()] = btnId;
+          return {
+            type: 'reply',
+            reply: { id: btnId, title: btnTitle },
+          };
         });
 
-        return response.data;
+        try {
+          const response = await axios({
+            method: 'POST',
+            url,
+            headers: {
+              'Authorization': `Bearer ${config.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            data: {
+              messaging_product: 'whatsapp',
+              to: phoneNumber,
+              type: 'interactive',
+              interactive: {
+                type: 'button',
+                body: { text: bodyText },
+                action: { buttons: actionButtons },
+              },
+            },
+          });
+
+          return { ...response.data, buttonMapping, isNumericButtons: true };
+        } catch (error: any) {
+          const metaErr = error?.response?.data?.error;
+          console.error(`[WhatsApp Cloud] Interactive button FAILED:`, metaErr ? `${metaErr.code}: ${metaErr.message}` : error.message);
+
+          const numberedOptions = buttons.slice(0, 3).map((btn, index) => {
+            return `${index + 1}. ${btn.title || btn.text || `Opción ${index + 1}`}`;
+          }).join('\n');
+
+          const fallbackMessage = `${bodyText}\n\n${numberedOptions}\n\nResponde con el número de tu opción`;
+          const fallbackResponse = await axios({
+            method: 'POST',
+            url,
+            headers: {
+              'Authorization': `Bearer ${config.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            data: {
+              messaging_product: 'whatsapp',
+              to: phoneNumber,
+              type: 'text',
+              text: { body: fallbackMessage },
+            },
+          });
+
+          return { ...fallbackResponse.data, buttonMapping, isNumericButtons: true };
+        }
       },
 
       sendMediaMessage: async (to: string, url: string, options?: any) => {
@@ -313,6 +343,51 @@ export class WhatsAppCloudService extends BasePlatformService {
           console.error(`[WhatsApp Cloud] Template FAILED:`, JSON.stringify(metaErr || error.message, null, 2));
           throw error;
         }
+      },
+
+      sendMarketingMessage: async (
+        to: string,
+        body: string,
+        options?: { messageActivitySharing?: boolean; templateName?: string; languageCode?: string; components?: any[] }
+      ) => {
+        const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
+        const url = `https://graph.facebook.com/v21.0/${config.phoneNumberId}/marketing_messages`;
+
+        const payload: any = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phoneNumber,
+        };
+
+        if (options?.messageActivitySharing !== undefined) {
+          payload.message_activity_sharing = options.messageActivitySharing;
+        }
+
+        // MM API envía templates de marketing: el cuerpo se define como "text" optimizable
+        // o como "template" según la configuración de marketing del WABA.
+        if (options?.templateName) {
+          payload.type = 'template';
+          payload.template = {
+            name: options.templateName,
+            language: { code: options.languageCode || 'es' },
+            components: options?.components || [],
+          };
+        } else {
+          payload.type = 'text';
+          payload.text = { body };
+        }
+
+        const response = await axios({
+          method: 'POST',
+          url,
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          data: payload,
+        });
+
+        return response.data;
       },
     };
   }
@@ -415,6 +490,99 @@ export class WhatsAppCloudService extends BasePlatformService {
     console.log(`[WhatsApp Cloud] Template "${templateName}" deleted from WABA ${wabaId}`);
   }
 
+  /**
+   * MM API for WhatsApp: consulta la elegibilidad / estado de onboarding de la WABA.
+   * Usa marketing_messages_onboarding_status (y owner_business_info para partners).
+   * https://developers.facebook.com/documentation/business-messaging/whatsapp/marketing-messages/onboarding
+   */
+  async getMarketingMessagesEligibility(connectionId: string): Promise<{
+    eligible: boolean;
+    status: string;
+    termsOfServiceSigned: boolean;
+    adAccountId?: string;
+    ownerBusinessId?: string;
+    checkedAt: Date;
+  }> {
+    const connection = this.connections.get(connectionId);
+    if (!connection) throw new Error('Connection not found');
+
+    const wabaId = await this.getWabaId(connection);
+    const result = {
+      eligible: false,
+      status: 'UNKNOWN',
+      termsOfServiceSigned: false,
+      adAccountId: undefined as string | undefined,
+      ownerBusinessId: undefined as string | undefined,
+      checkedAt: new Date(),
+    };
+
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/v25.0/${wabaId}`,
+        {
+          headers: { Authorization: `Bearer ${connection.config.accessToken}` },
+          params: {
+            fields: 'marketing_messages_onboarding_status,owner_business_info',
+          },
+        }
+      );
+
+      const data = response.data || {};
+      const onboardingStatus = data.marketing_messages_onboarding_status;
+
+      // Caso cliente directo: string "ELIGIBLE" / "ONBOARDED" / etc.
+      if (typeof onboardingStatus === 'string') {
+        result.status = onboardingStatus;
+        result.eligible = onboardingStatus === 'ELIGIBLE' || onboardingStatus === 'ONBOARDED';
+        result.termsOfServiceSigned = onboardingStatus === 'ONBOARDED';
+      }
+      // Caso partner/negocio: objeto { status: "TERM_OF_SERVICE_SIGNED"|"REQUEST_SENT"|"NOT_STARTED", time }
+      else if (onboardingStatus && typeof onboardingStatus === 'object') {
+        result.status = onboardingStatus.status || 'UNKNOWN';
+        result.termsOfServiceSigned = onboardingStatus.status === 'TERM_OF_SERVICE_SIGNED';
+        result.eligible = result.termsOfServiceSigned;
+      }
+
+      if (data.owner_business_info) {
+        const obi = data.owner_business_info;
+        result.ownerBusinessId = obi.id;
+        if (!result.eligible && obi.marketing_messages_onboarding_status) {
+          const st = obi.marketing_messages_onboarding_status.status;
+          result.status = st || result.status;
+          result.termsOfServiceSigned = st === 'TERM_OF_SERVICE_SIGNED';
+          result.eligible = result.termsOfServiceSigned;
+        }
+      }
+
+      console.log(`[WhatsApp Cloud] MM API eligibility for WABA ${wabaId}:`, result.status);
+    } catch (err: any) {
+      const metaError = err?.response?.data?.error;
+      if (metaError) {
+        console.error(`[WhatsApp Cloud] Failed to get MM API eligibility. WABA ${wabaId}, Meta error ${metaError.code}: ${metaError.message}`);
+      } else {
+        console.error(`[WhatsApp Cloud] Failed to get MM API eligibility for WABA ${wabaId}:`, err.message || err);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * MM API for WhatsApp: envía un mensaje de marketing optimizado.
+   * https://developers.facebook.com/documentation/business-messaging/whatsapp/marketing-messages/onboarding#sending-a-message
+   */
+  async sendMarketingMessage(
+    connectionId: string,
+    to: string,
+    body: string,
+    options?: { messageActivitySharing?: boolean; templateName?: string; languageCode?: string; components?: any[] }
+  ): Promise<any> {
+    const connection = this.connections.get(connectionId);
+    if (!connection) throw new Error('Connection not found');
+
+    const adapter = this.createServiceAdapter(connection);
+    return await (adapter as any).sendMarketingMessage(to, body, options);
+  }
 
   async handleWebhook(req: any, res: any): Promise<void> {
     try {
@@ -475,6 +643,14 @@ export class WhatsAppCloudService extends BasePlatformService {
     const connection = this.connections.get(connectionId);
     if (!connection) return null;
 
+    // MM API for WhatsApp: estado de onboarding de la WABA (best-effort, no bloquea)
+    let marketingMessages: any;
+    try {
+      marketingMessages = await this.getMarketingMessagesEligibility(connectionId);
+    } catch (err) {
+      marketingMessages = { eligible: false, status: 'UNKNOWN', termsOfServiceSigned: false, checkedAt: new Date() };
+    }
+
     // Verify credentials by making a test API call
     try {
       const url = `https://graph.facebook.com/v21.0/${connection.config.phoneNumberId}`;
@@ -487,12 +663,14 @@ export class WhatsAppCloudService extends BasePlatformService {
       return {
         status: 'connected',
         lastChecked: new Date(),
+        marketingMessages,
       };
     } catch (error) {
       return {
         status: 'error',
         error: 'Invalid credentials',
         lastChecked: new Date(),
+        marketingMessages,
       };
     }
   }

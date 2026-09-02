@@ -410,6 +410,16 @@ export const deletePlatformConnection = async (id: string) => {
   }
 };
 
+export const getMarketingMessagesEligibility = async (id: string) => {
+  try {
+    const response = await api.get(`/platform/connections/${id}/marketing-eligibility`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching MM API eligibility:', error);
+    throw error;
+  }
+};
+
 export const createWhatsAppCloudConnection = async (data: {
   phoneNumberId: string;
   accessToken: string;

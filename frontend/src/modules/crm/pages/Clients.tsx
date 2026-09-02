@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User, SlidersHorizontal, Filter, MoreVertical, RotateCcw, UserX } from 'lucide-react';
+import { MessageSquare, UserCheck, Cpu, Eye, Trash2, UserPlus, User, MoreVertical, UserX } from 'lucide-react';
 import { Loader } from '../../../components/ui/Loader';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from 'react-icons/fa';
 import { SiTiktok } from 'react-icons/si';
@@ -15,7 +15,8 @@ import { PageBody } from '../../../components/layout/PageBody';
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { ResponsiveList, ResponsiveColumn } from '../../../components/ui/ResponsiveList';
 import { SearchBar } from '../../../components/ui/SearchBar';
-import { FilterSelect } from '../../../components/ui/FilterSelect';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 import { Modal } from '../../../components/ui/Modal';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { TableCard } from '../../../components/ui/TableCard';
@@ -140,6 +141,7 @@ export const Clients = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField] = useState<SortField>('lastInteraction');
   const [sortOrder] = useState<SortOrder>('desc');
@@ -584,14 +586,24 @@ export const Clients = () => {
 
       <PageBody>
         <TableCard>
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
+          {/* ── Barra de filtros unificada ── */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <SearchBar
               placeholder="Buscar por número, nombre o agente..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <FilterSelect
+            <div className="flex items-center gap-2 shrink-0">
+              <Dropdown
+                value={filterState}
+                onChange={(v) => { setFilterState(v); setCurrentPage(1); }}
+                options={[
+                  { value: 'all', label: 'Todos los Estados' },
+                  { value: 'human', label: 'Humano (Handoff)' },
+                  { value: 'bot', label: 'Bot (Automático)' },
+                ]}
+              />
+              <Dropdown
                 value={filterChannel}
                 onChange={(v) => { setFilterChannel(v); setCurrentPage(1); }}
                 options={[
@@ -603,109 +615,160 @@ export const Clients = () => {
                   { value: 'messenger', label: 'Messenger' },
                 ]}
               />
-
-              <button
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`flex items-center gap-2 px-3.5 h-10 rounded-xl text-sm font-semibold border transition-all ${
-                  showAdvancedFilters || activeAdvancedFiltersCount > 0
-                    ? 'bg-accent-500/10 border-accent-500/40 text-accent-600 dark:text-accent-400'
-                    : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
-                }`}
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span>Filtros Avanzados</span>
-                {activeAdvancedFiltersCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-accent-500 text-black text-xs font-black flex items-center justify-center">
-                    {activeAdvancedFiltersCount}
-                  </span>
-                )}
-              </button>
+              <ViewToggle value={viewMode} onChange={setViewMode} />
             </div>
           </div>
 
-          {showAdvancedFilters && (
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 mb-4 animate-in fade-in duration-150">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                  <Filter className="w-3.5 h-3.5 text-accent-500" />
-                  Filtros Avanzados
-                </h4>
-                {activeAdvancedFiltersCount > 0 && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-xs font-semibold text-red-500 hover:text-red-600 flex items-center gap-1"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Limpiar filtros
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Agente Asignado</label>
-                  <FilterSelect
-                    value={filterAgent}
-                    onChange={(v) => { setFilterAgent(v); setCurrentPage(1); }}
-                    options={[
-                      { value: 'all', label: 'Todos los Agentes' },
-                      { value: 'unassigned', label: 'Sin Asignar' },
-                      ...systemAgents.map(a => ({ value: a.id, label: a.name }))
-                    ]}
-                  />
+          {viewMode === 'table' ? (
+            <ResponsiveList
+              columns={responsiveColumns}
+              data={paginatedUsers}
+              onRowClick={() => navigate('/conversations')}
+              onRowSelect={(user) => toggleSelect(user.id, { stopPropagation: () => {} } as any)}
+              selectedIds={selectedIds}
+              getId={(user) => user.id}
+              actions={(user) => [
+                {
+                  icon: <Eye className="w-4 h-4" />,
+                  label: 'Ver Chat',
+                  onClick: (e) => { e.stopPropagation(); navigate('/conversations'); },
+                  tooltip: 'Ver Chat'
+                },
+                {
+                  element: (
+                    <ClientActionsDropdown
+                      user={user}
+                      onViewChat={() => navigate('/conversations')}
+                      onAssignAgent={() => {
+                        setSelectedAgentForAssign(user.assigned_to || user.assigned_agent?.id || '');
+                        setAssignModalUser(user);
+                      }}
+                      onEdit={() => handleEditUser(user)}
+                      onDelete={() => setConfirmDelete({ id: user.id })}
+                    />
+                  )
+                }
+              ]}
+              pagination={{
+                currentPage,
+                totalPages,
+                onPageChange: setCurrentPage
+              }}
+            />
+          ) : (
+            <>
+              {paginatedUsers.length === 0 ? (
+                <div className="text-center py-16 text-slate-400">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-semibold">Sin clientes</p>
+                  <p className="text-sm">Ajusta los filtros o agrega un nuevo cliente.</p>
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {paginatedUsers.map((user) => {
+                    const channel = detectChannel(user);
+                    const agent = user.assigned_agent || user.assignedAgent;
+                    const agentName = agent?.name || (user.assigned_to ? 'Agente asignado' : null);
+                    let realPhone = user.phone_number;
+                    if (!realPhone || realPhone.length > 15) {
+                      if (user.custom_attributes) {
+                        const attrs = user.custom_attributes;
+                        realPhone = attrs.real_phone_number || attrs.whatsapp_jid || attrs.whatsapp_number || attrs.phone || attrs.phoneNumber;
+                      }
+                    }
+                    if (!realPhone) realPhone = user.phone_number;
+                    const { prefix, number } = formatPhoneNumber(realPhone);
+                    return (
+                      <div
+                        key={user.id}
+                        onClick={() => navigate('/conversations')}
+                        className="group relative bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 hover:border-accent-500/40 hover:shadow-lg hover:shadow-accent-500/5 transition-all cursor-pointer"
+                      >
+                        {/* Header row */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-500/20 to-accent-600/10 flex items-center justify-center shrink-0">
+                              <span className="text-accent-500 font-black text-base">
+                                {(user.profile_name || realPhone || '?').charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight">
+                                {user.profile_name || 'Sin nombre'}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                {prefix && <span className="text-accent-500 font-bold">{prefix} </span>}{number || realPhone}
+                              </p>
+                            </div>
+                          </div>
+                          {channel && (
+                            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase border ${getChannelColor(channel)}`}>
+                              {getChannelIcon(channel)}
+                              <span>{channel}</span>
+                            </div>
+                          )}
+                        </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Estado de Atención</label>
-                  <FilterSelect
-                    value={filterState}
-                    onChange={(v) => { setFilterState(v); setCurrentPage(1); }}
-                    options={[
-                      { value: 'all', label: 'Todos los Estados' },
-                      { value: 'human', label: 'Humano (Handoff)' },
-                      { value: 'bot', label: 'Bot (Automático)' }
-                    ]}
-                  />
+                        {/* Status row */}
+                        <div className="flex items-center justify-between">
+                          {user.bot_state === 'handoff' ? (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg text-xs font-bold">
+                              <UserCheck className="w-3.5 h-3.5" /><span>Humano</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold">
+                              <Cpu className="w-3.5 h-3.5" /><span>Bot</span>
+                            </div>
+                          )}
+                          {agentName ? (
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black text-[10px] flex items-center justify-center border border-emerald-500/20">
+                                {agentName.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[100px]">{agentName}</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium">Sin agente</span>
+                          )}
+                        </div>
+
+                        {/* Last interaction */}
+                        <p className="text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                          Última interacción: {formatDate(user.last_active_at)}
+                        </p>
+
+                        {/* Hover CTA */}
+                        <div className="absolute inset-0 rounded-2xl flex items-center justify-center bg-accent-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <span className="text-xs font-bold text-accent-500 flex items-center gap-1.5">
+                            <MessageSquare className="w-3.5 h-3.5" /> Ver conversación
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-            </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
+                        page === currentPage
+                          ? 'bg-accent-500 text-black'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
-
-          <ResponsiveList
-            columns={responsiveColumns}
-            data={paginatedUsers}
-            onRowClick={() => navigate('/conversations')}
-            onRowSelect={(user) => toggleSelect(user.id, { stopPropagation: () => {} } as any)}
-            selectedIds={selectedIds}
-            getId={(user) => user.id}
-            actions={(user) => [
-              {
-                icon: <Eye className="w-4 h-4" />,
-                label: 'Ver Chat',
-                onClick: (e) => { e.stopPropagation(); navigate('/conversations'); },
-                tooltip: 'Ver Chat'
-              },
-              {
-                element: (
-                  <ClientActionsDropdown
-                    user={user}
-                    onViewChat={() => navigate('/conversations')}
-                    onAssignAgent={() => {
-                      setSelectedAgentForAssign(user.assigned_to || user.assigned_agent?.id || '');
-                      setAssignModalUser(user);
-                    }}
-                    onEdit={() => handleEditUser(user)}
-                    onDelete={() => setConfirmDelete({ id: user.id })}
-                  />
-                )
-              }
-            ]}
-            pagination={{
-              currentPage,
-              totalPages,
-              onPageChange: setCurrentPage
-            }}
-          />
         </TableCard>
       </PageBody>
 

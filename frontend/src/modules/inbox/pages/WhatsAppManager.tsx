@@ -18,6 +18,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import api from '../../../services/api';
+import { getMarketingMessagesEligibility } from '../../../services/api';
 import { PageLoader } from '../../../components/layout/PageLoader';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageBody } from '../../../components/layout/PageBody';
@@ -87,6 +88,7 @@ export const WhatsAppManager = () => {
   const [savingCloud, setSavingCloud] = useState(false);
   const [cloudSuccess, setCloudSuccess] = useState<string | null>(null);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [eligibility, setEligibility] = useState<Record<string, any>>({});
 
   const WEBHOOK_URL = `${window.location.protocol}//${window.location.hostname.replace('5173', '3001')}/api/webhook`;
 
@@ -112,9 +114,32 @@ export const WhatsAppManager = () => {
       const response = await api.get('/platform/connections');
       const filtered = (response.data || []).filter((c: any) => c.platform_type === 'whatsapp');
       setCloudConnections(filtered);
+
+      // MM API for WhatsApp: obtener estado de elegibilidad de cada conexión (best-effort)
+      filtered.forEach(async (c: any) => {
+        try {
+          const el = await getMarketingMessagesEligibility(c.id);
+          setEligibility(prev => ({ ...prev, [c.id]: el }));
+        } catch {
+          // endpoint puede no estar disponible (no-WABA) — ignorar
+        }
+      });
     } catch {
       // tabla puede no existir aún
     }
+  };
+
+  const eligibilityBadge = (el: any) => {
+    if (!el || el.status === 'UNKNOWN') {
+      return { label: 'MM API: verificar', cls: 'bg-gray-500/10 text-gray-500 border-gray-500/20' };
+    }
+    if (el.eligible) {
+      return { label: 'MM API listo', cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' };
+    }
+    if (el.termsOfServiceSigned) {
+      return { label: 'MM API: ToS firmado', cls: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' };
+    }
+    return { label: `MM API: ${el.status}`, cls: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' };
   };
 
   const saveCloudConnection = async () => {
@@ -417,6 +442,10 @@ export const WhatsAppManager = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {(eligibility as any)[conn.id] && (() => {
+                        const b = eligibilityBadge((eligibility as any)[conn.id]);
+                        return <span className={`px-2 py-1 text-xs font-medium rounded-full border ${b.cls}`}>{b.label}</span>;
+                      })()}
                       <span className={`px-2 py-1 text-xs font-medium rounded-full border ${conn.status === 'connected'
                         ? 'bg-accent-500/10 text-accent-600 dark:text-accent-400 border-accent-500/20'
                         : 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20'

@@ -3,8 +3,16 @@ import { supabase } from '../../core/config/supabase';
 
 const router = express.Router();
 
+// Debug endpoints expone datos sensibles/PII y dispara flujos; restringir a super_admin
+const requireSuperAdmin = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Forbidden: se requiere rol super_admin' });
+  }
+  next();
+};
+
 // GET /api/debug/bot-status - Debug bot status and flows
-router.get('/bot-status', async (req, res) => {
+router.get('/bot-status', requireSuperAdmin, async (req, res) => {
   try {
     // Get organization
     const orgId = (req as any).organizationId;
@@ -75,7 +83,7 @@ router.get('/bot-status', async (req, res) => {
 });
 
 // POST /api/debug/test-bot - Test bot with a message
-router.post('/test-bot', async (req, res) => {
+router.post('/test-bot', requireSuperAdmin, async (req, res) => {
   try {
     const { message, phoneNumber } = req.body;
 

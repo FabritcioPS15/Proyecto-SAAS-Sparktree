@@ -59,6 +59,15 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  // Guarda la última posición del cursor dentro del textarea. Al hacer clic en un
+  // chip de variable el textarea pierde el foco y selectionStart queda obsoleto,
+  // así que usamos este ref para insertar siempre en donde dejó el cursor el usuario.
+  const caretRef = useRef<number>(0);
+
+  const syncCaret = () => {
+    const el = textareaRef.current;
+    if (el) caretRef.current = el.selectionStart ?? caretRef.current;
+  };
 
   const handleScroll = () => {
     if (textareaRef.current && backdropRef.current) {
@@ -269,13 +278,14 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
       setMessage((prev) => prev + `\u200B${variable}\u200B`);
       return;
     }
-    const start = el.selectionStart ?? message.length;
-    const end = el.selectionEnd ?? message.length;
-    const next = message.slice(0, start) + `\u200B${variable}\u200B` + message.slice(end);
+    // El textarea se desenfoca al hacer clic en el chip; usa la posición guardada.
+    const insertAt = caretRef.current;
+    const next = message.slice(0, insertAt) + `\u200B${variable}\u200B` + message.slice(insertAt);
     setMessage(next);
     requestAnimationFrame(() => {
       el.focus();
-      const pos = start + variable.length + 2;
+      const pos = insertAt + variable.length + 2;
+      caretRef.current = pos;
       el.setSelectionRange(pos, pos);
     });
   };
@@ -648,7 +658,11 @@ export const CreateReminderModal = ({ open, onClose, onCreated }: CreateReminder
                   let val = e.target.value;
                   val = val.replace(/\{\{(.*?)\}\}/g, '\u200B$1\u200B');
                   setMessage(val);
+                  requestAnimationFrame(syncCaret);
                 }}
+                onSelect={syncCaret}
+                onClick={syncCaret}
+                onKeyUp={syncCaret}
                 onScroll={handleScroll}
                 rows={4}
                 spellCheck={false}

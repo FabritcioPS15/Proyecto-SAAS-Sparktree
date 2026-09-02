@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Building2, Plus, Users, Crown, Clock, Edit2, Trash2, Info, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, Plus, Users, Crown, Clock, Edit2, Trash2, Info } from 'lucide-react';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { HeaderButton } from '../../../components/ui/HeaderButton';
 import { CountBadge } from '../../../components/ui/CountBadge';
@@ -11,6 +11,9 @@ import { Badge } from '../../../components/ui/Badge';
 import { Modal } from '../../../components/ui/Modal';
 import { KebabMenu } from '../../../components/ui/KebabMenu';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { SearchBar } from '../../../components/ui/SearchBar';
+import { Dropdown } from '../../../components/ui/Dropdown';
+import { ViewToggle, ViewMode } from '../../../components/ui/ViewToggle';
 
 const MOCK_ORGS = [
   { id: '1', name: 'Acme Corp', plan: 'enterprise', userCount: 150, created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
@@ -23,13 +26,12 @@ const MOCK_ORGS = [
 
 type SortField = 'name' | 'plan' | 'usageTime';
 type SortOrder = 'asc' | 'desc';
-type ViewMode = 'grid' | 'list';
 
 export const Organizations = () => {
   const [orgs, setOrgs] = useState<any[]>(MOCK_ORGS);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [editingOrg, setEditingOrg] = useState<any>(null);
   const [showPlansInfo, setShowPlansInfo] = useState(false);
   const [formData, setFormData] = useState({ name: '', plan: 'free' });
@@ -239,41 +241,91 @@ export const Organizations = () => {
 
         <PageBody>
           <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-            <div className="flex flex-col lg:flex-row gap-4 mb-4">
-              <div className="flex-1 relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-accent-500 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Buscar empresas por nombre..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <select
+          {/* ── Barra de filtros unificada ── */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <SearchBar
+                placeholder="Buscar empresas por nombre..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <div className="flex items-center gap-2 shrink-0">
+                <Dropdown
                   value={planFilter}
-                  onChange={(e) => setPlanFilter(e.target.value)}
-                  className="px-4 py-2.5 dark:bg-dark-card border border-gray-200 dark:border-white/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500 transition-all text-gray-900 dark:text-white text-sm cursor-pointer min-w-[160px]"
-                >
-                  <option value="all">Todos los planes</option>
-                  <option value="free">Starter</option>
-                  <option value="pro">Growth</option>
-                  <option value="enterprise">Global</option>
-                </select>
+                  onChange={setPlanFilter}
+                  options={[
+                    { value: 'all', label: 'Todos los Planes' },
+                    { value: 'free', label: 'Starter' },
+                    { value: 'pro', label: 'Growth' },
+                    { value: 'enterprise', label: 'Global' },
+                  ]}
+                />
+                <ViewToggle value={viewMode} onChange={setViewMode} />
               </div>
             </div>
 
-            <DataTable
-              columns={columns}
-              data={paginatedOrgs}
-              pagination={{
-                currentPage,
-                totalPages,
-                onPageChange: setCurrentPage
-              }}
-            />
+            {viewMode === 'table' ? (
+              <DataTable
+                columns={columns}
+                data={paginatedOrgs}
+                pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+              />
+            ) : (
+              <>
+                {paginatedOrgs.length === 0 ? (
+                  <div className="text-center py-16 text-slate-400">
+                    <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="font-semibold">Sin empresas</p>
+                    <p className="text-sm">Ajusta los filtros o agrega una nueva empresa.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {paginatedOrgs.map((org) => {
+                      const usage = getOrgUsageTime(org);
+                      const planMap: Record<string, { variant: 'default' | 'success' | 'info'; label: string }> = {
+                        free: { variant: 'default', label: 'Starter' },
+                        pro: { variant: 'success', label: 'Growth' },
+                        enterprise: { variant: 'info', label: 'Global' },
+                      };
+                      const plan = (org.plan || 'free').toLowerCase();
+                      const cfg = planMap[plan] || planMap.free;
+                      return (
+                        <div key={org.id} className="group bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 hover:border-accent-500/40 hover:shadow-lg hover:shadow-accent-500/5 transition-all">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center shrink-0">
+                                <Building2 className="w-5 h-5 text-accent-500" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900 dark:text-white text-sm capitalize leading-tight">{org.name.toLowerCase()}</p>
+                                <p className="text-[10px] text-slate-400">{new Date(org.created_at).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                            <Badge variant={cfg.variant} size="xs" shape="rounded" icon={<Crown className="w-2.5 h-2.5" />}>{cfg.label}</Badge>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                              <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{org.userCount || 0}</span>
+                              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{usage.days}d</span>
+                            </div>
+                            <KebabMenu actions={[
+                              { label: 'Editar', icon: <Edit2 className="w-3.5 h-3.5" />, onClick: () => { setEditingOrg(org); setFormData({ name: org.name, plan: org.plan }); setIsModalOpen(true); } },
+                              { label: 'Eliminar', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => setDeleteTarget(org.id), variant: 'danger' },
+                            ]} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${page === currentPage ? 'bg-accent-500 text-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>{page}</button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </PageBody>
 

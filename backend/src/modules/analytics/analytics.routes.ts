@@ -23,9 +23,10 @@ router.get('/', async (req: any, res) => {
       dailyData,
       hourlyData,
       messagesResult,
-      conversationsResult,
+      conversationsCountResult,
+      openConversationsCountResult,
       flowExecutionsResult,
-      contactsResult,
+      contactsCountResult,
       prevMessagesResult,
     ] = await Promise.allSettled([
       supabase.from('weekly_flow_summary').select('*').eq('organization_id', orgId).order('semana', { ascending: false }).limit(12),
@@ -33,9 +34,10 @@ router.get('/', async (req: any, res) => {
       supabase.from('daily_flow_summary').select('*').eq('organization_id', orgId).order('dia', { ascending: false }).limit(30),
       supabase.from('hourly_activity').select('*').eq('organization_id', orgId).order('hora', { ascending: true }),
       supabase.from('messages').select('id, direction, created_at, status, type').eq('organization_id', orgId).gte('created_at', thirtyDaysAgo.toISOString()),
-      supabase.from('conversations').select('id, status, created_at, last_message_at').eq('organization_id', orgId),
+      supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('organization_id', orgId),
+      supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'open'),
       supabase.from('flow_executions').select('id, status, executed_at, completed_at').eq('organization_id', orgId).gte('executed_at', thirtyDaysAgo.toISOString()),
-      supabase.from('contacts').select('id, created_at, last_active_at').eq('organization_id', orgId),
+      supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', orgId),
       supabase.from('messages').select('id').eq('organization_id', orgId).gte('created_at', prevThirtyDays.toISOString()).lte('created_at', thirtyDaysAgo.toISOString()),
     ]);
 
@@ -44,17 +46,17 @@ router.get('/', async (req: any, res) => {
     const dailyFlowSummary = dailyData.status === 'fulfilled' ? dailyData.value.data || [] : [];
     const hourlyActivity = hourlyData.status === 'fulfilled' ? hourlyData.value.data || [] : [];
     const messages = messagesResult.status === 'fulfilled' ? (messagesResult.value.data || []) as any[] : [];
-    const conversations = conversationsResult.status === 'fulfilled' ? (conversationsResult.value.data || []) as any[] : [];
+    const conversationsCount = conversationsCountResult.status === 'fulfilled' ? (conversationsCountResult.value.count || 0) : 0;
+    const openConversationsCount = openConversationsCountResult.status === 'fulfilled' ? (openConversationsCountResult.value.count || 0) : 0;
     const flowExecutions = flowExecutionsResult.status === 'fulfilled' ? (flowExecutionsResult.value.data || []) as any[] : [];
-    const contacts = contactsResult.status === 'fulfilled' ? (contactsResult.value.data || []) as any[] : [];
+    const totalContacts = contactsCountResult.status === 'fulfilled' ? (contactsCountResult.value.count || 0) : 0;
     const prevMessagesCount = prevMessagesResult.status === 'fulfilled' ? (prevMessagesResult.value.data || []).length : 0;
 
     const totalMessages = messages.length;
     const messagesSent = messages.filter(m => m.direction === 'outbound').length;
     const messagesReceived = messages.filter(m => m.direction === 'inbound').length;
-    const totalContacts = contacts.length;
-    const totalConversations = conversations.length;
-    const openConversations = conversations.filter(c => c.status === 'open').length;
+    const totalConversations = conversationsCount;
+    const openConversations = openConversationsCount;
 
     const completedExecutions = flowExecutions.filter(e => e.status === 'completed');
     const failedExecutions = flowExecutions.filter(e => e.status === 'failed');
@@ -159,8 +161,10 @@ router.get('/dashboard', async (req: any, res) => {
     const [
       messagesResult,
       prevMessagesResult,
-      contactsResult,
-      prevContactsResult,
+      contactsCountResult,
+      newContactsCountResult,
+      prevNewContactsResult,
+      sparkContactsResult,
       conversationsResult,
       flowExecutionsResult,
       recentContactsResult,
@@ -169,9 +173,11 @@ router.get('/dashboard', async (req: any, res) => {
     ] = await Promise.allSettled([
       supabase.from('messages').select('id, direction, created_at, type, status').eq('organization_id', orgId).gte('created_at', startDate.toISOString()),
       supabase.from('messages').select('id, direction').eq('organization_id', orgId).gte('created_at', prevStart.toISOString()).lte('created_at', startDate.toISOString()),
-      supabase.from('contacts').select('id, created_at, last_active_at').eq('organization_id', orgId),
-      supabase.from('contacts').select('id').eq('organization_id', orgId).gte('created_at', prevStart.toISOString()).lte('created_at', startDate.toISOString()),
-      supabase.from('conversations').select('id, status, last_message_at').eq('organization_id', orgId),
+      supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', orgId),
+      supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', orgId).gte('created_at', startDate.toISOString()),
+      supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('organization_id', orgId).gte('created_at', prevStart.toISOString()).lte('created_at', startDate.toISOString()),
+      supabase.from('contacts').select('id, created_at').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(200),
+      supabase.from('conversations').select('id, status, last_message_at').eq('organization_id', orgId).order('last_message_at', { ascending: false }).limit(1000),
       supabase.from('flow_executions').select('id, status, executed_at, completed_at').eq('organization_id', orgId).gte('executed_at', startDate.toISOString()),
       supabase.from('contacts').select('id, profile_name, phone_number, created_at, last_active_at').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(5),
       supabase.from('messages').select('id, direction, content, type, created_at, contacts(profile_name, phone_number)').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10),
@@ -180,8 +186,10 @@ router.get('/dashboard', async (req: any, res) => {
 
     const messages = messagesResult.status === 'fulfilled' ? (messagesResult.value.data || []) as any[] : [];
     const prevMessages = prevMessagesResult.status === 'fulfilled' ? (prevMessagesResult.value.data || []) as any[] : [];
-    const allContacts = contactsResult.status === 'fulfilled' ? (contactsResult.value.data || []) as any[] : [];
-    const prevContacts = prevContactsResult.status === 'fulfilled' ? (prevContactsResult.value.data || []) as any[] : [];
+    const totalContacts = contactsCountResult.status === 'fulfilled' ? (contactsCountResult.value.count || 0) : 0;
+    const newContactsNow = newContactsCountResult.status === 'fulfilled' ? (newContactsCountResult.value.count || 0) : 0;
+    const newContactsPrev = prevNewContactsResult.status === 'fulfilled' ? (prevNewContactsResult.value.count || 0) : 0;
+    const sparkContacts = sparkContactsResult.status === 'fulfilled' ? (sparkContactsResult.value.data || []) as any[] : [];
     const conversations = conversationsResult.status === 'fulfilled' ? (conversationsResult.value.data || []) as any[] : [];
     const flowExecutions = flowExecutionsResult.status === 'fulfilled' ? (flowExecutionsResult.value.data || []) as any[] : [];
     const recentContacts = recentContactsResult.status === 'fulfilled' ? (recentContactsResult.value.data || []) as any[] : [];
@@ -205,11 +213,11 @@ router.get('/dashboard', async (req: any, res) => {
     const sparklines = {
       messages: chartData.map(d => d.value),
       contacts: (() => {
-        const sorted = [...allContacts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const sorted = [...sparkContacts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         const last8 = sorted.slice(-8);
         return last8.map((_, i) => {
           const cutoff = new Date(last8[i].created_at);
-          return allContacts.filter(c => new Date(c.created_at) <= cutoff).length;
+          return sorted.filter(c => new Date(c.created_at) <= cutoff).length;
         });
       })(),
       conversations: (() => {
@@ -223,8 +231,6 @@ router.get('/dashboard', async (req: any, res) => {
     const totalMessagesPrev = prevMessages.length;
     const msgTrend = totalMessagesPrev > 0 ? Math.round(((totalMessagesNow - totalMessagesPrev) / totalMessagesPrev) * 100) : totalMessagesNow > 0 ? 100 : 0;
 
-    const newContactsNow = allContacts.filter(c => new Date(c.created_at) >= startDate).length;
-    const newContactsPrev = prevContacts.length;
     const contactTrend = newContactsPrev > 0 ? Math.round(((newContactsNow - newContactsPrev) / newContactsPrev) * 100) : newContactsNow > 0 ? 100 : 0;
 
     const completedExecutions = flowExecutions.filter(e => e.status === 'completed');
@@ -278,7 +284,7 @@ router.get('/dashboard', async (req: any, res) => {
       stats: {
         totalMessages: totalMessagesNow,
         messageTrend: msgTrend,
-        totalContacts: allContacts.length,
+        totalContacts,
         contactTrend,
         openConversations: openConversationsCount,
         activeFlows: flowExecutions.length,

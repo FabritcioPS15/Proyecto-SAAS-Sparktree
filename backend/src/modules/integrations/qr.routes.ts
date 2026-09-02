@@ -6,6 +6,28 @@ import QRCode from 'qrcode';
 
 const router = Router();
 
+// Caché de imágenes QR: evita re-codificar el PNG en cada poll (5s/30s).
+const qrImageCache = new Map<string, string>();
+
+async function getQRImage(connection: any): Promise<string | null> {
+  if (!connection?.qr) return null;
+  const cacheKey = `${connection.id}:${connection.qr}`;
+  const cached = qrImageCache.get(cacheKey);
+  if (cached) return cached;
+  try {
+    const dataUrl = await QRCode.toDataURL(connection.qr);
+    qrImageCache.set(cacheKey, dataUrl);
+    if (qrImageCache.size > 200) {
+      const firstKey = qrImageCache.keys().next().value;
+      if (firstKey) qrImageCache.delete(firstKey);
+    }
+    return dataUrl;
+  } catch (err) {
+    console.error('Error generating QR image:', err);
+    return null;
+  }
+}
+
 // Helper to get primary connection for organization
 async function getOrgConnection(orgId: string) {
   let connections = multiWhatsAppService.getOrganizationConnections(orgId);
@@ -45,14 +67,7 @@ router.get('/status', tenantMiddleware, async (req: TenantRequest, res: Response
       return res.json({ status: 'disconnected', message: 'No connection found' });
     }
 
-    let qrImage = null;
-    if (connection.qr) {
-      try {
-        qrImage = await QRCode.toDataURL(connection.qr);
-      } catch (err) {
-        console.error('Error generating QR image:', err);
-      }
-    }
+    let qrImage = await getQRImage(connection);
 
     res.json({
       id: connection.id,

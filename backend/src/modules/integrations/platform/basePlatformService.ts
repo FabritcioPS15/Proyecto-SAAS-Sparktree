@@ -46,6 +46,12 @@ export interface PlatformServiceAdapter {
     languageCode: string,
     components?: any[]
   ) => Promise<any>;
+  /** Solo disponible en WhatsApp Cloud API. Envía un mensaje/template de marketing optimizado via MM API (/marketing_messages). */
+  sendMarketingMessage?: (
+    to: string,
+    body: string,
+    options?: { messageActivitySharing?: boolean; templateName?: string; languageCode?: string; components?: any[] }
+  ) => Promise<any>;
 }
 
 export abstract class BasePlatformService {

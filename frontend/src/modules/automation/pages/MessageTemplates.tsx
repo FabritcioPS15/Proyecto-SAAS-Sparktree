@@ -220,23 +220,25 @@ export const MessageTemplates = () => {
       />
       <PageBody>
         <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-sm overflow-hidden p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar plantillas..." className="flex-1" />
-            <Dropdown
-              value={filterCategory}
-              onChange={(v) => { setFilterCategory(v); setCurrentPage(1); }}
-              options={[
-                { value: 'all', label: 'Todas las categorías' },
-                { value: 'transactional', label: 'Transaccional' },
-                { value: 'marketing', label: 'Marketing' },
-                { value: 'notification', label: 'Notificación' },
-                { value: 'greeting', label: 'Saludo' },
-                { value: 'followup', label: 'Seguimiento' },
-                { value: 'reminder', label: 'Recordatorio' },
-                { value: 'other', label: 'Otro' },
-              ]}
-            />
-            <ViewToggle value={viewMode} onChange={setViewMode} />
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <SearchBar value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Buscar plantillas..." />
+            <div className="flex items-center gap-2 shrink-0">
+              <Dropdown
+                value={filterCategory}
+                onChange={(v) => { setFilterCategory(v); setCurrentPage(1); }}
+                options={[
+                  { value: 'all', label: 'Todas las Categorías' },
+                  { value: 'transactional', label: 'Transaccional' },
+                  { value: 'marketing', label: 'Marketing' },
+                  { value: 'notification', label: 'Notificación' },
+                  { value: 'greeting', label: 'Saludo' },
+                  { value: 'followup', label: 'Seguimiento' },
+                  { value: 'reminder', label: 'Recordatorio' },
+                  { value: 'other', label: 'Otro' },
+                ]}
+              />
+              <ViewToggle value={viewMode} onChange={setViewMode} />
+            </div>
           </div>
 
           {viewMode === 'grid' ? (

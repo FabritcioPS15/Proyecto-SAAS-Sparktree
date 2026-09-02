@@ -669,6 +669,7 @@ export const Conversations = () => {
 
       if (parsed && typeof parsed === 'object') {
         const body = parsed.body ||
+          parsed.bodyText ||
           (typeof parsed.text === 'string' ? parsed.text : parsed.text?.body) ||
           parsed.conversation ||
           parsed.caption ||
@@ -1394,6 +1395,18 @@ export const Conversations = () => {
                           >
                             {btn.text}
                           </AnimatedButton>
+                        ))}
+                      </div>
+                    )}
+                    {isMe && parseButtons(m.content).length > 0 && (
+                      <div className="flex flex-col gap-1.5 mt-1.5 mr-9 max-w-[80%] lg:max-w-[70%] items-end">
+                        {parseButtons(m.content).map((btn) => (
+                          <span
+                            key={btn.id}
+                            className="text-[10px] py-1.5 px-3 rounded-full bg-white/20 dark:bg-black/20 text-white/80 dark:text-white/60 font-medium"
+                          >
+                            {btn.text}
+                          </span>
                         ))}
                       </div>
                     )}
