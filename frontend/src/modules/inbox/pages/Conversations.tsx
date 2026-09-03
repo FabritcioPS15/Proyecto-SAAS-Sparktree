@@ -56,6 +56,7 @@ export const Conversations = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStartedAtRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice recording state
@@ -434,7 +435,15 @@ export const Conversations = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+
+      // Grabar en el mejor formato de CAPTURA del navegador (webm/opus es el
+      // más fiable en Chrome; ogg/opus en Firefox). El backend convierte después
+      // a ogg/opus, que es el formato que WhatsApp entrega como nota de voz.
+      // No forcemos audio/mp4 para grabar: en algunos navegadores captura audio
+      // casi vacío (header válido pero duración ~0s).
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/mp4;codecs=mp4a.40.2']
+        .find(t => MediaRecorder.isTypeSupported(t));
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -444,12 +453,18 @@ export const Conversations = () => {
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        if (audioBlob.size === 0 || !selectedConv) return;
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
+        if (!selectedConv) return;
 
-        const formData = new FormData();
-        formData.append('audio', audioBlob, `audio-${Date.now()}.webm`);
-        if (selectedConnectionId) formData.append('whatsapp_connection_id', selectedConnectionId);
+        // Evitar notas de voz vacías: WhatsApp descarta (failed) audios que
+        // duran menos de ~500ms. No enviar y avisar al usuario.
+        const elapsedMs = Date.now() - recordingStartedAtRef.current;
+        if (elapsedMs < 500) {
+          audioChunksRef.current = [];
+          addNotification({ type: 'error', title: 'Audio demasiado corto', message: 'Mantén la grabación al menos un segundo.' });
+          return;
+        }
+        if (audioBlob.size === 0) return;
 
         const optimistic = {
           _id: `tmp-${Date.now()}`,
@@ -461,16 +476,33 @@ export const Conversations = () => {
         };
         setMessages(prev => [...prev, optimistic]);
 
-        try {
-          const response = await api.post(`/conversations/${selectedConv._id}/send`, { audio: audioBlob, whatsapp_connection_id: selectedConnectionId || undefined }, { headers: { 'Content-Type': 'multipart/form-data' } });
-          setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
-        } catch {
+        // Leer el audio como base64 (data URL) y enviarlo por JSON, igual que
+        // fotos/documentos. El backend lo sube a Graph API y lo envía por id.
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const dataUrl = reader.result as string;
+          try {
+            const response = await api.post(`/conversations/${selectedConv._id}/send`, {
+              mediaUrl: dataUrl,
+              mediaType: 'audio',
+              caption: '',
+              whatsapp_connection_id: selectedConnectionId || undefined,
+            });
+            setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
+          } catch {
+            setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+            addNotification({ type: 'error', title: 'Error', message: 'Error al enviar el audio.' });
+          }
+        };
+        reader.onerror = () => {
           setMessages(prev => prev.filter(m => m._id !== optimistic._id));
-          addNotification({ type: 'error', title: 'Error', message: 'Error al enviar el audio.' });
-        }
+          addNotification({ type: 'error', title: 'Error', message: 'No se pudo leer el audio.' });
+        };
+        reader.readAsDataURL(audioBlob);
       };
 
       mediaRecorder.start();
+      recordingStartedAtRef.current = Date.now();
       setIsRecording(true);
       setRecordingDuration(0);
 
@@ -586,18 +618,32 @@ export const Conversations = () => {
     setMessages(prev => [...prev, optimistic]);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      if (selectedConnectionId) formData.append('whatsapp_connection_id', selectedConnectionId);
-
-      const response = await api.post(`/conversations/${selectedConv._id}/send`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
-    } catch (err: any) {
-      setMessages(prev => prev.filter(m => m._id !== optimistic._id));
-      const errMsg = err.response?.data?.error || 'Error al enviar el archivo. Verifica la conexión.';
-      addNotification({ type: 'error', title: 'Error', message: errMsg });
+      // Leer el archivo como base64 (data URL) y enviarlo por JSON.
+      // Cloud API no acepta base64 como URL, así que el backend lo sube a
+      // Graph API para obtener un media_id y lo envía.
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const dataUrl = reader.result as string;
+        try {
+          const response = await api.post(`/conversations/${selectedConv._id}/send`, {
+            mediaUrl: dataUrl,
+            mediaType,
+            caption: '',
+            filename: file.name || `archivo-${Date.now()}`,
+            whatsapp_connection_id: selectedConnectionId || undefined,
+          });
+          setMessages(prev => prev.map(m => m._id === optimistic._id ? response.data : m));
+        } catch (err: any) {
+          setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+          const errMsg = err.response?.data?.error || 'Error al enviar el archivo. Verifica la conexión.';
+          addNotification({ type: 'error', title: 'Error', message: errMsg });
+        }
+      };
+      reader.onerror = () => {
+        setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+        addNotification({ type: 'error', title: 'Error', message: 'No se pudo leer el archivo.' });
+      };
+      reader.readAsDataURL(file);
     } finally {
       setSending(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -729,27 +775,46 @@ export const Conversations = () => {
     if (!content) return [];
     try {
       const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      let buttons: { id: string; text: string }[] = [];
       if (parsed?.buttons && Array.isArray(parsed.buttons) && parsed.buttons.length > 0) {
-        return parsed.buttons.map((b: any, i: number) => ({
+        buttons = parsed.buttons.map((b: any, i: number) => ({
           id: b.id || `btn_${i}`,
           text: b.text || b.title || `Opción ${i + 1}`,
         }));
       }
-      return [];
+      // Mostrar la opción automática "↩ Volver" cuando el bot la incluye
+      if (parsed?.buttonMapping?.btn_back && !buttons.some((b) => b.id === 'btn_back')) {
+        buttons.push({ id: 'btn_back', text: '↩ Volver' });
+      }
+      return buttons;
     } catch {
       return [];
     }
   };
 
-  const handleBotButtonClick = async (button: { id: string; text: string }) => {
+  const isNumericButtons = (content: any): boolean => {
+    if (!content) return false;
+    try {
+      const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+      return !!parsed?.isNumericButtons;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleBotButtonClick = async (button: { id: string; text: string; number?: string }) => {
     if (!selectedConv || sending) return;
     setMessageText('');
     setSending(true);
 
+    // Cuando el bot envió opciones numeradas como texto (>3), el cliente
+    // responde con el número de la opción, no con el texto.
+    const replyText = button.number ?? button.text;
+
     const optimistic = {
       _id: `tmp-${Date.now()}`,
       direction: 'outbound',
-      content: button.text,
+      content: replyText,
       createdAt: new Date().toISOString(),
       type: 'text',
       status: 'sending',
@@ -758,7 +823,7 @@ export const Conversations = () => {
 
     try {
       const response = await api.post(`/conversations/${selectedConv._id}/send`, {
-        text: button.text,
+        text: replyText,
         whatsapp_connection_id: selectedConnectionId || undefined,
       });
       setMessages((prev) => prev.map((m) => (m._id === optimistic._id ? response.data : m)));
@@ -836,6 +901,24 @@ export const Conversations = () => {
     }
   };
 
+  const handleReactivateBot = async () => {
+    if (!selectedConv) return;
+    setIsChatMenuOpen(false);
+    try {
+      const res = await api.post(`/conversations/${selectedConv._id}/reactivate-bot`);
+      if (selectedConv.contactId) {
+        selectedConv.contactId.bot_state = null;
+        selectedConv.contactId.botState = null;
+      }
+      addNotification({ type: 'success', title: 'Bot reactivado', message: 'El bot volverá a responder a este contacto.' });
+      if (res.data?.bot_state !== undefined) {
+        setSelectedConv({ ...selectedConv, bot_state: null, botState: null });
+      }
+    } catch (err) {
+      addNotification({ type: 'error', title: 'Error', message: 'No se pudo reactivar el bot.' });
+    }
+  };
+
 
   const formatTime = (dateString: string) => {
     if (!dateString) return '';
@@ -897,7 +980,7 @@ export const Conversations = () => {
     <div className="flex-1 flex overflow-hidden antialiased">
 
       {/* --- SIDEBAR: Chat List --- */}
-      <div className={`w-[300px] lg:w-[340px] xl:w-[380px] h-full flex flex-col bg-white dark:bg-dark-card border-r border-gray-100 dark:border-white/5 z-20 shadow-2xl relative transition-all duration-500 ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`w-[340px] lg:w-[400px] xl:w-[440px] h-full flex flex-col bg-white dark:bg-dark-card border-r border-gray-100 dark:border-white/5 z-20 shadow-2xl relative transition-all duration-500 ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Sidebar Header */}
         <div className="pt-6 px-5 md:px-6 pb-3">
@@ -1113,9 +1196,9 @@ export const Conversations = () => {
       </div>
 
       {/* --- MAIN PANE --- */}
-      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden h-full relative bg-[#f0f2f5] dark:bg-[#0b141a] ${showMobileChat ? 'flex' : 'hidden md:flex'}`}>
-        {/* Subtle Chat Background Pattern */}
-        <div className="absolute inset-0 z-0 opacity-[0.4] dark:opacity-[0.05] pointer-events-none mix-blend-multiply dark:mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}></div>
+      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden h-full relative bg-[#efeae2] dark:bg-[#0b141a] ${showMobileChat ? 'flex' : 'hidden md:flex'}`}>
+        {/* Subtle Chat Background Pattern (estilo WhatsApp) */}
+        <div className="absolute inset-0 z-0 opacity-[0.5] dark:opacity-[0.12] pointer-events-none mix-blend-multiply dark:mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2351847c' fill-opacity='0.08'%3E%3Cpath d='M0 0h32v2H0zM0 8h8v2H0zM0 16h16v2H0zM0 24h24v2H0zM0 30h16v2H0zM8 0v2H6V0zM16 0v2h-2V0zM24 0v2h-2V0zM30 0v2h2V0zM8 6v2H6V6zM16 6v2h-2V6zM24 6v2h-2V6zM30 6v2h2V6zM8 14v2H6v-2zM16 14v2h-2v-2zM24 14v2h-2v-2zM30 14v2h2v-2zM8 22v2H6v-2zM16 22v2h-2v-2zM24 22v2h-2v-2zM30 22v2h2v-2zM8 30v2H6v-2zM16 30v2h-2v-2zM24 30v2h-2v-2zM30 30v2h2v-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}></div>
 
         {selectedConv ? (
           <>
@@ -1190,6 +1273,11 @@ export const Conversations = () => {
                         const { prefix, number } = formatPhoneNumber(realPhone);
                         return prefix && number ? `${prefix} ${number}` : number || realPhone || 'Sin número guardado';
                       })()}</span>
+                      {selectedConv.contactId?.bot_state === 'handoff' && (
+                        <span className="mt-1 w-fit inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                          <Sparkles className="w-3 h-3" /> Bot en pausa
+                        </span>
+                      )}
                     </div>
                   </div>
                   
@@ -1257,6 +1345,9 @@ export const Conversations = () => {
                                 </button>
                                 <button onClick={() => handleBlockContact(selectedConv.contactId?._id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                                   <Shield className={`w-4 h-4 ${blockedContacts.has(selectedConv.contactId?._id || '') ? 'text-red-500' : 'text-gray-400'}`} /> {blockedContacts.has(selectedConv.contactId?._id || '') ? 'Bloqueado' : 'Bloquear'}
+                                </button>
+                                <button onClick={handleReactivateBot} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
+                                  <Sparkles className="w-4 h-4 text-emerald-500" /> Reactivar bot
                                 </button>
                                 <div className="border-t border-gray-100 dark:border-white/5" />
                                 <button onClick={(e) => { setIsChatMenuOpen(false); handleDeleteConversation(e as any, selectedConv._id, selectedConv.contactId?._id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
@@ -1386,28 +1477,42 @@ export const Conversations = () => {
                     </div>
                     {!isMe && parseButtons(m.content).length > 0 && (
                       <div className="flex flex-col gap-1.5 mt-1.5 ml-9 max-w-[80%] lg:max-w-[70%]">
-                        {parseButtons(m.content).map((btn) => (
+                        <span className="text-[9px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-black mb-0.5 ml-1">
+                          Opciones del bot
+                        </span>
+                        {parseButtons(m.content).map((btn, idx) => (
                           <AnimatedButton
                             key={btn.id}
                             variant="ghost"
-                            onClick={() => handleBotButtonClick(btn)}
-                            className="!text-[10px] !py-2 !px-4 !rounded-full w-full !justify-center"
+                            onClick={() => handleBotButtonClick({
+                              ...btn,
+                              ...(isNumericButtons(m.content) ? { number: String(idx + 1) } : {}),
+                            })}
+                            className="!text-[10px] !py-2 !px-4 !rounded-full w-full !justify-center !bg-white dark:!bg-[#202020] !border !border-gray-200 dark:!border-white/10 !text-gray-700 dark:!text-gray-200 hover:!bg-gray-50 dark:hover:!bg-white/5"
                           >
-                            {btn.text}
+                            {isNumericButtons(m.content) ? `${idx + 1}. ${btn.text}` : btn.text}
                           </AnimatedButton>
                         ))}
                       </div>
                     )}
                     {isMe && parseButtons(m.content).length > 0 && (
-                      <div className="flex flex-col gap-1.5 mt-1.5 mr-9 max-w-[80%] lg:max-w-[70%] items-end">
-                        {parseButtons(m.content).map((btn) => (
-                          <span
-                            key={btn.id}
-                            className="text-[10px] py-1.5 px-3 rounded-full bg-white/20 dark:bg-black/20 text-white/80 dark:text-white/60 font-medium"
-                          >
-                            {btn.text}
+                      <div className="flex flex-col mt-1.5 mr-9 max-w-[80%] lg:max-w-[70%] items-end">
+                        <div className="flex flex-col w-full gap-1 rounded-xl px-3 py-2 bg-white dark:bg-[#202020] border border-gray-200 dark:border-white/10 shadow-sm">
+                          <span className="text-[9px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-black mb-0.5">
+                            Opciones
                           </span>
-                        ))}
+                          {parseButtons(m.content).map((btn, idx) => (
+                            <div
+                              key={btn.id}
+                              className="flex items-center gap-2 text-[10px] py-0.5 text-gray-700 dark:text-gray-200 font-medium"
+                            >
+                              <span className="w-4 h-4 shrink-0 rounded-full bg-accent-500/15 text-accent-600 dark:text-accent-400 text-[8px] flex items-center justify-center font-bold">
+                                {idx + 1}
+                              </span>
+                              <span>{btn.text}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

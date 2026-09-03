@@ -206,6 +206,19 @@ async function processIncomingMessage(message: any, changeValue: any) {
 
     console.log(`[Webhook] Message from ${senderPhone} (type: ${message.type})`);
 
+    // Detect numeric button replies (Cloud API sends them as plain text).
+    // When the user types a number (e.g. "1", "2") after a numbered button
+    // list, treat it as a button continuation for the flow engine.
+    if (message.type === 'text' && message.text?.body) {
+      const cleanText = message.text.body.trim();
+      const numberMatch = cleanText.match(/^(\d+)$/);
+      if (numberMatch) {
+        message.isNumericButtonResponse = true;
+        message.buttonNumber = numberMatch[1];
+        console.log(`[Webhook] Detected numeric button response: ${message.buttonNumber}`);
+      }
+    }
+
     // Lookup organization by phone number ID
     let { data: organization } = await supabase
       .from('organizations')
@@ -289,7 +302,11 @@ async function processIncomingMessage(message: any, changeValue: any) {
     if (!conversation) {
       const insertData: any = { organization_id: organization.id, contact_id: contact.id };
       if (connectionMethod === 'cloud') {
-        insertData.platform_type = 'whatsapp_cloud';
+        // Use 'whatsapp' (not 'whatsapp_cloud') for platform_type because the
+        // conversations.platform_type CHECK constraint in the deployed DB may
+        // not yet include 'whatsapp_cloud'. The Cloud-vs-QR distinction is
+        // handled via platform_connection_id, not via this field.
+        insertData.platform_type = 'whatsapp';
         insertData.platform_connection_id = platformConnectionId;
       }
       const { data: newConv } = await supabase
@@ -302,7 +319,7 @@ async function processIncomingMessage(message: any, changeValue: any) {
       // Update existing conversation - ensure platform_connection_id is set for Cloud API
       const updateData: any = { last_message_at: new Date().toISOString() };
       if (connectionMethod === 'cloud' && platformConnectionId && !conversation.platform_connection_id) {
-        updateData.platform_type = 'whatsapp_cloud';
+        updateData.platform_type = 'whatsapp';
         updateData.platform_connection_id = platformConnectionId;
       }
       await supabase
@@ -326,13 +343,30 @@ async function processIncomingMessage(message: any, changeValue: any) {
       }
     }
 
+    // Normalize the message content/type so it passes the `messages.type` CHECK
+    // constraint (which only allows text/image/audio/video/document/location/contact).
+    // Interactive button/list replies are stored as text with the chosen option.
+    let messageType = message.type || 'text';
+    let messageContent = message.text?.body || JSON.stringify(message);
+
+    if (message.type === 'interactive') {
+      const reply = message.interactive?.button_reply || message.interactive?.list_reply;
+      messageType = 'text';
+      messageContent = reply?.title || 'Opción seleccionada';
+    } else if (message.type === 'image') messageType = 'image';
+    else if (message.type === 'video') messageType = 'video';
+    else if (message.type === 'document') messageType = 'document';
+    else if (message.type === 'audio') messageType = 'audio';
+    else if (message.type === 'location') messageType = 'location';
+    else if (message.type === 'contact') messageType = 'contact';
+
     await supabase.from('messages').insert({
       organization_id: organization.id,
       conversation_id: conversation?.id,
       contact_id: contact.id,
       direction: 'inbound',
-      type: message.type || 'text',
-      content: message.text?.body || JSON.stringify(message),
+      type: messageType,
+      content: messageContent,
       whatsapp_message_id: message.id
     });
 

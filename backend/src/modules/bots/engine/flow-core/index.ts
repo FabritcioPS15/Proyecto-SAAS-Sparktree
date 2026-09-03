@@ -60,6 +60,65 @@ export async function handleIncomingMessage(
     }
   };
 
+  // --- Historial de nodos para soportar "Volver" ---
+  // Se mantiene una pila de nodos de espera (menús/inputs) por contacto en
+  // custom_attributes.flow_history. "Volver" hace pop y re-ejecuta el anterior.
+  const getFlowHistory = async (): Promise<string[]> => {
+    const { data } = await supabase
+      .from('contacts')
+      .select('custom_attributes')
+      .eq('id', organizationConfig.contactId)
+      .single();
+    const attrs = (data as any)?.custom_attributes || {};
+    return Array.isArray(attrs.flow_history) ? attrs.flow_history : [];
+  };
+
+  const setFlowHistory = async (history: string[]) => {
+    const { data } = await supabase
+      .from('contacts')
+      .select('custom_attributes')
+      .eq('id', organizationConfig.contactId)
+      .single();
+    const attrs = (data as any)?.custom_attributes || {};
+    await supabase
+      .from('contacts')
+      .update({ custom_attributes: { ...attrs, flow_history: history } })
+      .eq('id', organizationConfig.contactId);
+  };
+
+  const pushFlowHistory = async (nodeId: string | null) => {
+    if (!nodeId) return;
+    const history = await getFlowHistory();
+    if (history[history.length - 1] !== nodeId) {
+      history.push(nodeId);
+      await setFlowHistory(history);
+    }
+  };
+
+  // Ejecuta el "volver": saca el nodo actual de la pila y re-ejecuta el
+  // anterior (o el menú principal si la pila queda vacía).
+  const goBack = async (flow: any) => {
+    const history = await getFlowHistory();
+    let targetNodeId: string | null = null;
+
+    if (history.length > 1) {
+      history.pop(); // saca el nodo actual
+      targetNodeId = history[history.length - 1] || null; // el anterior
+    } else {
+      history.pop();
+      targetNodeId = null;
+    }
+    await setFlowHistory(history);
+
+    if (targetNodeId) {
+      await executeNode(flow, targetNodeId);
+    } else {
+      // Sin más historial: volver al menú principal (trigger)
+      const triggerNode = (flow.nodes || []).find((n: any) => n.type === 'trigger') || (flow.nodes && flow.nodes[0]);
+      if (triggerNode) await executeNode(flow, triggerNode.id);
+    }
+  };
+
   // Track flow execution start
   const trackFlowExecution = async (flowId: string, triggerWord?: string) => {
     try {
@@ -142,6 +201,8 @@ export async function handleIncomingMessage(
 
       if (node.type === 'trigger') {
         console.log(`[Flow Engine] Trigger node detected. Proceeding to connected block.`);
+        // Al llegar al menú principal se reinicia el historial de "volver".
+        try { await setFlowHistory([]); } catch (e) {}
       } else if (node.type === 'text') {
         try {
           console.log(`[Flow Engine] Sending text message: "${node.data?.text}" to ${senderPhone} (JID: ${contactJid || 'using phone'})`);
@@ -154,17 +215,19 @@ export async function handleIncomingMessage(
       } else if (node.type === 'interactive') {
         try {
           console.log(`[Flow Engine] Sending interactive message to ${senderPhone}`);
+          const history = await getFlowHistory();
           const res = await waService.sendButtonMessage(
             senderPhone,
             node.data?.bodyText || '',
             node.data?.buttons || [],
-            { jid: contactJid }
+            { jid: contactJid, showBackButton: history.length > 0, backButtonLabel: '↩ Volver' }
           );
           console.log(`[Flow Engine] Interactive message sent. Button mapping:`, res.buttonMapping);
           
           await saveOutgoingMessage('text', { 
             buttonMapping: res?.buttonMapping,
             bodyText: node.data?.bodyText,
+            isNumericButtons: !!res?.isNumericButtons,
             buttons: (node.data?.buttons || []).map((b: any, i: number) => ({
               id: b.id || `btn_${i}`,
               text: b.text || b.title || `Opción ${i + 1}`,
@@ -174,6 +237,7 @@ export async function handleIncomingMessage(
         } catch (error) {
           console.error(`[Flow Engine] ERROR sending or saving interactive message:`, error);
         }
+        await pushFlowHistory(currentNodeId);
         break; // Wait for user button click
       } else if (node.type === 'media') {
         const url = node.data?.mediaUrl;
@@ -463,6 +527,13 @@ export async function handleIncomingMessage(
             const buttonId = interactiveData.buttonMapping[buttonNumber];
             console.log(`[Flow Engine] Mapped numeric ${buttonNumber} to button ID: ${buttonId}`);
 
+            // Opción "Volver": re-ejecuta el nodo anterior del historial.
+            if (buttonId === 'btn_back') {
+              console.log(`[Flow Engine] "Volver" detected, going back in history`);
+              await goBack(flow);
+              return;
+            }
+
             if (flow && flow.edges) {
               const edge = flow.edges.find((e: any) => e.sourceHandle === buttonId || e.source === buttonId);
               if (edge && edge.target) {
@@ -555,9 +626,11 @@ export async function handleIncomingMessage(
     await saveOutgoingMessage('text', fallbackText, res);
   }
 
-  // Handle Interactive Button replies
+  // Handle Interactive Button replies (native button_reply or list_reply)
   if (message.type === 'interactive') {
-    const buttonId = message.interactive.button_reply.id;
+    const buttonId = message.interactive?.button_reply?.id ||
+      message.interactive?.list_reply?.id ||
+      message.interactive?.id;
 
     let flow = preloadedFlow;
     if (!flow) {
@@ -593,6 +666,13 @@ export async function handleIncomingMessage(
           flow = statusFlow;
         }
       }
+    }
+
+    // Opción "Volver": re-ejecuta el nodo anterior del historial.
+    if (buttonId === 'btn_back' && flow) {
+      console.log(`[Flow Engine] "Volver" detected (interactive), going back in history`);
+      await goBack(flow);
+      return;
     }
 
     if (flow && flow.edges) {

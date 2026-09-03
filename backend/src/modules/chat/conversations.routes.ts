@@ -140,6 +140,41 @@ router.get('/:id/messages', async (req, res) => {
   }
 });
 
+// POST /api/conversations/:id/reactivate-bot — clears contact bot_state (handoff/capture)
+// so the bot resumes responding to this conversation.
+router.post('/:id/reactivate-bot', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const orgId = (req as any).organizationId;
+    if (!orgId) return res.status(404).json({ error: 'Organization not found' });
+
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('id, contact_id')
+      .eq('id', id)
+      .eq('organization_id', orgId)
+      .single();
+
+    if (!conversation?.contact_id) {
+      return res.status(404).json({ error: 'Conversación no encontrada' });
+    }
+
+    const { error } = await supabase
+      .from('contacts')
+      .update({ bot_state: null })
+      .eq('id', conversation.contact_id)
+      .eq('organization_id', orgId);
+
+    if (error) {
+      return res.status(500).json({ error: 'No se pudo reactivar el bot' });
+    }
+
+    res.json({ success: true, message: 'Bot reactivado' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reactivate bot' });
+  }
+});
+
 // POST /api/conversations/:id/send  — send a message to a contact via WhatsApp
 // Detecta automáticamente el proveedor: 'whatsapp_cloud' usa Cloud API, resto usa Baileys
 router.post('/:id/send', async (req, res) => {
@@ -199,23 +234,51 @@ router.post('/:id/send', async (req, res) => {
     console.log(`[Conversations] Sending to: ${correctedPhone} via provider: ${conversation.platform_type || 'baileys'}`);
 
     let savedMessage: any;
+    let sendResult: any = null;
 
     // ── ROUTER DE PROVEEDOR ──────────────────────────────────────────────────
-    if (conversation.platform_type === 'whatsapp_cloud' && conversation.platform_connection_id) {
+    // La conexión Cloud API se identifica por la presencia de platform_connection_id
+    // (el platform_type puede ser 'whatsapp' o 'whatsapp_cloud').
+    if ((conversation.platform_type === 'whatsapp_cloud' || conversation.platform_type === 'whatsapp') && conversation.platform_connection_id) {
       // ── Cloud API ──────────────────────────────────────────────────────────
-      const cloudConn = whatsappCloudService.getConnection(conversation.platform_connection_id);
+      let cloudConn = whatsappCloudService.getConnection(conversation.platform_connection_id);
+      if (!cloudConn) {
+        // Inicializar desde la BD en memoria si aún no está cargada (p.ej. tras un reinicio)
+        try {
+          const { data: platformConn } = await supabase
+            .from('platform_connections')
+            .select('*')
+            .eq('id', conversation.platform_connection_id)
+            .single();
+          if (platformConn) {
+            await whatsappCloudService.initializeConnection(platformConn);
+            cloudConn = whatsappCloudService.getConnection(conversation.platform_connection_id);
+          }
+        } catch (initErr) {
+          console.error('[Conversations] Error initializing Cloud connection:', initErr);
+        }
+      }
       if (!cloudConn) {
         return res.status(503).json({ error: 'La conexión de WhatsApp Cloud API no está disponible.' });
       }
       const adapter = whatsappCloudService.createServiceAdapter(cloudConn);
 
       if (mediaUrl) {
-        await adapter.sendMediaMessage(correctedPhone, mediaUrl, {
-          type: mediaType || 'image',
-          caption: text || caption || '',
-        });
+        const isBase64 = typeof mediaUrl === 'string' && mediaUrl.startsWith('data:');
+        if (isBase64 && adapter.sendMediaBuffer) {
+          sendResult = await adapter.sendMediaBuffer(correctedPhone, mediaUrl, {
+            type: mediaType || 'image',
+            caption: text || caption || '',
+            filename: req.body.filename,
+          });
+        } else {
+          sendResult = await adapter.sendMediaMessage(correctedPhone, mediaUrl, {
+            type: mediaType || 'image',
+            caption: text || caption || '',
+          });
+        }
       } else {
-        await adapter.sendTextMessage(correctedPhone, text.trim());
+        sendResult = await adapter.sendTextMessage(correctedPhone, text.trim());
       }
     } else {
       // ── Baileys ────────────────────────────────────────────────────────────
@@ -229,18 +292,27 @@ router.post('/:id/send', async (req, res) => {
       const adapter = (multiWhatsAppService as any).createWaServiceAdapter(activeConn);
 
       if (mediaUrl) {
-        await adapter.sendMediaMessage(correctedPhone, mediaUrl, {
+        sendResult = await adapter.sendMediaMessage(correctedPhone, mediaUrl, {
           jid: contactJid,
           type: mediaType || 'image',
           caption: text || caption || '',
         });
       } else {
-        await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
+        sendResult = await adapter.sendTextMessage(correctedPhone, text.trim(), { jid: contactJid });
       }
     }
     // ────────────────────────────────────────────────────────────────────────
 
     // Save message to DB
+    const isBase64Media = typeof mediaUrl === 'string' && mediaUrl.startsWith('data:');
+    // Extraer el id del proveedor (p.ej. wamid de WhatsApp Cloud API) del resultado
+    // del envío. Se persiste en messages.whatsapp_message_id para que el webhook
+    // de status (delivered/read/failed) pueda hacer match y actualizar los checks.
+    const msgId =
+      (sendResult as any)?.messages?.[0]?.id ||
+      (sendResult as any)?.id ||
+      (sendResult as any)?.key?.id ||
+      null;
     const { data: msg } = await supabase
       .from('messages')
       .insert({
@@ -249,7 +321,15 @@ router.post('/:id/send', async (req, res) => {
         contact_id: conversation.contact_id,
         direction: 'outbound',
         type: mediaUrl ? (mediaType || 'image') : 'text',
-        content: mediaUrl ? JSON.stringify({ url: mediaUrl, caption: text }) : (text || '').trim(),
+        whatsapp_message_id: msgId,
+        content: mediaUrl
+          ? JSON.stringify({
+              url: mediaUrl,
+              type: mediaType || 'image',
+              filename: req.body.filename || 'adjunto',
+              caption: (isBase64Media ? req.body.caption : text) || '',
+            })
+          : (text || '').trim(),
         status: 'sent'
       })
       .select()

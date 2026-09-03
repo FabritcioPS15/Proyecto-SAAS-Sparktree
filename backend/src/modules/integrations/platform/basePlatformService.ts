@@ -39,6 +39,12 @@ export interface PlatformServiceAdapter {
   sendTextMessage: (to: string, body: string, options?: any) => Promise<any>;
   sendButtonMessage: (to: string, bodyText: string, buttons: any[], options?: any) => Promise<any>;
   sendMediaMessage: (to: string, url: string, options?: any) => Promise<any>;
+  /** Sube y envía un media en base64 (data URL) vía Graph API multi-upload. */
+  sendMediaBuffer?: (
+    to: string,
+    base64: string,
+    options?: any
+  ) => Promise<any>;
   /** Solo disponible en WhatsApp Cloud API. Envía un template aprobado por Meta. */
   sendTemplateMessage?: (
     to: string,

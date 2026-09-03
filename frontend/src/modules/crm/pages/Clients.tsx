@@ -394,6 +394,7 @@ export const Clients = () => {
     const channelLower = channel.toLowerCase();
     switch (channelLower) {
       case 'whatsapp':
+      case 'whatsapp_cloud':
         return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
       case 'instagram':
         return 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20';
@@ -414,6 +415,7 @@ export const Clients = () => {
     const channelLower = channel?.toLowerCase() || '';
     switch (channelLower) {
       case 'whatsapp':
+      case 'whatsapp_cloud':
         return <FaWhatsapp className="w-3.5 h-3.5" />;
       case 'instagram':
         return <FaInstagram className="w-3.5 h-3.5" />;

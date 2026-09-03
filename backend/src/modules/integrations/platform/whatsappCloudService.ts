@@ -4,9 +4,38 @@
  */
 
 import axios from 'axios';
+import FormData from 'form-data';
+import { execFile } from 'child_process';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { BasePlatformService, PlatformConnection, PlatformMessage, PlatformServiceAdapter } from './basePlatformService';
 import { supabase } from '../../../core/config/supabase';
 import { handleIncomingMessage } from '../../bots/engine/flow-core';
+
+// Convierte audio del navegador (webm/mp4) al único formato de nota de voz que
+// WhatsApp entrega: `audio/ogg` con codec Opus. Retorna el buffer .ogg o null si
+// falla/falta ffmpeg (en ese caso se sube el original).
+async function convertToOggOpus(input: Buffer, ext: string): Promise<Buffer | null> {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wa-audio-'));
+  const src = path.join(tmp, `in.${ext}`);
+  const out = path.join(tmp, 'out.ogg');
+  try {
+    fs.writeFileSync(src, input);
+    await new Promise<void>((resolve, reject) => {
+      execFile('ffmpeg', ['-y', '-i', src, '-vn', '-c:a', 'libopus', '-b:a', '48k', '-ar', '48000', '-ac', '1', out], { timeout: 20000 }, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    return fs.readFileSync(out);
+  } catch (e: any) {
+    console.warn('[whatsapp] ffmpeg conversión de audio falló:', e?.message || e);
+    return null;
+  } finally {
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* noop */ }
+  }
+}
 
 export class WhatsAppCloudService extends BasePlatformService {
   private webhookVerifyTokens: Map<string, string> = new Map();
@@ -145,22 +174,39 @@ export class WhatsAppCloudService extends BasePlatformService {
             organization_id: connection.organizationId,
             contact_id: contact.id,
             platform_connection_id: connection.id,
-            platform_type: 'whatsapp_cloud',
+            // 'whatsapp' (not 'whatsapp_cloud'): the deployed CHECK constraint
+            // may not include 'whatsapp_cloud' yet. Cloud-vs-QR is tracked via
+            // platform_connection_id instead.
+            platform_type: 'whatsapp',
           })
           .select()
           .single();
         conversation = newConv;
       }
 
-      // Save message
+      // Save message (normalize type to satisfy messages.type CHECK constraint)
+      let messageType = message.type || 'text';
+      let messageContent: string = message.text || (typeof message.text === 'string' ? message.text : JSON.stringify(message));
+
+      if (message.type === 'interactive') {
+        const replyText = message.interactive?.button_reply?.title || message.interactive?.quick_reply?.text;
+        messageType = 'text';
+        messageContent = replyText || 'Opción seleccionada';
+      } else if (message.type === 'media') {
+        messageType = message.media?.type || 'image';
+      } else if (message.type === 'image') messageType = 'image';
+      else if (message.type === 'video') messageType = 'video';
+      else if (message.type === 'document') messageType = 'document';
+      else if (message.type === 'audio') messageType = 'audio';
+
       await supabase.from('messages').insert({
         organization_id: connection.organizationId,
         conversation_id: conversation.id,
         contact_id: contact.id,
         direction: 'inbound',
-        type: message.type,
-        content: JSON.stringify(message),
-        platform_message_id: message.id,
+        type: messageType,
+        content: messageContent,
+        whatsapp_message_id: message.id,
       });
 
       // Update conversation timestamp
@@ -170,6 +216,31 @@ export class WhatsAppCloudService extends BasePlatformService {
         .eq('id', conversation.id);
 
       // Process with flow engine
+      // Detect numeric button responses: when the user sends a plain number
+      // (e.g. "3") in response to a numbered menu, flag it so the flow engine
+      // can map it to the corresponding button.
+      const textContent = message.text ?? messageContent;
+      const numericMatch = (typeof textContent === 'string') ? textContent.trim().match(/^\d+$/) : null;
+      if (numericMatch && conversation?.id) {
+        const { data: lastOutbound } = await supabase
+          .from('messages')
+          .select('content')
+          .eq('conversation_id', conversation.id)
+          .eq('direction', 'outbound')
+          .order('created_at', { ascending: false })
+          .limit(5)
+          .maybeSingle();
+        if (lastOutbound?.content) {
+          try {
+            const parsed = JSON.parse(lastOutbound.content);
+            if (parsed?.buttonMapping && parsed.buttonMapping[textContent.trim()]) {
+              (message as any).isNumericButtonResponse = true;
+              (message as any).buttonNumber = textContent.trim();
+            }
+          } catch {}
+        }
+      }
+
       const organizationConfig = {
         organizationId: connection.organizationId,
         conversationId: conversation.id,
@@ -215,59 +286,128 @@ export class WhatsAppCloudService extends BasePlatformService {
         const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
         const url = `https://graph.facebook.com/v21.0/${config.phoneNumberId}/messages`;
 
-        const buttonMapping: { [key: string]: string } = {};
-        const actionButtons = buttons.slice(0, 3).map((btn, index) => {
-          const btnId = btn.id || `btn_${index}`;
-          const btnTitle = (btn.title || btn.text || `Opción ${index + 1}`).substring(0, 20);
-          buttonMapping[(index + 1).toString()] = btnId;
-          return {
-            type: 'reply',
-            reply: { id: btnId, title: btnTitle },
-          };
+      const originalButtons = buttons || [];
+
+      // Opción automática "Volver": se agrega al final del list cuando el
+      // cliente tiene historial de nodos. Usa un id reservado (btn_back).
+      // Se mantiene separada para NO contarla en el límite de opciones del
+      // list message de Meta (soporta hasta 10 filas).
+      const backLabel = options?.backButtonLabel || '↩ Volver';
+      const showBack = !!options?.showBackButton;
+      const backButton = showBack ? { id: 'btn_back', title: backLabel, text: backLabel } : null;
+
+      // allButtons = opciones reales + (opcional) btn_back
+      const allButtons = backButton ? [...originalButtons, backButton] : [...originalButtons];
+
+      const buttonMapping: { [key: string]: string } = {};
+
+      // Build mapping for numeric replies (1-based, covers every option).
+      allButtons.forEach((btn, index) => {
+        buttonMapping[(index + 1).toString()] = btn.id || `btn_${index}`;
+      });
+
+      // Helper to build a numbered text list (no option limit).
+      // Opción "Volver" se muestra al final separada para no contaminar la
+      // numeración de opciones reales.
+      const buildNumberedText = () => {
+        const numberedOptions = originalButtons.map((btn, index) => {
+          return `${index + 1}. ${btn.title || btn.text || `Opción ${index + 1}`}`;
+        }).join('\n');
+        const backLine = backButton ? `\n${allButtons.length}. ${backLabel}` : '';
+        return `${bodyText}\n\n${numberedOptions}${backLine}\n\nResponde con el número de tu opción`;
+      };
+
+      // Si hay más de 3 opciones reales (sin contar "Volver"), envía lista numerada
+      // de texto. El list message de Meta soporta hasta 10 filas pero el botón
+      // "Volver" ya está mapeado y se incluye en la numeración.
+      if (originalButtons.length > 3) {
+        const numberedMessage = buildNumberedText();
+        const numberedResponse = await axios({
+          method: 'POST',
+          url,
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          data: {
+            messaging_product: 'whatsapp',
+            to: phoneNumber,
+            type: 'text',
+            text: { body: numberedMessage },
+          },
         });
 
-        try {
-          const response = await axios({
-            method: 'POST',
-            url,
-            headers: {
-              'Authorization': `Bearer ${config.accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            data: {
-              messaging_product: 'whatsapp',
-              to: phoneNumber,
-              type: 'interactive',
-              interactive: {
-                type: 'button',
-                body: { text: bodyText },
-                action: { buttons: actionButtons },
-              },
-            },
+        return { ...numberedResponse.data, buttonMapping, isNumericButtons: true };
+      }
+
+      const buttonLabel = (options?.listButtonLabel) || 'Ver opciones';
+      const catalogTitle = (options?.catalogTitle) || 'Elige una opción';
+      const sectionTitle = (options?.sectionTitle) || 'Opciones';
+
+      // Meta "list" interactive: each row is clickable and opens a vertical
+      // list ("Ver opciones"). Supports up to 10 rows per section.
+      const buildListInteractive = () => {
+        const rows = allButtons.map((btn, index) => ({
+          id: btn.id || `btn_${index}`,
+          title: (btn.title || btn.text || `Opción ${index + 1}`).substring(0, 24),
+          description: btn.description ? btn.description.substring(0, 72) : undefined,
+        }));
+
+        const sections: any[] = [];
+        for (let i = 0; i < rows.length; i += 10) {
+          sections.push({
+            title: rows.length > 10 ? `${sectionTitle} ${sections.length + 1}` : sectionTitle,
+            rows: rows.slice(i, i + 10),
           });
+        }
 
-          return { ...response.data, buttonMapping, isNumericButtons: true };
-        } catch (error: any) {
-          const metaErr = error?.response?.data?.error;
-          console.error(`[WhatsApp Cloud] Interactive button FAILED:`, metaErr ? `${metaErr.code}: ${metaErr.message}` : error.message);
+        return {
+          type: 'list',
+          header: { type: 'text', text: catalogTitle.substring(0, 60) },
+          body: { text: (bodyText || '').substring(0, 1024) },
+          action: {
+            button: buttonLabel.substring(0, 20),
+            sections,
+          },
+        };
+      };
 
-          const numberedOptions = buttons.slice(0, 3).map((btn, index) => {
-            return `${index + 1}. ${btn.title || btn.text || `Opción ${index + 1}`}`;
-          }).join('\n');
+      // Try sending the native list interactive message.
+      try {
+        const response = await axios({
+          method: 'POST',
+          url,
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          data: {
+            messaging_product: 'whatsapp',
+            to: phoneNumber,
+            type: 'interactive',
+            interactive: buildListInteractive(),
+          },
+        });
 
-          const fallbackMessage = `${bodyText}\n\n${numberedOptions}\n\nResponde con el número de tu opción`;
-          const fallbackResponse = await axios({
-            method: 'POST',
-            url,
-            headers: {
-              'Authorization': `Bearer ${config.accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            data: {
-              messaging_product: 'whatsapp',
+        return { ...response.data, buttonMapping, isNumericButtons: true };
+      } catch (error: any) {
+        const metaErr = error?.response?.data?.error;
+        console.error(`[WhatsApp Cloud] List message FAILED:`, metaErr ? `${metaErr.code}: ${metaErr.message}` : error.message);
+
+        // Fallback: numbered text list so no option is lost.
+        const numberedMessage = buildNumberedText();
+        const fallbackResponse = await axios({
+          method: 'POST',
+          url,
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          data: {
+            messaging_product: 'whatsapp',
               to: phoneNumber,
               type: 'text',
-              text: { body: fallbackMessage },
+              text: { body: numberedMessage },
             },
           });
 
@@ -300,6 +440,97 @@ export class WhatsAppCloudService extends BasePlatformService {
         });
 
         return response.data;
+      },
+
+      // Sube un media en base64 (data URL) a Graph API y lo envía por media id.
+      // Necesario porque Cloud API requiere una URL pública o un media_id, no
+      // acepta base64 directo como destino.
+      sendMediaBuffer: async (to: string, base64: string, options?: any) => {
+        const phoneNumber = to.includes('@') ? to.split('@')[0] : to;
+        const mediaType = options?.type || 'image';
+        const mediaBase = `https://graph.facebook.com/v21.0/${config.phoneNumberId}`;
+
+        // Extraer mime type y bytes del data URL (ej: data:image/png;base64,XXXX
+        // o data:audio/webm;codecs=opus;base64,XXXX). Permite parámetros extra
+        // en el mime type (como ;codecs=...) antes del marcador ;base64,.
+        const match = base64.match(/^data:([^;,]+)(?:;[^,]*)*;base64,(.+)$/s);
+        if (!match) {
+          throw new Error('Formato de base64/mediaUrl no válido');
+        }
+        const mimeType = match[1];
+        const base64Data = match[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        const ext = mimeType.split('/')[1]?.split('+')[0] || 'bin';
+        const filename = options?.filename || `upload-${Date.now()}.${ext}`;
+
+        // WhatsApp (Cloud API) solo reproduce notas de voz en `audio/ogg` (opus).
+        // El audio capturado en el navegador suele venir en webm/mp4 que Meta
+        // sube pero no entrega. Convertimos a ogg/opus con ffmpeg antes de subir.
+        let uploadMime = mimeType;
+        let uploadBuffer: Buffer = buffer;
+        let uploadFilename = filename;
+        if (mediaType === 'audio') {
+          const conv = await convertToOggOpus(uploadBuffer, ext);
+          if (conv) {
+            uploadMime = 'audio/ogg';
+            uploadBuffer = conv;
+            uploadFilename = `voice-${Date.now()}.ogg`;
+          }
+        }
+
+        // 1) Subir el media a Graph API -> media_id (multipart)
+        const uploadForm = new FormData();
+        uploadForm.append('messaging_product', 'whatsapp');
+        uploadForm.append('type', uploadMime);
+        uploadForm.append('filename', uploadFilename);
+        uploadForm.append('file', uploadBuffer, { filename: uploadFilename, contentType: uploadMime });
+
+        console.log(`[whatsapp] upload media type=${mediaType} mine=${uploadMime} bytes=${uploadBuffer.length}`);
+
+        const uploadRes = await axios.post(`${mediaBase}/media`, uploadForm, {
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            ...uploadForm.getHeaders(),
+          },
+        });
+        const mediaId: string = uploadRes.data?.id;
+        if (!mediaId) {
+          throw new Error('No se pudo subir el media a WhatsApp');
+        }
+
+        // 2) Enviar el mensaje referenciando el media_id
+        // Restricciones de Meta según el tipo:
+        //  - `filename` solo es válido en `document` (rechaza en image/video/audio).
+        //  - `caption` es inválido en `audio` (rechaza: "Unexpected key caption on param audio").
+        const mediaBody: any = { id: mediaId };
+        if (mediaType !== 'audio' && options?.caption) {
+          mediaBody.caption = options.caption;
+        }
+        if ((mediaType === 'document') && options?.filename) {
+          mediaBody.filename = options.filename;
+        }
+
+        const sendRes = await axios({
+          method: 'POST',
+          url: `${mediaBase}/messages`,
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          data: {
+            messaging_product: 'whatsapp',
+            to: phoneNumber,
+            type: mediaType,
+            [mediaType]: mediaBody,
+          },
+        }).catch((err: any) => {
+          const metaErr = err?.response?.data?.error;
+          console.error(`[whatsapp] SEND ${mediaType} FAIL ->`, metaErr ? JSON.stringify(metaErr) : (err?.message || err));
+          throw err;
+        });
+
+        return sendRes.data;
       },
 
       sendTemplateMessage: async (
@@ -717,6 +948,14 @@ export class WhatsAppCloudService extends BasePlatformService {
           button_reply: {
             id: rawMessage.interactive.button_reply.id,
             title: rawMessage.interactive.button_reply.title,
+          },
+        };
+      } else if (rawMessage.interactive?.list_reply) {
+        message.interactive = {
+          type: 'button_reply',
+          button_reply: {
+            id: rawMessage.interactive.list_reply.id,
+            title: rawMessage.interactive.list_reply.title,
           },
         };
       }

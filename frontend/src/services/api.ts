@@ -62,15 +62,12 @@ export const getClients = async () => {
 
 export const getContacts = async () => {
   try {
-    // Usar el endpoint de conversaciones que ya funciona y devuelve contactos
-    const response = await api.get('/conversations');
-    console.log('Conversations response:', response.data);
-    
-    // Extraer los contactos únicos de las conversaciones
-    const conversations = Array.isArray(response.data) ? response.data : [];
-    console.log('Conversations array:', conversations);
-    console.log('Conversations length:', conversations.length);
-    
+    // Usar el endpoint /conversations/contacts que devuelve TODOS los contactos
+    // de la org, incluidos los creados al iniciar una conversación desde el
+    // negocio y los clientes que escribieron por Cloud API.
+    const response = await api.get('/conversations/contacts');
+    const contactsFromDb = Array.isArray(response.data) ? response.data : [];
+
     // Obtener el número de WhatsApp de la conexión activa
     let whatsappLineNumber = '';
     try {
@@ -79,45 +76,48 @@ export const getContacts = async () => {
       const activeConnection = connections.find((c: any) => c.status === 'connected');
       if (activeConnection && activeConnection.phone_number) {
         whatsappLineNumber = activeConnection.phone_number;
-        console.log('WhatsApp line number:', whatsappLineNumber);
       }
     } catch (e) {
       console.log('Could not fetch WhatsApp connections:', e);
     }
-    
-    const contactsMap = new Map();
-    
-    conversations.forEach((conv: any) => {
-      const contactObj = conv.contactId || conv.contact || {};
-      const contactId = contactObj.id || contactObj._id || conv.contact_id || conv.id || conv._id;
-      const phoneNumber = contactObj.phoneNumber || contactObj.phone_number || '';
-      const key = contactId || phoneNumber || conv.id;
 
-      if (key && !contactsMap.has(key)) {
-        contactsMap.set(key, {
-          id: contactId,
-          conversation_id: conv.id || conv._id,
-          phone_number: phoneNumber || 'Desconocido',
-          profile_name: contactObj.name || contactObj.profile_name || phoneNumber || 'Sin nombre',
-          profile_picture: contactObj.profilePicture || contactObj.profile_picture || null,
-          platform_type: conv.channel || conv.platform_type || 'whatsapp',
-          bot_state: conv.botState || conv.bot_state || 'main_menu',
-          assigned_to: conv.assignedTo || conv.assigned_to || null,
-          assigned_agent: conv.assignedAgent || conv.assigned_agent || null,
-          last_active_at: conv.lastMessageAt || conv.last_message_at,
-          whatsapp_line_number: whatsappLineNumber,
-          custom_attributes: {
-            whatsapp_jid: phoneNumber,
-            real_phone_number: phoneNumber
-          }
-        });
-      }
+    // Mapear conversation_id por contacto (solo los que ya tienen conversación)
+    const convByContact = new Map();
+    try {
+      const convResponse = await api.get('/conversations');
+      const conversations = Array.isArray(convResponse.data) ? convResponse.data : [];
+      conversations.forEach((conv: any) => {
+        const contactId = conv.contactId?.id || conv.contactId?._id || conv.contact?.id || conv.contact_id;
+        if (contactId && !convByContact.has(contactId)) {
+          convByContact.set(contactId, conv.id || conv._id);
+        }
+      });
+    } catch (e) {
+      console.log('Could not fetch conversations:', e);
+    }
+
+    const contacts = contactsFromDb.map((c: any) => {
+      const phoneNumber = c.phone_number || '';
+      return {
+        id: c.id,
+        conversation_id: convByContact.get(c.id) || null,
+        phone_number: phoneNumber || 'Desconocido',
+        profile_name: c.profile_name || phoneNumber || 'Sin nombre',
+        profile_picture: c.profile_picture || null,
+        platform_type: c.platform_type || 'whatsapp',
+        bot_state: c.bot_state || 'main_menu',
+        assigned_to: c.assigned_to || null,
+        assigned_agent: c.assigned_agent || null,
+        last_active_at: c.last_active_at,
+        whatsapp_line_number: whatsappLineNumber,
+        custom_attributes: {
+          ...(c.custom_attributes || {}),
+          whatsapp_jid: phoneNumber,
+          real_phone_number: phoneNumber,
+        },
+      };
     });
-    
-    const contacts = Array.from(contactsMap.values());
-    console.log('Final contacts:', contacts);
-    console.log('Contacts length:', contacts.length);
-    
+
     return contacts;
   } catch (error) {
     console.error('Error fetching contacts:', error);
