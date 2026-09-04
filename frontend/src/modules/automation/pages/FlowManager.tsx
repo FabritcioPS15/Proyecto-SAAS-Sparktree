@@ -4,6 +4,7 @@ import { Bot, Plus, Edit, Trash2, Copy, Sparkles, UserCheck, Tag, X, Activity, D
 import { ReactFlowProvider } from '@xyflow/react';
 import { FlowBuilderContent } from '../components/FlowBuilderContent';
 import { flowService, FlowBot } from '../../../services/flowService';
+import { flowTemplates, FlowTemplate } from '../flowTemplates';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { HeaderButton } from '../../../components/ui/HeaderButton';
@@ -88,6 +89,7 @@ export const FlowManager = () => {
     category: 'other' as 'sales' | 'support' | 'marketing' | 'onboarding' | 'other',
     triggers: [] as string[]
   });
+  const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FlowBot | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { addNotification } = useNotifications();
@@ -164,16 +166,22 @@ export const FlowManager = () => {
     if (!newFlowData.name.trim()) return;
     try {
       setLoading(true);
+      const tpl = selectedTemplate;
       const newFlow = await flowService.createFlow({
         ...newFlowData,
         status: 'draft',
-        nodes: [{ id: 'trigger_1', type: 'trigger', position: { x: 100, y: 100 }, data: { label: 'Inicio', keywords: newFlowData.triggers } }],
-        edges: []
+        matchingStrategy: tpl?.matchingStrategy,
+        reactivationTime: tpl?.reactivationTime,
+        nodes: tpl && tpl.nodes.length > 0
+          ? tpl.nodes.map((n) => ({ ...n, data: { ...n.data, _updatedAt: Date.now() } }))
+          : [{ id: 'trigger_1', type: 'trigger', position: { x: 100, y: 100 }, data: { label: 'Inicio', keywords: newFlowData.triggers } }],
+        edges: tpl ? tpl.edges : [],
       });
-      addNotification({ type: 'success', title: 'Flujo creado', message: `"${newFlowData.name}" fue creado. Ahora puedes configurarlo.` });
+      addNotification({ type: 'success', title: tpl ? 'Flujo creado desde plantilla' : 'Flujo creado', message: `"${newFlowData.name}" fue creado. Ahora puedes configurarlo.` });
       await refreshFlows();
       setShowCreateForm(false);
       setNewFlowData({ name: '', description: '', category: 'other', triggers: [] });
+      setSelectedTemplate(null);
       openFlowBuilder(newFlow);
     } catch (err) {
       addNotification({ type: 'error', title: 'Error', message: 'No se pudo crear el flujo.' });
@@ -181,6 +189,17 @@ export const FlowManager = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyTemplate = (tpl: FlowTemplate) => {
+    setSelectedTemplate(tpl);
+    setNewFlowData((prev) => ({
+      ...prev,
+      name: prev.name.trim() ? prev.name : tpl.name,
+      description: tpl.description,
+      category: tpl.category as any,
+      triggers: tpl.triggers,
+    }));
   };
 
   const stats = {
@@ -462,6 +481,52 @@ export const FlowManager = () => {
           }
         >
           <div className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><LayoutGrid className="w-3 h-3" /> Empezar desde una plantilla <span className="font-medium text-slate-300 normal-case">(opcional)</span></label>
+              <div className="grid grid-cols-2 gap-2">
+                {flowTemplates.map((tpl) => {
+                  const Icon = tpl.icon || Bot;
+                  const isSelected = selectedTemplate?.id === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => applyTemplate(tpl)}
+                      className={`relative text-left p-3 rounded-xl border transition-all ${isSelected
+                        ? 'border-accent-500 bg-accent-500/5 ring-2 ring-accent-500/20'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 hover:border-accent-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent-500" />
+                      )}
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${tpl.accent} text-white flex items-center justify-center mb-2`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <p className="text-[12px] font-bold text-slate-800 dark:text-white leading-tight mb-0.5">{tpl.name}</p>
+                      <p className="text-[10px] text-slate-400 leading-snug line-clamp-2">{tpl.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedTemplate && (
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-accent-600 dark:text-accent-400 font-semibold">
+                    ✓ Se cargarán {selectedTemplate.nodes.length} nodos y {selectedTemplate.edges.length} conexiones
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplate(null);
+                      setNewFlowData((prev) => ({ ...prev, triggers: [] }));
+                    }}
+                    className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" /> Quitar plantilla
+                  </button>
+                </div>
+              )}
+            </div>
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Bot className="w-3 h-3" /> Nombre del Flujo</label>
               <div className="relative">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, MessageSquare, Activity, Box, Zap, ChevronRight, UserPlus, Share2, AlertCircle, LayoutDashboard, Play, ShoppingCart, FileText, Target, Wallet, Calendar, Gift } from 'lucide-react';
-import { getAnalytics, getDashboardAnalytics, getCrmDashboard, getOrders, getQuotes, getPromotions, getCalendarEvents } from '../../../services/api';
+import { Users, MessageSquare, Activity, Box, Zap, ChevronRight, UserPlus, Share2, AlertCircle, LayoutDashboard, Play, ShoppingCart, FileText, Target, Wallet, Calendar, Gift, BellRing } from 'lucide-react';
+import { getAnalytics, getDashboardAnalytics, getCrmDashboard, getOrders, getQuotes, getPromotions, getCalendarEvents, getReminders } from '../../../services/api';
 import { PageContainer } from '../../../components/layout/PageContainer';
 import { PageBody } from '../../../components/layout/PageBody';
 import { PageHeader } from '../../../components/layout/PageHeader';
@@ -40,7 +40,7 @@ export const Dashboard = () => {
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [crm, setCrm] = useState({ totalClients: 0, totalDeals: 0, totalValue: 0, wonValue: 0 });
-  const [moduleCounts, setModuleCounts] = useState({ orders: 0, quotes: 0, promotions: 0, events: 0 });
+  const [moduleCounts, setModuleCounts] = useState({ orders: 0, quotes: 0, promotions: 0, events: 0, reminders: 0 });
   const [dashboardStats, setDashboardStats] = useState({
     totalMessages: 0, messageTrend: 0, totalContacts: 0, contactTrend: 0,
     openConversations: 0, activeFlows: 0, completionRate: 0, avgResponseTime: 0,
@@ -100,17 +100,19 @@ export const Dashboard = () => {
         }
 
         try {
-          const [orders, quotes, promotions, events] = await Promise.all([
+          const [orders, quotes, promotions, events, reminders] = await Promise.all([
             getOrders().catch(() => []),
             getQuotes().catch(() => []),
             getPromotions().catch(() => []),
-            getCalendarEvents().catch(() => [])
+            getCalendarEvents().catch(() => []),
+            getReminders().catch(() => [])
           ]);
           setModuleCounts({
             orders: (orders || []).length,
             quotes: (quotes || []).length,
             promotions: (promotions || []).length,
-            events: (events || []).filter((ev: any) => new Date(ev.event_date).getTime() >= new Date().setHours(0, 0, 0, 0)).length
+            events: (events || []).filter((ev: any) => new Date(ev.event_date).getTime() >= new Date().setHours(0, 0, 0, 0)).length,
+            reminders: (reminders || []).length
           });
         } catch (e) {
           console.error('Error fetching module counts:', e);
@@ -182,9 +184,8 @@ export const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <MetricCard
               title="Clientes"
-              value={crm.totalClients.toLocaleString()}
+              value={dashboardStats.totalContacts.toLocaleString()}
               icon={<Users className="w-5 h-5" />}
-              trend={{ value: dashboardStats.contactTrend, label: 'vs período anterior', direction: dashboardStats.contactTrend > 0 ? 'up' : dashboardStats.contactTrend < 0 ? 'down' : 'neutral' }}
               sparkline={sparklines.contacts || [0]}
               delay={0.1}
             />
@@ -197,19 +198,19 @@ export const Dashboard = () => {
               delay={0.2}
             />
             <MetricCard
-              title="Pedidos"
-              value={moduleCounts.orders.toLocaleString()}
-              icon={<ShoppingCart className="w-5 h-5" />}
-              trend={{ value: 0, label: 'registrados', direction: 'neutral' }}
-              sparkline={[moduleCounts.orders]}
+              title="Mensajes"
+              value={dashboardStats.totalMessages.toLocaleString()}
+              icon={<MessageSquare className="w-5 h-5" />}
+              trend={{ value: dashboardStats.messageTrend, label: 'vs período anterior', direction: dashboardStats.messageTrend > 0 ? 'up' : dashboardStats.messageTrend < 0 ? 'down' : 'neutral' }}
+              sparkline={sparklines.messages || [0]}
               delay={0.3}
             />
             <MetricCard
-              title="Valor Ganado"
-              value={formatCurrency(crm.wonValue)}
+              title="Total Gastado"
+              value={formatCurrency(crm.totalValue)}
               icon={<Wallet className="w-5 h-5" />}
-              trend={{ value: 0, label: 'deals ganados', direction: 'neutral' }}
-              sparkline={[crm.wonValue]}
+              trend={{ value: 0, label: 'valor del pipeline', direction: 'neutral' }}
+              sparkline={[crm.totalValue]}
               delay={0.4}
             />
           </div>
@@ -290,6 +291,7 @@ export const Dashboard = () => {
                   { name: 'Pedidos', count: moduleCounts.orders, path: '/orders', icon: ShoppingCart, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
                   { name: 'Promociones', count: moduleCounts.promotions, path: '/promotions', icon: Gift, color: 'text-pink-500', bg: 'bg-pink-500/10' },
                   { name: 'Próximos eventos', count: moduleCounts.events, path: '/calendar', icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                  { name: 'Recordatorios', count: moduleCounts.reminders, path: '/reminders', icon: BellRing, color: 'text-sky-500', bg: 'bg-sky-500/10' },
                 ].map(item => {
                   const Icon = item.icon;
                   return (

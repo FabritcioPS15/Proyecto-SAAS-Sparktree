@@ -298,7 +298,7 @@ router.get('/dashboard', async (req, res) => {
     // Get total deals
     const { data: deals, error: dealsError } = await supabase
       .from('crm_deals')
-      .select('id, stage, value')
+      .select('id, stage, value, client_id')
       .eq('organization_id', orgId);
 
     if (dealsError) {
@@ -307,8 +307,18 @@ router.get('/dashboard', async (req, res) => {
     }
 
     // Calculate metrics
-    const totalClients = clients?.length || 0;
     const totalDeals = deals?.length || 0;
+
+    // "Clientes potenciales": oportunidades abiertas (deals sin cerrar), sin duplicar con
+    // los clientes ya registrados en la tabla crm_clients (evita doble conteo).
+    const registeredClientIds = new Set((clients || []).map((c: any) => c.id));
+    const potentialClientIds = new Set<string>();
+    (deals || [])
+      .filter((d: any) => d.stage !== 'closed_won' && d.stage !== 'closed_lost')
+      .forEach((d: any) => {
+        if (d.client_id && !registeredClientIds.has(d.client_id)) potentialClientIds.add(d.client_id);
+      });
+    const totalClients = (clients?.length || 0) + potentialClientIds.size;
     
     // Count clients by status
     const clientsByStatus = {
@@ -335,6 +345,7 @@ router.get('/dashboard', async (req, res) => {
     res.json({
       totalClients,
       totalDeals,
+      potentialClients: potentialClientIds.size,
       clientsByStatus,
       dealsByStage,
       totalValue,

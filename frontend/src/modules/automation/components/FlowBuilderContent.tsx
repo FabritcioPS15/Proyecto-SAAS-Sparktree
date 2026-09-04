@@ -9,12 +9,14 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  MarkerType,
 } from '@xyflow/react';
 import { useMemo } from 'react';
 import '@xyflow/react/dist/style.css';
 
 import { TriggerNode } from './TriggerNode';
 import { TextNode } from './TextNode';
+import { CustomEdge } from './CustomEdge';
 import { InteractiveNode } from './InteractiveNode';
 import { MediaNode } from './MediaNode';
 import { CaptureNode } from './CaptureNode';
@@ -97,6 +99,14 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
     llm: LlmNode,
     knowledge_retrieval: KnowledgeRetrievalNode,
     email: EmailNode,
+  }), []);
+
+  const edgeTypes = useMemo(() => ({ default: CustomEdge }), []);
+
+  const defaultEdgeOptions = useMemo(() => ({
+    type: 'default',
+    markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#94a3b8' },
+    style: { stroke: '#64748b', strokeWidth: 2 },
   }), []);
 
   const [currentTriggers, setCurrentTriggers] = useState(flowData.triggers || []);
@@ -493,6 +503,47 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
         .dark .react-flow__node.selected .node-container {
           box-shadow: 0 0 0 2px rgba(99,102,241,0.6), 0 8px 32px rgba(0,0,0,0.3) !important;
         }
+
+        /* ---- Edge / connection polish ---- */
+        .react-flow__edge-path {
+          transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease;
+        }
+        .react-flow__edge:hover .react-flow__edge-path,
+        .react-flow__edge.selected .react-flow__edge-path {
+          stroke-width: 3 !important;
+          filter: drop-shadow(0 0 5px rgba(129,140,248,0.5));
+        }
+        .react-flow__edge-interaction {
+          stroke: transparent;
+          stroke-width: 14 !important;
+        }
+        .react-flow__edge-textbg {
+          fill: transparent;
+        }
+
+        /* Animated flowing dashes over edges on hover/selected */
+        .react-flow__edge:hover .flow-edge-path,
+        .react-flow__edge.selected .flow-edge-path {
+          stroke-dasharray: 8 6;
+          animation: flowdash 0.6s linear infinite;
+        }
+        @keyframes flowdash {
+          to { stroke-dashoffset: -14; }
+        }
+
+        /* ---- Connection line while dragging ---- */
+        .react-flow__connection-path {
+          stroke: #818cf8;
+          stroke-width: 2.5;
+          stroke-dasharray: 6 4;
+          animation: flowdash 1s linear infinite;
+        }
+
+        /* ---- Background pattern ---- */
+        .react-flow__background {
+          opacity: 0.7;
+          transition: opacity 0.3s ease;
+        }
       `}</style>
 
       {/* Background Decorative Elements */}
@@ -643,6 +694,9 @@ export const FlowBuilderContent = ({ flowData, onBack }: FlowBuilderContentProps
             onReconnectStart={onReconnectStart}
             onReconnectEnd={onReconnectEnd}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            defaultEdgeOptions={defaultEdgeOptions}
+            connectionLineStyle={{ stroke: '#818cf8', strokeWidth: 2.5, strokeDasharray: '6 4' }}
             onDrop={onDrop}
             onDragOver={onDragOver}
             onNodeClick={onNodeClick}

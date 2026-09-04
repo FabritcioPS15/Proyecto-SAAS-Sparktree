@@ -148,7 +148,7 @@ export const Clients = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  
+
   // Filtros
   const [filterChannel, setFilterChannel] = useState('all');
   const [filterAgent, setFilterAgent] = useState('all');
@@ -162,7 +162,7 @@ export const Clients = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
-  
+
   // Modal de Asignar Agente
   const [assignModalUser, setAssignModalUser] = useState<any>(null);
   const [selectedAgentForAssign, setSelectedAgentForAssign] = useState('');
@@ -450,10 +450,10 @@ export const Clients = () => {
           }
         }
         if (!realPhone) realPhone = user.phone_number;
-        
+
         const { prefix, number } = formatPhoneNumber(realPhone);
         const displayNumber = number || realPhone;
-        
+
         return (
           <div className="flex items-center gap-3">
             <div>
@@ -513,7 +513,7 @@ export const Clients = () => {
       render: (_: any, user: any) => {
         const agent = user.assigned_agent || user.assignedAgent;
         const agentName = agent?.name || (user.assigned_to ? 'Agente asignado' : null);
-        
+
         return agentName ? (
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center border border-emerald-500/20 shadow-sm shrink-0">
@@ -626,7 +626,7 @@ export const Clients = () => {
               columns={responsiveColumns}
               data={paginatedUsers}
               onRowClick={() => navigate('/conversations')}
-              onRowSelect={(user) => toggleSelect(user.id, { stopPropagation: () => {} } as any)}
+              onRowSelect={(user) => toggleSelect(user.id, { stopPropagation: () => { } } as any)}
               selectedIds={selectedIds}
               getId={(user) => user.id}
               actions={(user) => [
@@ -758,11 +758,10 @@ export const Clients = () => {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
-                        page === currentPage
-                          ? 'bg-accent-500 text-black'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                      }`}
+                      className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${page === currentPage
+                        ? 'bg-accent-500 text-black'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
                     >
                       {page}
                     </button>
